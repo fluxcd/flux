@@ -62,7 +62,7 @@ If you get this error repeatedly, it's probably a bug. Please log an
 issue describing what you were attempting, and posting logs from the
 daemon if possible:
 
-    https://github.com/weaveworks/flux/issues
+    https://github.com/fluxcd/flux/issues
 
 `,
 	}

@@ -149,7 +149,7 @@ sync:
   state: git
 
 git:
-  # URL of git repo with Kubernetes manifests; e.g. git.url=ssh://git@github.com/weaveworks/flux-get-started
+  # URL of git repo with Kubernetes manifests; e.g. git.url=ssh://git@github.com/fluxcd/flux-get-started
   url: ""
   # Branch of git repo to use for Kubernetes manifests
   branch: "master"

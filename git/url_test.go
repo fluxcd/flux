@@ -8,7 +8,7 @@ import (
 func TestSafeURL(t *testing.T) {
 	const password = "abc123"
 	for _, url := range []string{
-		"git@github.com:weaveworks/flux",
+		"git@github.com:fluxcd/flux",
 		"https://user@example.com:5050/repo.git",
 		"https://user:" + password + "@example.com:5050/repo.git",
 	} {

@@ -12,11 +12,11 @@ var ErrorDeprecated = &fluxerr.Error{
 
 This indicates your client (fluxctl) needs to be updated: please see
 
-    https://github.com/weaveworks/flux/releases
+    https://github.com/fluxcd/flux/releases
 
 If you still have this problem after upgrading, please file an issue at
 
-    https://github.com/weaveworks/flux/issues
+    https://github.com/fluxcd/flux/issues
 
 mentioning what you were attempting to do.
 `,
@@ -44,13 +44,13 @@ func MakeAPINotFound(path string) *fluxerr.Error {
 This indicates that your client (probably fluxctl) is either out of
 date, or faulty. Please see
 
-    https://github.com/weaveworks/flux/releases
+    https://github.com/fluxcd/flux/releases
 
 for releases of fluxctl.
 
 If you still have problems, please file an issue at
 
-    https://github.com/weaveworks/flux/issues
+    https://github.com/fluxcd/flux/issues
 
 mentioning what you were attempting to do, and include this path:
 

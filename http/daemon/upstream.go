@@ -41,7 +41,7 @@ type Upstream struct {
 }
 
 var (
-	ErrEndpointDeprecated = errors.New("Your fluxd version is deprecated - please upgrade, see https://github.com/weaveworks/flux/releases")
+	ErrEndpointDeprecated = errors.New("Your fluxd version is deprecated - please upgrade, see https://github.com/weaveworks/flux-adapter")
 	connectionDuration    = prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
 		Namespace: "flux",
 		Subsystem: "fluxd",

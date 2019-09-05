@@ -13,7 +13,7 @@ func TestChangeEncoding(t *testing.T) {
 	name := ref.Name
 
 	for _, update := range []Change{
-		{Kind: GitChange, Source: GitUpdate{URL: "git@github.com:weaveworks/flux"}},
+		{Kind: GitChange, Source: GitUpdate{URL: "git@github.com:fluxcd/flux"}},
 		{Kind: ImageChange, Source: ImageUpdate{Name: name}},
 	} {
 		bytes, err := json.Marshal(update)
