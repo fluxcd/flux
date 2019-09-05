@@ -8,11 +8,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/weaveworks/flux/api/v10"
-	"github.com/weaveworks/flux/api/v6"
-	"github.com/weaveworks/flux/registry"
-	"github.com/weaveworks/flux/resource"
-	"github.com/weaveworks/flux/update"
+	"github.com/fluxcd/flux/api/v10"
+	"github.com/fluxcd/flux/api/v6"
+	"github.com/fluxcd/flux/registry"
+	"github.com/fluxcd/flux/resource"
+	"github.com/fluxcd/flux/update"
 )
 
 type imageListOpts struct {

@@ -19,8 +19,8 @@ limitations under the License.
 package helm
 
 import (
-	v1alpha2 "github.com/weaveworks/flux/integrations/client/informers/externalversions/helm.integrations.flux.weave.works/v1alpha2"
-	internalinterfaces "github.com/weaveworks/flux/integrations/client/informers/externalversions/internalinterfaces"
+	v1alpha2 "github.com/fluxcd/flux/integrations/client/informers/externalversions/helm.integrations.flux.weave.works/v1alpha2"
+	internalinterfaces "github.com/fluxcd/flux/integrations/client/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to each of this group's versions.

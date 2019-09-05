@@ -1,9 +1,9 @@
 package update
 
 import (
-	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/policy"
-	"github.com/weaveworks/flux/resource"
+	"github.com/fluxcd/flux/image"
+	"github.com/fluxcd/flux/policy"
+	"github.com/fluxcd/flux/resource"
 )
 
 const (

@@ -13,16 +13,16 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/weaveworks/flux/cluster"
-	"github.com/weaveworks/flux/cluster/kubernetes"
-	"github.com/weaveworks/flux/cluster/mock"
-	"github.com/weaveworks/flux/git"
-	"github.com/weaveworks/flux/git/gittest"
-	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/manifests"
-	registryMock "github.com/weaveworks/flux/registry/mock"
-	"github.com/weaveworks/flux/resource"
-	"github.com/weaveworks/flux/update"
+	"github.com/fluxcd/flux/cluster"
+	"github.com/fluxcd/flux/cluster/kubernetes"
+	"github.com/fluxcd/flux/cluster/mock"
+	"github.com/fluxcd/flux/git"
+	"github.com/fluxcd/flux/git/gittest"
+	"github.com/fluxcd/flux/image"
+	"github.com/fluxcd/flux/manifests"
+	registryMock "github.com/fluxcd/flux/registry/mock"
+	"github.com/fluxcd/flux/resource"
+	"github.com/fluxcd/flux/update"
 )
 
 var (

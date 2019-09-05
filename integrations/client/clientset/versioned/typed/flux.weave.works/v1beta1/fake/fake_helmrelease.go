@@ -19,7 +19,7 @@ limitations under the License.
 package fake
 
 import (
-	v1beta1 "github.com/weaveworks/flux/integrations/apis/flux.weave.works/v1beta1"
+	v1beta1 "github.com/fluxcd/flux/integrations/apis/flux.weave.works/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

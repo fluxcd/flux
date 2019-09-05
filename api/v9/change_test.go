@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/weaveworks/flux/image"
+	"github.com/fluxcd/flux/image"
 )
 
 func TestChangeEncoding(t *testing.T) {

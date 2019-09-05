@@ -11,7 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/weaveworks/flux/update"
+	"github.com/fluxcd/flux/update"
 )
 
 func AddCauseFlags(cmd *cobra.Command, opts *update.Cause) {

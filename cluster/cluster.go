@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 
-	"github.com/weaveworks/flux/policy"
-	"github.com/weaveworks/flux/resource"
-	"github.com/weaveworks/flux/ssh"
+	"github.com/fluxcd/flux/policy"
+	"github.com/fluxcd/flux/resource"
+	"github.com/fluxcd/flux/ssh"
 )
 
 // Constants for workload ready status. These are defined here so that

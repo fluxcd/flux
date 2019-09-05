@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/weaveworks/flux/api"
-	"github.com/weaveworks/flux/remote"
+	"github.com/fluxcd/flux/api"
+	"github.com/fluxcd/flux/remote"
 )
 
 func pipes() (io.ReadWriteCloser, io.ReadWriteCloser) {

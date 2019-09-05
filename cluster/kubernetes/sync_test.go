@@ -25,11 +25,11 @@ import (
 	corefake "k8s.io/client-go/kubernetes/fake"
 	k8s_testing "k8s.io/client-go/testing"
 
-	"github.com/weaveworks/flux/cluster"
-	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
-	fhrfake "github.com/weaveworks/flux/integrations/client/clientset/versioned/fake"
-	"github.com/weaveworks/flux/resource"
-	"github.com/weaveworks/flux/sync"
+	"github.com/fluxcd/flux/cluster"
+	kresource "github.com/fluxcd/flux/cluster/kubernetes/resource"
+	fhrfake "github.com/fluxcd/flux/integrations/client/clientset/versioned/fake"
+	"github.com/fluxcd/flux/resource"
+	"github.com/fluxcd/flux/sync"
 )
 
 const (

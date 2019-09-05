@@ -7,8 +7,8 @@ import (
 
 	"github.com/go-kit/kit/log"
 
-	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/resource"
+	"github.com/fluxcd/flux/image"
+	"github.com/fluxcd/flux/resource"
 )
 
 type Automated struct {

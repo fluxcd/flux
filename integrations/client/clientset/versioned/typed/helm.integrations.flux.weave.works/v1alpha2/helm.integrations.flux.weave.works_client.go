@@ -19,8 +19,8 @@ limitations under the License.
 package v1alpha2
 
 import (
-	v1alpha2 "github.com/weaveworks/flux/integrations/apis/helm.integrations.flux.weave.works/v1alpha2"
-	"github.com/weaveworks/flux/integrations/client/clientset/versioned/scheme"
+	v1alpha2 "github.com/fluxcd/flux/integrations/apis/helm.integrations.flux.weave.works/v1alpha2"
+	"github.com/fluxcd/flux/integrations/client/clientset/versioned/scheme"
 	serializer "k8s.io/apimachinery/pkg/runtime/serializer"
 	rest "k8s.io/client-go/rest"
 )

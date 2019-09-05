@@ -8,10 +8,10 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/go-kit/kit/log"
-	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/policy"
-	"github.com/weaveworks/flux/registry"
-	"github.com/weaveworks/flux/resource"
+	"github.com/fluxcd/flux/image"
+	"github.com/fluxcd/flux/policy"
+	"github.com/fluxcd/flux/registry"
+	"github.com/fluxcd/flux/resource"
 )
 
 const (

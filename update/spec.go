@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/weaveworks/flux/resource"
+	"github.com/fluxcd/flux/resource"
 )
 
 const (

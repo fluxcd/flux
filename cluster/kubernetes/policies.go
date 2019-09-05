@@ -3,8 +3,8 @@ package kubernetes
 import (
 	"fmt"
 
-	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
-	"github.com/weaveworks/flux/resource"
+	kresource "github.com/fluxcd/flux/cluster/kubernetes/resource"
+	"github.com/fluxcd/flux/resource"
 )
 
 func (m *manifests) UpdateWorkloadPolicies(def []byte, id resource.ID, update resource.PolicyUpdate) ([]byte, error) {

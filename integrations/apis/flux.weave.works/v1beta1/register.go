@@ -5,7 +5,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	fluxintegrations "github.com/weaveworks/flux/integrations/apis/flux.weave.works"
+	fluxintegrations "github.com/fluxcd/flux/integrations/apis/flux.weave.works"
 )
 
 // SchemeGroupVersion is group version used to register these objects

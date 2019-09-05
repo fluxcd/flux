@@ -5,12 +5,12 @@ import (
 	"io"
 	"net/rpc"
 
-	"github.com/weaveworks/flux/api/v10"
-	"github.com/weaveworks/flux/api/v11"
-	"github.com/weaveworks/flux/api/v6"
-	"github.com/weaveworks/flux/job"
-	"github.com/weaveworks/flux/remote"
-	"github.com/weaveworks/flux/update"
+	"github.com/fluxcd/flux/api/v10"
+	"github.com/fluxcd/flux/api/v11"
+	"github.com/fluxcd/flux/api/v6"
+	"github.com/fluxcd/flux/job"
+	"github.com/fluxcd/flux/remote"
+	"github.com/fluxcd/flux/update"
 )
 
 // RPCClient is the rpc-backed implementation of a server, for

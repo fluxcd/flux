@@ -8,9 +8,9 @@ import (
 
 	"github.com/go-kit/kit/log"
 
-	"github.com/weaveworks/flux/git"
-	fluxmetrics "github.com/weaveworks/flux/metrics"
-	fluxsync "github.com/weaveworks/flux/sync"
+	"github.com/fluxcd/flux/git"
+	fluxmetrics "github.com/fluxcd/flux/metrics"
+	fluxsync "github.com/fluxcd/flux/sync"
 )
 
 type LoopVars struct {

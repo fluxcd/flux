@@ -6,9 +6,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/policy"
-	"github.com/weaveworks/flux/registry/mock"
+	"github.com/fluxcd/flux/image"
+	"github.com/fluxcd/flux/policy"
+	"github.com/fluxcd/flux/registry/mock"
 )
 
 var (

@@ -5,9 +5,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/policy"
-	"github.com/weaveworks/flux/update"
+	"github.com/fluxcd/flux/image"
+	"github.com/fluxcd/flux/policy"
+	"github.com/fluxcd/flux/update"
 )
 
 type justSlice []image.Info

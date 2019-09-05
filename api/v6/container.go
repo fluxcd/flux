@@ -2,10 +2,10 @@ package v6
 
 import (
 	"github.com/pkg/errors"
-	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/policy"
-	"github.com/weaveworks/flux/registry"
-	"github.com/weaveworks/flux/update"
+	"github.com/fluxcd/flux/image"
+	"github.com/fluxcd/flux/policy"
+	"github.com/fluxcd/flux/registry"
+	"github.com/fluxcd/flux/update"
 )
 
 // Container describes an individual container including current image info and

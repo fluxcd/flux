@@ -10,8 +10,8 @@ import (
 	"github.com/go-kit/kit/metrics/prometheus"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 
-	"github.com/weaveworks/flux/image"
-	fluxmetrics "github.com/weaveworks/flux/metrics"
+	"github.com/fluxcd/flux/image"
+	fluxmetrics "github.com/fluxcd/flux/metrics"
 )
 
 const (

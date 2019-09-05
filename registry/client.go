@@ -15,7 +15,7 @@ import (
 	"github.com/docker/distribution/registry/client"
 	"github.com/opencontainers/go-digest"
 
-	"github.com/weaveworks/flux/image"
+	"github.com/fluxcd/flux/image"
 )
 
 type Excluded struct {

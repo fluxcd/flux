@@ -1,8 +1,8 @@
 package sync
 
 import (
-	"github.com/weaveworks/flux/cluster"
-	"github.com/weaveworks/flux/resource"
+	"github.com/fluxcd/flux/cluster"
+	"github.com/fluxcd/flux/resource"
 )
 
 // Syncer has the methods we need to be able to compile and run a sync

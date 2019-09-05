@@ -10,9 +10,9 @@ import (
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
-	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/resource"
+	kresource "github.com/fluxcd/flux/cluster/kubernetes/resource"
+	"github.com/fluxcd/flux/image"
+	"github.com/fluxcd/flux/resource"
 )
 
 // ResourceScopes maps resource definitions (GroupVersionKind) to whether they are namespaced or not

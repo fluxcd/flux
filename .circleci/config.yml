@@ -58,7 +58,7 @@ jobs:
               echo "Not a chart release! Skip chart publish"
             fi
   build:
-    working_directory: /home/circleci/go/src/github.com/weaveworks/flux
+    working_directory: /home/circleci/go/src/github.com/fluxcd/flux
     machine:
       image: ubuntu-1604:201903-01
     environment:

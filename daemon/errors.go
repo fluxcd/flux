@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"sync"
 
-	fluxerr "github.com/weaveworks/flux/errors"
-	"github.com/weaveworks/flux/job"
-	"github.com/weaveworks/flux/resource"
+	fluxerr "github.com/fluxcd/flux/errors"
+	"github.com/fluxcd/flux/job"
+	"github.com/fluxcd/flux/resource"
 )
 
 type SyncErrors struct {

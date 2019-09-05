@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
+	"github.com/fluxcd/flux/cluster/kubernetes/testfiles"
 )
 
 // GPGKey creates a new, temporary GPG home directory and a public/private key

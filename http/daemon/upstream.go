@@ -16,12 +16,12 @@ import (
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 
-	"github.com/weaveworks/flux/api"
-	"github.com/weaveworks/flux/event"
-	transport "github.com/weaveworks/flux/http"
-	fluxclient "github.com/weaveworks/flux/http/client"
-	"github.com/weaveworks/flux/http/websocket"
-	"github.com/weaveworks/flux/remote/rpc"
+	"github.com/fluxcd/flux/api"
+	"github.com/fluxcd/flux/event"
+	transport "github.com/fluxcd/flux/http"
+	fluxclient "github.com/fluxcd/flux/http/client"
+	"github.com/fluxcd/flux/http/websocket"
+	"github.com/fluxcd/flux/remote/rpc"
 )
 
 // Upstream handles communication from the daemon to a service

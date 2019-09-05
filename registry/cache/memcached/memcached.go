@@ -23,7 +23,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/flux/registry/cache"
+	"github.com/fluxcd/flux/registry/cache"
 )
 
 const (

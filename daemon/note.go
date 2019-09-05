@@ -1,8 +1,8 @@
 package daemon
 
 import (
-	"github.com/weaveworks/flux/job"
-	"github.com/weaveworks/flux/update"
+	"github.com/fluxcd/flux/job"
+	"github.com/fluxcd/flux/update"
 )
 
 type note struct {

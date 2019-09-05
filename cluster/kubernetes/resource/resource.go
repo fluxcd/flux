@@ -6,9 +6,9 @@ import (
 	jsonyaml "github.com/ghodss/yaml"
 	"gopkg.in/yaml.v2"
 
-	fluxerr "github.com/weaveworks/flux/errors"
-	"github.com/weaveworks/flux/policy"
-	"github.com/weaveworks/flux/resource"
+	fluxerr "github.com/fluxcd/flux/errors"
+	"github.com/fluxcd/flux/policy"
+	"github.com/fluxcd/flux/resource"
 )
 
 const (

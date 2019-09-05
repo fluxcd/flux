@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"context"
 
-	"github.com/weaveworks/flux/cluster"
-	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/manifests"
-	"github.com/weaveworks/flux/resource"
-	"github.com/weaveworks/flux/ssh"
+	"github.com/fluxcd/flux/cluster"
+	"github.com/fluxcd/flux/image"
+	"github.com/fluxcd/flux/manifests"
+	"github.com/fluxcd/flux/resource"
+	"github.com/fluxcd/flux/ssh"
 )
 
 // Doubles as a cluster.Cluster and cluster.Manifests implementation

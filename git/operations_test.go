@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
+	"github.com/fluxcd/flux/cluster/kubernetes/testfiles"
 )
 
 const (

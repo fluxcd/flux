@@ -11,9 +11,9 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/registry"
-	"github.com/weaveworks/flux/resource"
+	"github.com/fluxcd/flux/image"
+	"github.com/fluxcd/flux/registry"
+	"github.com/fluxcd/flux/resource"
 )
 
 func mergeCredentials(log func(...interface{}) error,

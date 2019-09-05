@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
 
-	"github.com/weaveworks/flux/cluster/kubernetes/resource"
+	"github.com/fluxcd/flux/cluster/kubernetes/resource"
 )
 
 func TestPatchAndApply(t *testing.T) {

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
-	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/resource"
+	kresource "github.com/fluxcd/flux/cluster/kubernetes/resource"
+	"github.com/fluxcd/flux/image"
+	"github.com/fluxcd/flux/resource"
 )
 
 // updateWorkloadContainer takes a YAML document stream (one or more

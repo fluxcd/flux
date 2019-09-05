@@ -11,7 +11,7 @@ import (
 
 	"github.com/shurcooL/vfsgen"
 
-	"github.com/weaveworks/flux/install"
+	"github.com/fluxcd/flux/install"
 )
 
 func main() {

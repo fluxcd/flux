@@ -3,8 +3,8 @@ package resource
 import (
 	"fmt"
 
-	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/resource"
+	"github.com/fluxcd/flux/image"
+	"github.com/fluxcd/flux/resource"
 )
 
 // Types that daemonsets, deployments, and other things have in

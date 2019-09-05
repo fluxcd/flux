@@ -8,7 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corefake "k8s.io/client-go/kubernetes/fake"
 
-	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
+	kresource "github.com/fluxcd/flux/cluster/kubernetes/resource"
 )
 
 var getAndList = metav1.Verbs([]string{"get", "list"})

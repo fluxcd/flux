@@ -10,13 +10,13 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/weaveworks/flux/cluster"
-	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
-	"github.com/weaveworks/flux/image"
-	hr_v1beta1 "github.com/weaveworks/flux/integrations/apis/flux.weave.works/v1beta1"
-	fhr_v1alpha2 "github.com/weaveworks/flux/integrations/apis/helm.integrations.flux.weave.works/v1alpha2"
-	"github.com/weaveworks/flux/policy"
-	"github.com/weaveworks/flux/resource"
+	"github.com/fluxcd/flux/cluster"
+	kresource "github.com/fluxcd/flux/cluster/kubernetes/resource"
+	"github.com/fluxcd/flux/image"
+	hr_v1beta1 "github.com/fluxcd/flux/integrations/apis/flux.weave.works/v1beta1"
+	fhr_v1alpha2 "github.com/fluxcd/flux/integrations/apis/helm.integrations.flux.weave.works/v1alpha2"
+	"github.com/fluxcd/flux/policy"
+	"github.com/fluxcd/flux/resource"
 )
 
 // AntecedentAnnotation is an annotation on a resource indicating that
