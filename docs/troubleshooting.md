@@ -105,6 +105,9 @@ reasons this can happen:
           path: /etc/kubernetes/azure.json
           type: ""
    ```
+   If you encounter [permission errors](https://github.com/Azure/AKS/issues/729), 
+   you can alternatively create a secret `acr-credentials` based on the
+   `azure.json` file and set `registry.acr.secretName=acr-credentials`.
  - Flux excludes images with no suitable manifest (linux amd64) in manifestlist
  - Flux doesn't yet understand image refs that use digests instead of
    tags; see
