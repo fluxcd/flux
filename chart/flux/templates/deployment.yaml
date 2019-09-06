@@ -60,9 +60,14 @@ spec:
           medium: Memory
       {{- if .Values.registry.acr.enabled }}
       - name: acr-credentials
+        {{- if (not .Values.registry.acr.secretName) }}
         hostPath:
           path: "{{ .Values.registry.acr.hostPath }}"
           type: ""
+        {{- else }}
+        secret:
+          secretName: {{ .Values.registry.acr.secretName }}
+        {{- end }}
       {{- end }}
       {{- if .Values.registry.dockercfg.enabled }}
       - name: docker-credentials

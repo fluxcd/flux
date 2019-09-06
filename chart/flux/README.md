@@ -245,6 +245,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `registry.ecr.require`                            | `false`                                              | Refuse to start if the AWS API is not available
 | `registry.acr.enabled`                            | `false`                                              | Mount `azure.json` via HostPath into the Flux Pod, enabling Flux to use AKS's service principal for ACR authentication
 | `registry.acr.hostPath`                           | `/etc/kubernetes/azure.json`                         | Alternative location of `azure.json` on the host
+| `registry.acr.secretName`                         | `None`                                               | Secret to mount instead of a hostPath
 | `registry.dockercfg.enabled`                      | `false`                                              | Mount `config.json` via Secret into the Flux Pod, enabling Flux to use a custom docker config file
 | `registry.dockercfg.secretName`                   | `None`                                               | Kubernetes secret with the docker config.json
 | `registry.dockercfg.configFileName`               | `/dockercfg/config.json`                             | Alternative path/name of the docker config.json
