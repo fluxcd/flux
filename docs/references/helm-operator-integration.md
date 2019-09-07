@@ -104,13 +104,13 @@ Two images specified in a `HelmRelease` as an example:
 metadata:
   annotations:
     # image and tag
-    repository.fluxcd.io/app: values.appImage
-    tag.fluxcd.io/app: values.appTag
+    repository.fluxcd.io/app: appImage
+    tag.fluxcd.io/app: appTag
     filter.tag/app: 'glob: *'
     # nested image with registry and tag
-    registry.fluxcd.io/submarine: values.sub.marinesystem.reg
-    repository.fluxcd.io/submarine: values.sub.marinesystem.img
-    tag.fluxcd.io/submarine: values.sub.marinesystem.tag
+    registry.fluxcd.io/submarine: sub.marinesystem.reg
+    repository.fluxcd.io/submarine: sub.marinesystem.img
+    tag.fluxcd.io/submarine: sub.marinesystem.tag
 
 spec:
   values:
