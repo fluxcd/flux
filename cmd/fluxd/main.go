@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -110,11 +111,12 @@ func main() {
 		kubernetesKubectl = fs.String("kubernetes-kubectl", "", "optional, explicit path to kubectl tool")
 		versionFlag       = fs.Bool("version", false, "get version number")
 		// Git repo & key etc.
-		gitURL       = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:weaveworks/flux-get-started")
+		gitURL       = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:weaveworks/flux-get-started or https://github.com/fluxcd/flux.git . If specifying HTTPS transport, you can add git-user and git-apikey for authentication")
 		gitBranch    = fs.String("git-branch", "master", "branch of git repo to use for Kubernetes manifests")
 		gitPath      = fs.StringSlice("git-path", []string{}, "relative paths within the git repo to locate Kubernetes manifests")
 		gitReadonly  = fs.Bool("git-readonly", false, fmt.Sprintf("use to prevent Flux from pushing changes to git; implies --sync-state=%s", fluxsync.NativeStateMode))
 		gitUser      = fs.String("git-user", "Weave Flux", "username to use as git committer")
+		gitAPIKey    = fs.String("git-apikey", "", `if set, git-apikey will be used to clone repo and push sync tags only using HTTPS protocol`)
 		gitEmail     = fs.String("git-email", "support@weave.works", "email to use as git committer")
 		gitSetAuthor = fs.Bool("git-set-author", false, "if set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.")
 		gitLabel     = fs.String("git-label", "", "label to keep track of sync progress; overrides both --git-sync-tag and --git-notes-ref")
@@ -319,7 +321,7 @@ func main() {
 		}
 	}
 
-	if *sshKeygenDir == "" {
+	if *sshKeygenDir == "" && *gitAPIKey == "" {
 		logger.Log("info", fmt.Sprintf("SSH keygen dir (--ssh-keygen-dir) not provided, so using the deploy key volume (--k8s-secret-volume-mount-path=%s); this may cause problems if the deploy key volume is mounted read-only", *k8sSecretVolumeMountPath))
 		*sshKeygenDir = *k8sSecretVolumeMountPath
 	}
@@ -430,7 +432,7 @@ func main() {
 		}
 		clusterVersion = "kubernetes-" + serverVersion.GitVersion
 
-		if *k8sInCluster {
+		if *k8sInCluster && *gitAPIKey == "" {
 			namespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 			if err != nil {
 				logger.Log("err", err)
@@ -596,12 +598,42 @@ func main() {
 	}
 	checkpoint.CheckForUpdates(product, version, checkpointFlags, updateCheckLogger)
 
+	if *gitAPIKey != "" {
+		parsedGitURL, err := url.Parse(*gitURL)
+
+		if err != nil {
+			logger.Log("err", err)
+			os.Exit(1)
+		}
+
+		if parsedGitURL.Scheme != "https" {
+			logger.Log("err", "git-apikey argument can be used only with HTTPS transport")
+			os.Exit(1)
+		}
+
+		if parsedGitURL.User.Username() != "" {
+			logger.Log("err", "Set git username not in git-url, but use git-user argument instead")
+			os.Exit(1)
+		}
+
+		_, passwordExists := parsedGitURL.User.Password()
+
+		if passwordExists {
+			logger.Log("err", "Set git APIkey not in git-url, but use git-apikey argument instead")
+			os.Exit(1)
+		}
+
+		parsedGitURL.User = url.UserPassword(*gitUser, *gitAPIKey)
+		*gitURL = parsedGitURL.String()
+	}
+
 	gitRemote := git.Remote{URL: *gitURL}
 	gitConfig := git.Config{
 		Paths:       *gitPath,
 		Branch:      *gitBranch,
 		NotesRef:    *gitNotesRef,
 		UserName:    *gitUser,
+		APIKey:      *gitAPIKey,
 		UserEmail:   *gitEmail,
 		SigningKey:  *gitSigningKey,
 		SetAuthor:   *gitSetAuthor,
@@ -621,7 +653,7 @@ func main() {
 	}
 
 	logger.Log(
-		"url", *gitURL,
+		"url", gitRemote.SafeURL(),
 		"user", *gitUser,
 		"email", *gitEmail,
 		"signing-key", *gitSigningKey,
