@@ -18,6 +18,7 @@ type Config struct {
 	Paths       []string // paths within the repo containing files we care about
 	NotesRef    string
 	UserName    string
+	APIKey      string
 	UserEmail   string
 	SigningKey  string
 	SetAuthor   bool
