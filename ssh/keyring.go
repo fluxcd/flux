@@ -11,7 +11,7 @@ type KeyRing interface {
 type sshKeyRing struct{}
 
 // NewNopSSHKeyRing returns a KeyRing that doesn't do anything.
-// It is meant for local development purposes when running fluxd outside a Kubernetes container.
+// It is meant for local development purposes when running fluxd outside a Kubernetes container or authentication to git done via HTTPS
 func NewNopSSHKeyRing() KeyRing {
 	return &sshKeyRing{}
 }
