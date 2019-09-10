@@ -4,7 +4,7 @@ import (
 	"github.com/go-kit/kit/metrics/prometheus"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 
-	fluxmetrics "github.com/weaveworks/flux/metrics"
+	fluxmetrics "github.com/fluxcd/flux/metrics"
 )
 
 var (

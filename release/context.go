@@ -6,11 +6,11 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/flux/cluster"
-	"github.com/weaveworks/flux/manifests"
-	"github.com/weaveworks/flux/registry"
-	"github.com/weaveworks/flux/resource"
-	"github.com/weaveworks/flux/update"
+	"github.com/fluxcd/flux/cluster"
+	"github.com/fluxcd/flux/manifests"
+	"github.com/fluxcd/flux/registry"
+	"github.com/fluxcd/flux/resource"
+	"github.com/fluxcd/flux/update"
 )
 
 type ReleaseContext struct {

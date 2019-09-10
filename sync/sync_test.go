@@ -8,12 +8,12 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/weaveworks/flux/cluster"
-	"github.com/weaveworks/flux/cluster/kubernetes"
-	"github.com/weaveworks/flux/git"
-	"github.com/weaveworks/flux/git/gittest"
-	"github.com/weaveworks/flux/manifests"
-	"github.com/weaveworks/flux/resource"
+	"github.com/fluxcd/flux/cluster"
+	"github.com/fluxcd/flux/cluster/kubernetes"
+	"github.com/fluxcd/flux/git"
+	"github.com/fluxcd/flux/git/gittest"
+	"github.com/fluxcd/flux/manifests"
+	"github.com/fluxcd/flux/resource"
 )
 
 // Test that cluster.Sync gets called with the appropriate things when

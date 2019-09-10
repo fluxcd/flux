@@ -9,8 +9,8 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/registry"
+	"github.com/fluxcd/flux/image"
+	"github.com/fluxcd/flux/registry"
 )
 
 func noopLog(...interface{}) error {

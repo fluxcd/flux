@@ -8,8 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
-	"github.com/weaveworks/flux/resource"
+	"github.com/fluxcd/flux/cluster/kubernetes/testfiles"
+	"github.com/fluxcd/flux/resource"
 )
 
 // for convenience

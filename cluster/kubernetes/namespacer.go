@@ -8,7 +8,7 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/clientcmd"
 
-	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
+	kresource "github.com/fluxcd/flux/cluster/kubernetes/resource"
 )
 
 // The namespace to presume if something doesn't have one, and we

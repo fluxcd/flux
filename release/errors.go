@@ -1,7 +1,7 @@
 package release
 
 import (
-	fluxerr "github.com/weaveworks/flux/errors"
+	fluxerr "github.com/fluxcd/flux/errors"
 )
 
 func MakeReleaseError(err error) *fluxerr.Error {

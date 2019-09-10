@@ -4,9 +4,9 @@ package v10
 import (
 	"context"
 
-	"github.com/weaveworks/flux/api/v6"
-	"github.com/weaveworks/flux/api/v9"
-	"github.com/weaveworks/flux/update"
+	"github.com/fluxcd/flux/api/v6"
+	"github.com/fluxcd/flux/api/v9"
+	"github.com/fluxcd/flux/update"
 )
 
 type ListImagesOptions struct {

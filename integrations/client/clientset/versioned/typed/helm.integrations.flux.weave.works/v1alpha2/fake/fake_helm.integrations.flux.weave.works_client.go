@@ -19,7 +19,7 @@ limitations under the License.
 package fake
 
 import (
-	v1alpha2 "github.com/weaveworks/flux/integrations/client/clientset/versioned/typed/helm.integrations.flux.weave.works/v1alpha2"
+	v1alpha2 "github.com/fluxcd/flux/integrations/client/clientset/versioned/typed/helm.integrations.flux.weave.works/v1alpha2"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )

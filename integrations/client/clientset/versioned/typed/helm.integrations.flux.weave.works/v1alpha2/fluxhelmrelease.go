@@ -21,8 +21,8 @@ package v1alpha2
 import (
 	"time"
 
-	v1alpha2 "github.com/weaveworks/flux/integrations/apis/helm.integrations.flux.weave.works/v1alpha2"
-	scheme "github.com/weaveworks/flux/integrations/client/clientset/versioned/scheme"
+	v1alpha2 "github.com/fluxcd/flux/integrations/apis/helm.integrations.flux.weave.works/v1alpha2"
+	scheme "github.com/fluxcd/flux/integrations/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"

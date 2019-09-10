@@ -1,6 +1,6 @@
 package kubernetes
 
-import kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
+import kresource "github.com/fluxcd/flux/cluster/kubernetes/resource"
 
 type ConstNamespacer string
 

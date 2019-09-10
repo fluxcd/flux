@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/weaveworks/flux/http/client"
+	"github.com/fluxcd/flux/http/client"
 )
 
 func TestToken(t *testing.T) {

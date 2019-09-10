@@ -7,11 +7,11 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
-	fluxerr "github.com/weaveworks/flux/errors"
-	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/policy"
-	"github.com/weaveworks/flux/registry"
-	"github.com/weaveworks/flux/resource"
+	fluxerr "github.com/fluxcd/flux/errors"
+	"github.com/fluxcd/flux/image"
+	"github.com/fluxcd/flux/policy"
+	"github.com/fluxcd/flux/registry"
+	"github.com/fluxcd/flux/resource"
 )
 
 type imageReposMap map[image.CanonicalName]image.RepositoryMetadata

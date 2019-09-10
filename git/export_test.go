@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
+	"github.com/fluxcd/flux/cluster/kubernetes/testfiles"
 )
 
 func TestExportAtRevision(t *testing.T) {

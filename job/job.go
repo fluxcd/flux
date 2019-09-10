@@ -5,7 +5,7 @@ import (
 
 	"github.com/go-kit/kit/log"
 
-	"github.com/weaveworks/flux/update"
+	"github.com/fluxcd/flux/update"
 )
 
 type ID string

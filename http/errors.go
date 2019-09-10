@@ -3,7 +3,7 @@ package http
 import (
 	"errors"
 
-	fluxerr "github.com/weaveworks/flux/errors"
+	fluxerr "github.com/fluxcd/flux/errors"
 )
 
 var ErrorDeprecated = &fluxerr.Error{

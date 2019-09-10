@@ -7,8 +7,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/weaveworks/flux/git"
-	"github.com/weaveworks/flux/update"
+	"github.com/fluxcd/flux/git"
+	"github.com/fluxcd/flux/update"
 )
 
 type syncOpts struct {

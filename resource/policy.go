@@ -3,7 +3,7 @@ package resource
 import (
 	"fmt"
 
-	"github.com/weaveworks/flux/policy"
+	"github.com/fluxcd/flux/policy"
 )
 
 // ChangeForPolicyUpdate evaluates a policy update with respect to a

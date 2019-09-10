@@ -14,18 +14,18 @@ import (
 
 	"github.com/go-kit/kit/log"
 
-	"github.com/weaveworks/flux/cluster"
-	"github.com/weaveworks/flux/cluster/kubernetes"
-	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
-	"github.com/weaveworks/flux/cluster/mock"
-	"github.com/weaveworks/flux/event"
-	"github.com/weaveworks/flux/git"
-	"github.com/weaveworks/flux/git/gittest"
-	"github.com/weaveworks/flux/job"
-	"github.com/weaveworks/flux/manifests"
-	registryMock "github.com/weaveworks/flux/registry/mock"
-	"github.com/weaveworks/flux/resource"
-	fluxsync "github.com/weaveworks/flux/sync"
+	"github.com/fluxcd/flux/cluster"
+	"github.com/fluxcd/flux/cluster/kubernetes"
+	"github.com/fluxcd/flux/cluster/kubernetes/testfiles"
+	"github.com/fluxcd/flux/cluster/mock"
+	"github.com/fluxcd/flux/event"
+	"github.com/fluxcd/flux/git"
+	"github.com/fluxcd/flux/git/gittest"
+	"github.com/fluxcd/flux/job"
+	"github.com/fluxcd/flux/manifests"
+	registryMock "github.com/fluxcd/flux/registry/mock"
+	"github.com/fluxcd/flux/resource"
+	fluxsync "github.com/fluxcd/flux/sync"
 )
 
 const (

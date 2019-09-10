@@ -19,11 +19,11 @@ limitations under the License.
 package fake
 
 import (
-	clientset "github.com/weaveworks/flux/integrations/client/clientset/versioned"
-	fluxv1beta1 "github.com/weaveworks/flux/integrations/client/clientset/versioned/typed/flux.weave.works/v1beta1"
-	fakefluxv1beta1 "github.com/weaveworks/flux/integrations/client/clientset/versioned/typed/flux.weave.works/v1beta1/fake"
-	helmv1alpha2 "github.com/weaveworks/flux/integrations/client/clientset/versioned/typed/helm.integrations.flux.weave.works/v1alpha2"
-	fakehelmv1alpha2 "github.com/weaveworks/flux/integrations/client/clientset/versioned/typed/helm.integrations.flux.weave.works/v1alpha2/fake"
+	clientset "github.com/fluxcd/flux/integrations/client/clientset/versioned"
+	fluxv1beta1 "github.com/fluxcd/flux/integrations/client/clientset/versioned/typed/flux.weave.works/v1beta1"
+	fakefluxv1beta1 "github.com/fluxcd/flux/integrations/client/clientset/versioned/typed/flux.weave.works/v1beta1/fake"
+	helmv1alpha2 "github.com/fluxcd/flux/integrations/client/clientset/versioned/typed/helm.integrations.flux.weave.works/v1alpha2"
+	fakehelmv1alpha2 "github.com/fluxcd/flux/integrations/client/clientset/versioned/typed/helm.integrations.flux.weave.works/v1alpha2/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

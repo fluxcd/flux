@@ -11,9 +11,9 @@ import (
 
 	"context"
 
-	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
-	"github.com/weaveworks/flux/git"
-	"github.com/weaveworks/flux/gpg/gpgtest"
+	"github.com/fluxcd/flux/cluster/kubernetes/testfiles"
+	"github.com/fluxcd/flux/git"
+	"github.com/fluxcd/flux/gpg/gpgtest"
 )
 
 type Note struct {

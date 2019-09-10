@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strings"
 
-	fluxerr "github.com/weaveworks/flux/errors"
+	fluxerr "github.com/fluxcd/flux/errors"
 )
 
 var NoRepoError = &fluxerr.Error{

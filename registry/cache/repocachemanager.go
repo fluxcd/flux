@@ -12,8 +12,8 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/registry"
+	"github.com/fluxcd/flux/image"
+	"github.com/fluxcd/flux/registry"
 )
 
 type imageToUpdate struct {

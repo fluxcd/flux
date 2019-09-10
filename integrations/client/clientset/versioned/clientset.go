@@ -19,8 +19,8 @@ limitations under the License.
 package versioned
 
 import (
-	fluxv1beta1 "github.com/weaveworks/flux/integrations/client/clientset/versioned/typed/flux.weave.works/v1beta1"
-	helmv1alpha2 "github.com/weaveworks/flux/integrations/client/clientset/versioned/typed/helm.integrations.flux.weave.works/v1alpha2"
+	fluxv1beta1 "github.com/fluxcd/flux/integrations/client/clientset/versioned/typed/flux.weave.works/v1beta1"
+	helmv1alpha2 "github.com/fluxcd/flux/integrations/client/clientset/versioned/typed/helm.integrations.flux.weave.works/v1alpha2"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"

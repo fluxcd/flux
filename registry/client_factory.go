@@ -14,8 +14,8 @@ import (
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/go-kit/kit/log"
 
-	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/registry/middleware"
+	"github.com/fluxcd/flux/image"
+	"github.com/fluxcd/flux/registry/middleware"
 )
 
 type RemoteClientFactory struct {

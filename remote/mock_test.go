@@ -3,7 +3,7 @@ package remote
 import (
 	"testing"
 
-	"github.com/weaveworks/flux/api"
+	"github.com/fluxcd/flux/api"
 )
 
 // Just test that the mock does its job.

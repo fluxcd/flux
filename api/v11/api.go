@@ -4,9 +4,9 @@ package v11
 import (
 	"context"
 
-	"github.com/weaveworks/flux/api/v10"
-	"github.com/weaveworks/flux/api/v6"
-	"github.com/weaveworks/flux/resource"
+	"github.com/fluxcd/flux/api/v10"
+	"github.com/fluxcd/flux/api/v6"
+	"github.com/fluxcd/flux/resource"
 )
 
 type ListServicesOptions struct {

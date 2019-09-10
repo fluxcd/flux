@@ -3,7 +3,7 @@ package kubernetes
 import (
 	"fmt"
 
-	fluxerr "github.com/weaveworks/flux/errors"
+	fluxerr "github.com/fluxcd/flux/errors"
 )
 
 func ObjectMissingError(obj string, err error) *fluxerr.Error {

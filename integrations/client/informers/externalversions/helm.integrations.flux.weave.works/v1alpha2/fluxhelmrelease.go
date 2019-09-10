@@ -21,10 +21,10 @@ package v1alpha2
 import (
 	time "time"
 
-	helmintegrationsfluxweaveworksv1alpha2 "github.com/weaveworks/flux/integrations/apis/helm.integrations.flux.weave.works/v1alpha2"
-	versioned "github.com/weaveworks/flux/integrations/client/clientset/versioned"
-	internalinterfaces "github.com/weaveworks/flux/integrations/client/informers/externalversions/internalinterfaces"
-	v1alpha2 "github.com/weaveworks/flux/integrations/client/listers/helm.integrations.flux.weave.works/v1alpha2"
+	helmintegrationsfluxweaveworksv1alpha2 "github.com/fluxcd/flux/integrations/apis/helm.integrations.flux.weave.works/v1alpha2"
+	versioned "github.com/fluxcd/flux/integrations/client/clientset/versioned"
+	internalinterfaces "github.com/fluxcd/flux/integrations/client/informers/externalversions/internalinterfaces"
+	v1alpha2 "github.com/fluxcd/flux/integrations/client/listers/helm.integrations.flux.weave.works/v1alpha2"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"

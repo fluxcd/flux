@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/weaveworks/flux/update"
+	"github.com/fluxcd/flux/update"
 )
 
 var (

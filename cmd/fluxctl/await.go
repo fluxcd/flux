@@ -7,9 +7,9 @@ import (
 	"io"
 	"time"
 
-	"github.com/weaveworks/flux/api"
-	"github.com/weaveworks/flux/job"
-	"github.com/weaveworks/flux/update"
+	"github.com/fluxcd/flux/api"
+	"github.com/fluxcd/flux/job"
+	"github.com/fluxcd/flux/update"
 )
 
 var ErrTimeout = errors.New("timeout")

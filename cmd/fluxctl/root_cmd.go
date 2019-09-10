@@ -12,9 +12,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/weaveworks/flux/api"
-	transport "github.com/weaveworks/flux/http"
-	"github.com/weaveworks/flux/http/client"
+	"github.com/fluxcd/flux/api"
+	transport "github.com/fluxcd/flux/http"
+	"github.com/fluxcd/flux/http/client"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

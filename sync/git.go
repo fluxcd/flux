@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/weaveworks/flux/git"
+	"github.com/fluxcd/flux/git"
 )
 
 // GitTagSyncProvider is the mechanism by which a Git tag is used to keep track of the current point fluxd has synced to.

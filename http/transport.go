@@ -10,7 +10,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 
-	fluxerr "github.com/weaveworks/flux/errors"
+	fluxerr "github.com/fluxcd/flux/errors"
 )
 
 func DeprecateVersions(r *mux.Router, versions ...string) {

@@ -5,8 +5,8 @@ import (
 	"io"
 	"net/rpc"
 
-	"github.com/weaveworks/flux/api/v9"
-	"github.com/weaveworks/flux/remote"
+	"github.com/fluxcd/flux/api/v9"
+	"github.com/fluxcd/flux/remote"
 )
 
 type RPCClientV9 struct {

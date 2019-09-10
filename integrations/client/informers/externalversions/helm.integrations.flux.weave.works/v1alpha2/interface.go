@@ -19,7 +19,7 @@ limitations under the License.
 package v1alpha2
 
 import (
-	internalinterfaces "github.com/weaveworks/flux/integrations/client/informers/externalversions/internalinterfaces"
+	internalinterfaces "github.com/fluxcd/flux/integrations/client/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to all the informers in this group version.

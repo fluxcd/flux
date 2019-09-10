@@ -1,8 +1,8 @@
 package sync
 
 import (
-	"github.com/weaveworks/flux/policy"
-	"github.com/weaveworks/flux/resource"
+	"github.com/fluxcd/flux/policy"
+	"github.com/fluxcd/flux/resource"
 )
 
 type rsc struct {

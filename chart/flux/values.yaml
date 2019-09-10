@@ -218,6 +218,7 @@ registry:
   acr:
     enabled: false
     hostPath: /etc/kubernetes/azure.json
+    secretName: ""
   dockercfg:
     enabled: false
     secretName: ""

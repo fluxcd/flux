@@ -15,8 +15,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	k8sscheme "k8s.io/client-go/kubernetes/scheme"
 
-	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
-	"github.com/weaveworks/flux/resource"
+	kresource "github.com/fluxcd/flux/cluster/kubernetes/resource"
+	"github.com/fluxcd/flux/resource"
 )
 
 func createManifestPatch(originalManifests, modifiedManifests []byte, originalSource, modifiedSource string) ([]byte, error) {

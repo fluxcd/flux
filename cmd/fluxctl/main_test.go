@@ -12,10 +12,10 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/weaveworks/flux/http/client"
+	"github.com/fluxcd/flux/http/client"
 
-	transport "github.com/weaveworks/flux/http"
-	"github.com/weaveworks/flux/job"
+	transport "github.com/fluxcd/flux/http"
+	"github.com/fluxcd/flux/job"
 )
 
 func mockServiceOpts(trip *genericMockRoundTripper) *rootOpts {
