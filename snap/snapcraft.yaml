@@ -60,6 +60,7 @@ plugs:
     read:
     - $HOME/.kube
     - $HOME/.minikube
+    - $HOME/.config/k3d  # hard-coded $XDG_CONFIG_HOME for the common case
 
 apps:
   fluxctl:
