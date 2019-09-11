@@ -259,7 +259,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `memcached.resources`                             | `None`                                               | CPU/memory resource requests/limits for memcached
 | `memcached.securityContext`                       | [See values.yaml](/chart/flux/values.yaml#L192-L195) | Container security context for memcached
 | `helmOperator.create`                             | `false`                                              | If `true`, install the Helm operator
-| `helmOperator.createCRD`                          | `true`                                               | Create the `v1beta1` and `v1alpha2` Flux CRDs. Dependent on `helmOperator.create=true`
+| `helmOperator.createCRD`                          | `false`                                              | Create the `v1beta1` and `v1alpha2` Flux CRDs. Dependent on `helmOperator.create=true`
 | `helmOperator.repository`                         | `docker.io/fluxcd/helm-operator`                     | Helm operator image repository
 | `helmOperator.tag`                                | `<VERSION>`                                          | Helm operator image tag
 | `helmOperator.replicaCount`                       | `1`                                                  | Number of helm operator pods to deploy, more than one is not desirable.
