@@ -44,7 +44,7 @@ fluxctl install \
 --git-user=${GHUSER} \
 --git-email=${GHUSER}@users.noreply.github.com \
 --git-url=git@github.com:${GHUSER}/flux-get-started \
---git-path=namespaces,workloads \
+--git-paths=namespaces,workloads \
 --namespace=flux | kubectl apply -f -
 ```
 
@@ -65,7 +65,7 @@ the SSH public key by installing [`fluxctl`](../references/fluxctl.md) and
 running:
 
 ```sh
-fluxctl identity --k8s-fwd-ns flux
+fluxctl --k8s-fwd-ns=flux --k8s-fwd-labels=name=flux identity
 ```
 
 In order to sync your cluster state with git you need to copy the
@@ -102,7 +102,7 @@ By default, Flux git pull frequency is set to 5 minutes.
 You can tell Flux to sync the changes immediately with:
 
 ```sh
-fluxctl sync --k8s-fwd-ns flux
+fluxctl sync --k8s-fwd-ns=flux --k8s-fwd-labels=name=flux
 ```
 
 ## Confirm the change landed
