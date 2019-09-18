@@ -74,6 +74,7 @@ container images and config changes are propagated to the cluster.
 - [VSHN](https://vshn.ch)
 - [Walmart Chile](https://www.walmartchile.cl)
 - [Weave Cloud](https://cloud.weave.works)
+- [Working Group Two](https://wgtwo.com)
 - [Yusofleet](https://yusofleet.com)
 
 If you too are using Flux in production; please submit a PR to add your organization to the list!
