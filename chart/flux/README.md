@@ -258,6 +258,8 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `memcached.repository`                            | `memcached`                                          | Image repository
 | `memcached.resources`                             | `None`                                               | CPU/memory resource requests/limits for memcached
 | `memcached.securityContext`                       | [See values.yaml](/chart/flux/values.yaml#L192-L195) | Container security context for memcached
+| `memcached.nodeSelector`                          | `{}`                                                 | Node Selector properties for the memcached deployment
+| `memcached.tolerations`                           | `[]`                                                 | Tolerations properties for the memcached deployment
 | `helmOperator.create`                             | `false`                                              | If `true`, install the Helm operator
 | `helmOperator.createCRD`                          | `false`                                              | Create the `v1beta1` and `v1alpha2` Flux CRDs. Dependent on `helmOperator.create=true`
 | `helmOperator.repository`                         | `docker.io/fluxcd/helm-operator`                     | Helm operator image repository
