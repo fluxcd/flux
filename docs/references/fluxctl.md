@@ -47,6 +47,20 @@ cd fluxctl-bin
 makepkg -si
 ```
 
+### Windows
+
+#### Chocolatey
+
+[Chocolatey](https://chocolatey.org/) is a third party package manager for Windows.
+
+If you haven't already installed chocolatey you will [need to do this first[](https://chocolatey.org/install).
+
+fluxctl can then be installed from the [public package repository](https://chocolatey.org/packages/fluxctl):
+
+```powershell
+choco install fluxctl
+```
+
 ### Binary releases
 
 With every release of Flux, we release binaries of `fluxctl` for Mac, Linux
