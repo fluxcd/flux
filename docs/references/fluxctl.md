@@ -559,45 +559,47 @@ retrieves from the registry.
 
 Commit customization
 
-    1. Commit message
+```text
+1. Commit message
 
-       fluxctl --message="Message providing more context for the action" .....
+    fluxctl --message="Message providing more context for the action" .....
 
-    2. Committer
+2. Committer
 
-        Committer information can be overriden with the appropriate fluxd flags:
+    Committer information can be overriden with the appropriate fluxd flags:
 
-        --git-user
-        --git-email
+    --git-user
+    --git-email
 
-        See [docs/features/daemon.md] for more information.
+    See [docs/features/daemon.md] for more information.
 
-    3. Commit author
+3. Commit author
 
-        The default for the author is the committer information, which can be overriden,
-        in the following manner:
+    The default for the author is the committer information, which can be overriden,
+    in the following manner:
 
-        a) Default override uses user's git configuration, ie user.name
-           and user.email (.gitconfig) to set the commit author.
-           If the user has neither user.name nor for
-           user.email set up, the committer information will be used. If only one
-           is set up, that will be used.
+    a) Default override uses user's git configuration, ie user.name
+        and user.email (.gitconfig) to set the commit author.
+        If the user has neither user.name nor for
+        user.email set up, the committer information will be used. If only one
+        is set up, that will be used.
 
-        b) This can be further overriden by the use of the fluxctl --user flag.
+    b) This can be further overriden by the use of the fluxctl --user flag.
 
-        Examples
+    Examples
 
-        a) fluxctl --user="Jane Doe <jane@doe.com>" ......
-            This will always succeed as git expects a new author in the format
-            "some_string <some_other_string>".
+    a) fluxctl --user="Jane Doe <jane@doe.com>" ......
+        This will always succeed as git expects a new author in the format
+        "some_string <some_other_string>".
 
-        b) fluxctl --user="Jane Doe" .......
-            This form will succeed if there is already a repo commit, done by
-            Jane Doe.
+    b) fluxctl --user="Jane Doe" .......
+        This form will succeed if there is already a repo commit, done by
+        Jane Doe.
 
-        c) fluxctl --user="jane@doe.com" .......
-            This form will succeed if there is already a repo commit, done by
-            jane@doe.com.
+    c) fluxctl --user="jane@doe.com" .......
+        This form will succeed if there is already a repo commit, done by
+        jane@doe.com.
+```
 
 ### Errors due to author customization
 
@@ -616,7 +618,7 @@ Automation and image tag filtering can also be managed using annotations
 
 Automation can be enabled with `fluxcd.io/automated: "true"`. Image
 filtering annotations take the form
-`fluxcd.io/tag.<container-name>: <filter-type>:<filter-value>` or 
+`fluxcd.io/tag.<container-name>: <filter-type>:<filter-value>` or
 `filter.fluxcd.io/<container-name>: <filter-type>:<filter-value>`. Values of
 `filter-type` can be [`glob`](#glob), [`semver`](#semver), and
 [`regexp`](#regexp). Filter values use the same syntax as when the filter is
