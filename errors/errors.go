@@ -86,7 +86,7 @@ We don't have a specific help message for the error above.
 
 It would help us remedy this if you log an issue at
 
-    https://github.com/weaveworks/flux/issues
+    https://github.com/fluxcd/flux/issues
 
 saying what you were doing when you saw this, and quoting the message
 at the top.

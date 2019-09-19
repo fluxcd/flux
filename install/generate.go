@@ -35,7 +35,7 @@ func main() {
 		}
 	case "deploy":
 		params := install.TemplateParameters{
-			GitURL:    "git@github.com:weaveworks/flux-get-started",
+			GitURL:    "git@github.com:fluxcd/flux-get-started",
 			GitBranch: "master",
 		}
 		manifests, err := install.FillInTemplates(params)

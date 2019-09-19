@@ -8,7 +8,7 @@ import (
 // References:
 //  - https://github.com/bzon/ecr-k8s-secret-creator
 //  - https://github.com/kubernetes/kubernetes/blob/master/pkg/credentialprovider/aws/aws_credentials.go
-//  - https://github.com/weaveworks/flux/pull/1455
+//  - https://github.com/fluxcd/flux/pull/1455
 
 import (
 	"strings"

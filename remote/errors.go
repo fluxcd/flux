@@ -61,7 +61,7 @@ the following kinds of pod controller: Deployments, DaemonSets, StatefulSets
 and CronJobs. When new kinds are added to Kubernetes, we try to support them as
 quickly as possible - check here to see if a new version of Flux is available:
 
-	https://github.com/weaveworks/flux/releases
+	https://github.com/fluxcd/flux/releases
 
 Releasing by Service is not supported - if you're using an old version of
 fluxctl that accepts the '--service' argument you will need to get a new one

@@ -61,7 +61,7 @@ spec:
       containers:
       - name: flux
         # There are no ":latest" images for flux. Find the most recent
-        # release or image version at https://hub.docker.com/r/weaveworks/flux/tags
+        # release or image version at https://hub.docker.com/r/fluxcd/flux/tags
         # and replace the tag here.
         image: docker.io/fluxcd/flux:1.14.2
         imagePullPolicy: IfNotPresent
@@ -130,7 +130,7 @@ spec:
         - --ssh-keygen-dir=/var/fluxd/keygen
 
         # Replace the following URL to change the Git repository used by Flux.
-        - --git-url=git@github.com:weaveworks/flux-get-started
+        - --git-url=git@github.com:fluxcd/flux-get-started
         - --git-branch=master
         # include this if you want to restrict the manifests considered by flux
         # to those under the following relative paths in the git repository

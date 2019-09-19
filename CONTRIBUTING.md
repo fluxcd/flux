@@ -10,7 +10,7 @@ We gratefully welcome improvements to issues and documentation as well as to cod
 ## Working on issues
 
 If you like Flux and want to get involved in the project, a great way to get started
-is reviewing our [blocked-needs-validation](https://github.com/weaveworks/flux/issues?q=is%3Aissue+is%3Aopen+label%3Ablocked-needs-validation) issues.
+is reviewing our [blocked-needs-validation](https://github.com/fluxcd/flux/issues?q=is%3Aissue+is%3Aopen+label%3Ablocked-needs-validation) issues.
 
 The idea here is that new issues are confirmed, which might require asking
 for more information, testing with a fresh Flux environment. Once confirmed,
@@ -52,8 +52,8 @@ meeting](https://docs.google.com/document/d/1l_M0om0qUEN_NNiGgpqJ2tvsF2iioHkaARD
 - If you want to contribute as a developer, continue reading this document for further instructions
 - If you are a new contributor, the following two issue labels might be
   interesting to you:
-  - [size/small](https://github.com/weaveworks/flux/issues?q=is%3Aissue+is%3Aopen+label%3Asize%2Fsmall)
-  - [help wanted](https://github.com/weaveworks/flux/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)
+  - [size/small](https://github.com/fluxcd/flux/issues?q=is%3Aissue+is%3Aopen+label%3Asize%2Fsmall)
+  - [help wanted](https://github.com/fluxcd/flux/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)
 - If you have questions, concerns, get stuck or need a hand, let us know
   on the Slack channel. We are happy to help and look forward to having
   you part of the team. No matter in which capacity.

@@ -52,7 +52,7 @@ If you have never used Helm, you first need to
   > production.
 
 Now you can take care of the actual installation. First add the Flux
-repository of Weaveworks:
+chart repository:
 
 ```sh
 helm repo add fluxcd https://charts.fluxcd.io
