@@ -77,7 +77,7 @@ func splitConfigFilesAndRawManifestPaths(baseDir string, paths []string) ([]*Con
 		cf, err := NewConfigFile(configFilePath, workingDirPath)
 		if err != nil {
 			relConfigFilePath, relErr := filepath.Rel(baseDir, configFilePath)
-			if err != nil {
+			if relErr != nil {
 				return nil, nil, relErr
 			}
 			return nil, nil, fmt.Errorf("cannot parse config file %q: %s", relConfigFilePath, err)
