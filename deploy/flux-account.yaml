@@ -34,4 +34,4 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: flux
-    namespace: default
+    namespace: flux
