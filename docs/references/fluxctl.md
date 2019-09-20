@@ -557,54 +557,56 @@ retrieves from the registry.
       --user    string      override the user reported as initiating the update
 ```
 
-Commit customization
+### Commit customization
 
-```text
 1. Commit message
 
-    fluxctl --message="Message providing more context for the action" .....
+   ```console
+   fluxctl --message="Message providing more context for the action" .....
+   ```
 
-2. Committer
+1. Committer
 
     Committer information can be overriden with the appropriate fluxd flags:
 
+    ```console
     --git-user
     --git-email
+    ```
 
-    See [docs/features/daemon.md] for more information.
+    See [daemon.md](daemon.md) for more information.
 
-3. Commit author
+1. Commit author
 
     The default for the author is the committer information, which can be overriden,
     in the following manner:
 
-    a) Default override uses user's git configuration, ie user.name
-        and user.email (.gitconfig) to set the commit author.
+    a) Default override uses user's git configuration, ie `user.name`
+        and `user.email` (.gitconfig) to set the commit author.
         If the user has neither user.name nor for
         user.email set up, the committer information will be used. If only one
         is set up, that will be used.
 
-    b) This can be further overriden by the use of the fluxctl --user flag.
+    b) This can be further overriden by the use of the `fluxctl --user` flag.
 
-    Examples
+#### Examples
 
-    a) fluxctl --user="Jane Doe <jane@doe.com>" ......
-        This will always succeed as git expects a new author in the format
-        "some_string <some_other_string>".
+1. `fluxctl --user="Jane Doe <jane@doe.com>" ......`  
+   This will always succeed as git expects a new author in the format
+   "some_string <some_other_string>".
 
-    b) fluxctl --user="Jane Doe" .......
-        This form will succeed if there is already a repo commit, done by
-        Jane Doe.
+1. `fluxctl --user="Jane Doe" .......`  
+   This form will succeed if there is already a repo commit, done by
+   Jane Doe.
 
-    c) fluxctl --user="jane@doe.com" .......
-        This form will succeed if there is already a repo commit, done by
-        jane@doe.com.
-```
+1. `fluxctl --user="jane@doe.com" .......`  
+   This form will succeed if there is already a repo commit, done by
+   jane@doe.com.
 
 ### Errors due to author customization
 
 In case of no prior commit by the specified author, an error will be reported
-for b) and c):
+for 2) and 3):
 
 ```sh
 git commit: fatal: --author 'unknown' is not 'Name <email>' and matches
