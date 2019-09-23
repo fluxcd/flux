@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/fluxcd/flux/install"
+	"github.com/fluxcd/flux/pkg/install"
 )
 
 type installOpts install.TemplateParameters

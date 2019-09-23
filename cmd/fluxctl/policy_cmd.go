@@ -7,9 +7,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/fluxcd/flux/policy"
-	"github.com/fluxcd/flux/resource"
-	"github.com/fluxcd/flux/update"
+	"github.com/fluxcd/flux/pkg/policy"
+	"github.com/fluxcd/flux/pkg/resource"
+	"github.com/fluxcd/flux/pkg/update"
 )
 
 type workloadPolicyOpts struct {

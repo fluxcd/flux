@@ -113,14 +113,14 @@ $(GOBIN)/fluxd: $(FLUXD_DEPS)
 integration-test: all
 	test/bin/test-flux
 
-generate-deploy: install/generated_templates.gogen.go
-	cd deploy && go run ../install/generate.go deploy
+generate-deploy: pkg/install/generated_templates.gogen.go
+	cd deploy && go run ../pkg/install/generate.go deploy
 
-install/generated_templates.gogen.go: install/templates/*
-	cd install && go run generate.go embedded-templates
+pkg/install/generated_templates.gogen.go: pkg/install/templates/*
+	cd pkg/install && go run generate.go embedded-templates
 
-check-generated: generate-deploy install/generated_templates.gogen.go
-	git diff --exit-code -- integrations/apis integrations/client install/generated_templates.gogen.go
+check-generated: generate-deploy pkg/install/generated_templates.gogen.go
+	git diff --exit-code -- integrations/apis integrations/client pkg/install/generated_templates.gogen.go
 
 build-docs:
 	@cd docs && docker build -t flux-docs .

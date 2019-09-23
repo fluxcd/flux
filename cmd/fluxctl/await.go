@@ -7,9 +7,9 @@ import (
 	"io"
 	"time"
 
-	"github.com/fluxcd/flux/api"
-	"github.com/fluxcd/flux/job"
-	"github.com/fluxcd/flux/update"
+	"github.com/fluxcd/flux/pkg/api"
+	"github.com/fluxcd/flux/pkg/job"
+	"github.com/fluxcd/flux/pkg/update"
 )
 
 var ErrTimeout = errors.New("timeout")

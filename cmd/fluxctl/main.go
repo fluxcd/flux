@@ -5,7 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	fluxerr "github.com/fluxcd/flux/errors"
+	fluxerr "github.com/fluxcd/flux/pkg/errors"
 )
 
 func run(args []string) int {

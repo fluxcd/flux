@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/fluxcd/flux/update"
+	"github.com/fluxcd/flux/pkg/update"
 )
 
 type workloadAutomateOpts struct {
