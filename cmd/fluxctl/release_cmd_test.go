@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/fluxcd/flux/resource"
-	"github.com/fluxcd/flux/update"
+	"github.com/fluxcd/flux/pkg/resource"
+	"github.com/fluxcd/flux/pkg/update"
 )
 
 func TestReleaseCommand_CLIConversion(t *testing.T) {

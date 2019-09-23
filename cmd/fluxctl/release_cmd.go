@@ -8,12 +8,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/fluxcd/flux/api/v11"
-	"github.com/fluxcd/flux/api/v6"
-	"github.com/fluxcd/flux/cluster"
-	"github.com/fluxcd/flux/job"
-	"github.com/fluxcd/flux/resource"
-	"github.com/fluxcd/flux/update"
+	"github.com/fluxcd/flux/pkg/api/v11"
+	"github.com/fluxcd/flux/pkg/api/v6"
+	"github.com/fluxcd/flux/pkg/cluster"
+	"github.com/fluxcd/flux/pkg/job"
+	"github.com/fluxcd/flux/pkg/resource"
+	"github.com/fluxcd/flux/pkg/update"
 )
 
 type workloadReleaseOpts struct {

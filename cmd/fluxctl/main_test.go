@@ -11,11 +11,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fluxcd/flux/pkg/http/client"
 	"github.com/gorilla/mux"
-	"github.com/fluxcd/flux/http/client"
 
-	transport "github.com/fluxcd/flux/http"
-	"github.com/fluxcd/flux/job"
+	transport "github.com/fluxcd/flux/pkg/http"
+	"github.com/fluxcd/flux/pkg/job"
 )
 
 func mockServiceOpts(trip *genericMockRoundTripper) *rootOpts {
@@ -24,8 +24,8 @@ func mockServiceOpts(trip *genericMockRoundTripper) *rootOpts {
 	}
 	mockAPI := client.New(&c, transport.NewAPIRouter(), "", "")
 	return &rootOpts{
-		API: mockAPI,
-		Timeout: 10*time.Second,
+		API:     mockAPI,
+		Timeout: 10 * time.Second,
 	}
 }
 
