@@ -13,7 +13,13 @@ as a plain value in your workload.
 > to pass the values to the Flux container, e.g. `$(GIT_AUTHKEY)`.
 > [Read more about this Kubernetes feature](https://kubernetes.io/docs/tasks/inject-data-application/define-environment-variable-container/#using-environment-variables-inside-of-your-config).
 
-1. create a Kubernetes secret with two environment variables and their
+1. Create a personal access token to be used as the `GIT_AUTHKEY`:
+
+   - [GitHub](https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line)
+   - [GitLab](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html#creating-a-personal-access-token)
+   - [BitBucket](https://confluence.atlassian.com/bitbucketserver/personal-access-tokens-939515499.html)
+
+1. Create a Kubernetes secret with two environment variables and their
    respective values (replace `<username>` and `<token/password>`):
 
    ```sh
@@ -33,7 +39,7 @@ as a plain value in your workload.
      ...
    ```
 
-1. mount the Kubernetes secret as environment variables using `envFrom`
+1. Mount the Kubernetes secret as environment variables using `envFrom`
    and use them in your `--git-url` argument:
 
    ```yaml
@@ -49,6 +55,7 @@ as a plain value in your workload.
        - secretRef:
            name: flux-git-auth
        args:
-       - --git-url=https://$(GIT_AUTHUSER):$(GIT_AUTHKEY)@<USER>/flux-get-started.git
+       # Replace `github.com/...` with your git repository 
+       - --git-url=https://$(GIT_AUTHUSER):$(GIT_AUTHKEY)@github.com/fluxcd/flux-get-started.git
        ...
    ```
