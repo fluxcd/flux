@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -319,7 +320,13 @@ func main() {
 		}
 	}
 
-	if *sshKeygenDir == "" {
+	// Used to determine if we need to generate a SSH key and setup a keyring
+	var httpGitURL bool
+	if pURL, err := url.Parse(*gitURL); err == nil {
+		httpGitURL = pURL.Scheme == "http" || pURL.Scheme == "https"
+	}
+
+	if *sshKeygenDir == "" && !httpGitURL {
 		logger.Log("info", fmt.Sprintf("SSH keygen dir (--ssh-keygen-dir) not provided, so using the deploy key volume (--k8s-secret-volume-mount-path=%s); this may cause problems if the deploy key volume is mounted read-only", *k8sSecretVolumeMountPath))
 		*sshKeygenDir = *k8sSecretVolumeMountPath
 	}
@@ -430,7 +437,7 @@ func main() {
 		}
 		clusterVersion = "kubernetes-" + serverVersion.GitVersion
 
-		if *k8sInCluster {
+		if *k8sInCluster && !httpGitURL {
 			namespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 			if err != nil {
 				logger.Log("err", err)
@@ -621,7 +628,7 @@ func main() {
 	}
 
 	logger.Log(
-		"url", *gitURL,
+		"url", gitRemote.SafeURL(),
 		"user", *gitUser,
 		"email", *gitEmail,
 		"signing-key", *gitSigningKey,

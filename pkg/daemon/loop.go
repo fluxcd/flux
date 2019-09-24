@@ -116,14 +116,14 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 			cancel()
 
 			if err != nil {
-				logger.Log("url", d.Repo.Origin().URL, "err", err)
+				logger.Log("url", d.Repo.Origin().SafeURL(), "err", err)
 				continue
 			}
 			if invalidCommit.Revision != "" {
 				logger.Log("err", "found invalid GPG signature for commit", "revision", invalidCommit.Revision, "key", invalidCommit.Signature.Key)
 			}
 
-			logger.Log("event", "refreshed", "url", d.Repo.Origin().URL, "branch", d.GitConfig.Branch, "HEAD", newSyncHead)
+			logger.Log("event", "refreshed", "url", d.Repo.Origin().SafeURL(), "branch", d.GitConfig.Branch, "HEAD", newSyncHead)
 			if newSyncHead != syncHead {
 				syncHead = newSyncHead
 				d.AskForSync()
