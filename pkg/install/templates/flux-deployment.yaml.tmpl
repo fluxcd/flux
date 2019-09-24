@@ -115,6 +115,13 @@ spec:
         #   mountPath: /root/gpg-import
         #   readOnly: true
 
+        # Include this if you want to supply HTTP basic auth credentials for git
+        # via the `GIT_AUTHUSER` and `GIT_AUTHKEY` environment variables using a
+        # secret.
+        # envFrom:
+        # - secretRef:
+        #     name: flux-git-auth
+
         args:
 
         # If you deployed memcached in a different namespace to flux,
@@ -131,10 +138,12 @@ spec:
         - --ssh-keygen-dir=/var/fluxd/keygen
 
         # Replace the following URL to change the Git repository used by Flux.
+        # HTTP basic auth credentials can be supplied using environment variables:
+        # https://$(GIT_AUTHUSER):$(GIT_AUTHKEY)@github.com/user/repository.git
         - --git-url={{ .GitURL }}
         - --git-branch={{ .GitBranch }}{{ if .GitPaths }}
         - --git-path={{ StringsJoin .GitPaths "," }}{{ else }}
-        # include this if you want to restrict the manifests considered by flux
+        # Include this if you want to restrict the manifests considered by flux
         # to those under the following relative paths in the git repository
         # - --git-path=subdir1,subdir2{{ end }}{{ if .GitLabel }}
         - --git-label={{ .GitLabel }}{{ end }}{{ if .GitUser }}
