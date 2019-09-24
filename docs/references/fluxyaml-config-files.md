@@ -194,7 +194,7 @@ harder to construct. To improve the situation, Flux provides a different configu
 [YAML merge patch file](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-api-machinery/strategic-merge-patch.md)
 and implicitly apply them to the resources printed by the `generators`.
 
-Here is an example, allowing to deploy a [Helm chart without a Tiller installation](https://jenkins-x.io/news/helm-without-tiller/)
+Here is an example, allowing to deploy a [Helm chart without a Tiller installation](https://medium.com/@jeroen.rosenberg/using-helm-charts-without-tiller-f1588bc1f0c4)
 
 ```yaml
 version: 1
