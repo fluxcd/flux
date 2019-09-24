@@ -217,7 +217,7 @@ earlier.
 
 ```yaml
 version: 1
-commandUpdated:
+patchUpdated:
   generators:
     - command: helm template ../charts/mychart -f overrides.yaml
   patchFile: flux-patch.yaml
