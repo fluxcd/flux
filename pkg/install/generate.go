@@ -40,6 +40,7 @@ func main() {
 		params := install.TemplateParameters{
 			GitURL:    "git@github.com:fluxcd/flux-get-started",
 			GitBranch: "master",
+			Namespace: "flux",
 		}
 		manifests, err := install.FillInTemplates(params)
 		if err != nil {

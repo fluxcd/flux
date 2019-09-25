@@ -1,4 +1,5 @@
 resources:
+  - flux-ns.yaml
   - memcache-svc.yaml
   - memcache-dep.yaml
   - flux-account.yaml

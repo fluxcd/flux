@@ -24,28 +24,14 @@ First you'll need a git repository to store your cluster desired state.
 In our example we are going to use [`fluxcd/flux-get-started`](https://github.com/fluxcd/flux-get-started).
 If you want to use that too, be sure to create a fork of it on GitHub.
 
-Create a directory and add the `flux` namespace definition to it:
-
-```sh
-mkdir fluxcd
-
-cat > fluxcd/namespace.yaml <<EOF
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: flux
-EOF
-```
-
-Create a kustomization file and use the Flux deploy YAMLs as base:
+Create a directory, and add a `kustomization.yaml` file that uses the
+Flux deploy YAMLs as a base:
 
 ```sh
 cat > fluxcd/kustomization.yaml <<EOF
 namespace: flux
-resources:
-  - namespace.yaml
 bases:
- - github.com/fluxcd/flux//deploy
+  - github.com/fluxcd/flux//deploy
 patchesStrategicMerge:
   - patch.yaml
 EOF
@@ -87,6 +73,49 @@ EOF
 We set `--git-path=namespaces,workloads` to exclude Helm manifests.
 If you want to get started with Helm, please refer to the
 ["Get started with Flux using Helm"](get-started-helm.md) tutorial.
+
+### Overwriting the default namespace
+
+Overwriting the default (`flux`) namespace is possible by defining
+your own namespace resource and a patch to remove the default from
+the base.
+
+Create your own namespace definition:
+
+```sh
+cat > fluxcd/namespace.yaml <<EOF
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: <namespace>
+EOF
+```
+
+Create a patch to remove the default namespace from the base:
+
+```sh
+cat > fluxcd/patch-default-ns.yaml <<EOF
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: flux
+$patch: delete
+EOF
+```
+
+Adapt your `fluxcd/kustomization.yaml` to include your own namespace
+resource, patch, and change the namespace:
+
+```yaml
+namespace: <namespace>
+resources:
+  - namespace.yaml
+bases:
+  - github.com/fluxcd/flux//deploy
+patchesStrategicMerge:
+  - patch-default-ns.yaml
+  - patch.yaml
+```
 
 ## Install Flux with Kustomize
 
