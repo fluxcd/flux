@@ -90,6 +90,38 @@ $ helm install --name flux \
 fluxcd/flux
 ```
 
+#### Flux with git over HTTPS
+
+By setting the `env.secretName`, all key/value pairs in this secret will
+be defined in the Flux container as environment variables. This can be
+utilized in combination with Kubernetes feature of [using environment
+variables inside of your config](https://kubernetes.io/docs/tasks/inject-data-application/define-environment-variable-container/#using-environment-variables-inside-of-your-config)
+to securely provide the HTTPS credentials which then can be used in the
+`git.url`.
+
+1. Create a personal access token to be used as the `GIT_AUTHKEY`:
+
+   - [GitHub](https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line)
+   - [GitLab](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html#creating-a-personal-access-token)
+   - [BitBucket](https://confluence.atlassian.com/bitbucketserver/personal-access-tokens-939515499.html)
+   
+1. Create a secret with your `GIT_AUTHUSER` (the username the token belongs
+   to) and the `GIT_AUTHKEY` you created in the first step:
+
+   ```sh
+   kubectl create secret generic flux-git-auth --from-literal=GIT_AUTHUSER=<username> --from-literal=GIT_AUTHKEY=<token>
+   ```
+
+1. Install Flux:
+
+   ```sh
+   helm install --name flux \
+   --set git.url='https://$(GIT_AUTHUSER):$(GIT_AUTHKEY)@github.com:fluxcd/flux-get-started.git' \
+   --set env.secretName=flux-git-auth \
+   --namespace flux \
+   fluxcd/flux
+   ```
+
 #### To install Flux with a private git host:
 
 When using a private git host, setting the `ssh.known_hosts` variable
@@ -203,6 +235,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `dnsConfig`                                       | ``                                                   | Pod DNS config
 | `token`                                           | `None`                                               | Weave Cloud service token
 | `extraEnvs`                                       | `[]`                                                 | Extra environment variables for the Flux pod(s)
+| `env.secretName`                                  | ``                                                   | Name of the secret that contains environment variables which should be defined in the Flux container (using `envFrom`)
 | `rbac.create`                                     | `true`                                               | If `true`, create and use RBAC resources
 | `rbac.pspEnabled`                                 | `false`                                              | If `true`, create and use a restricted pod security policy for Flux pod(s)
 | `serviceAccount.create`                           | `true`                                               | If `true`, create a new service account
