@@ -86,6 +86,16 @@ spec:
           name: {{ .Values.gpgKeys.configMapName }}
           defaultMode: 0400
       {{- end }}
+            {{- if and .Values.config.file .Values.config.asConfigMap }}
+      - name: flux-config-volume
+        configMap:
+          name: {{ template "flux.configName" . }}
+      {{- end }}
+      {{- if and .Values.config.file (not .Values.config.asConfigMap) }}
+      - name: flux-config-volume
+        secret:
+          secretName: {{ template "flux.configName" . }}
+      {{- end }}
       {{- if .Values.extraVolumes }}
 {{ toYaml .Values.extraVolumes | indent 6 }}
       {{- end }}
@@ -159,6 +169,10 @@ spec:
             mountPath: /root/gpg-import/public
             readOnly: true
           {{- end }}
+          {{- if .Values.config.file }}
+          - name: flux-config-volume
+            mountPath: /etc/fluxd
+          {{- end }}          
           {{- if .Values.extraVolumeMounts }}
 {{ toYaml .Values.extraVolumeMounts | indent 10 }}
           {{- end }}

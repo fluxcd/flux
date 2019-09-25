@@ -57,13 +57,19 @@ spec:
       #   secret:
       #     secretName: flux-gpg-keys
       #     defaultMode: 0400
+      #- name: flux-config-volume
+      #  configMap:
+      #    name: flux-config
+      - name: flux-config-volume
+        secret:
+          secretName: flux-config
 
       containers:
       - name: flux
         # There are no ":latest" images for flux. Find the most recent
         # release or image version at https://hub.docker.com/r/fluxcd/flux/tags
         # and replace the tag here.
-        image: docker.io/fluxcd/flux:1.14.2
+        image: fluxcd/flux
         imagePullPolicy: IfNotPresent
         resources:
           requests:
@@ -89,6 +95,11 @@ spec:
           readOnly: true # this will be the case perforce in K8s >=1.10
         - name: git-keygen
           mountPath: /var/fluxd/keygen # to match location given in image's /etc/ssh/config
+        # read the configmap 
+        # command-line arguments override configmap values
+        - name: flux-config-volume
+          mountPath: /etc/fluxd
+
 
         # Include this if you need to mount a customised known_hosts
         # file; you'll also need the volume declared above.
@@ -123,15 +134,15 @@ spec:
 
         # Use the memcached ClusterIP service name by setting the
         # memcached-service to string empty
-        - --memcached-service=
+        #- --memcached-service=
 
         # This must be supplied, and be in the tmpfs (emptyDir)
         # mounted above, for K8s >= 1.10
-        - --ssh-keygen-dir=/var/fluxd/keygen
+        #- --ssh-keygen-dir=/var/fluxd/keygen
 
         # Replace the following URL to change the Git repository used by Flux.
-        - --git-url=git@github.com:fluxcd/flux-get-started
-        - --git-branch=master
+        #- --git-url=git@github.com:fluxcd/flux-get-started
+        #- --git-branch=master
         # include this if you want to restrict the manifests considered by flux
         # to those under the following relative paths in the git repository
         # - --git-path=subdir1,subdir2
@@ -156,7 +167,7 @@ spec:
 
         # Serve /metrics endpoint at different port;
         # make sure to set prometheus' annotation to scrape the port value.
-        - --listen-metrics=:3031
+        #- --listen-metrics=:3031
 
       # Optional DNS settings, configuring the ndots option may resolve
       # nslookup issues on some Kubernetes setups.

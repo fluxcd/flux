@@ -43,6 +43,17 @@ Create the name of the service account to use
 {{- end -}}
 
 {{/*
+Create the name of the config map or secret to use
+*/}}
+{{- define "flux.configName" -}}
+{{- if .Values.config.create -}}
+    {{ default (include "flux.fullname" .) .Values.config.name }}
+{{- else -}}
+    {{ default (printf "%s-config" (include "flux.fullname" .)) }}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Create the name of the cluster role to use
 */}}
 {{- define "flux.clusterRoleName" -}}

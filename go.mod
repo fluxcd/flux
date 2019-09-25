@@ -20,7 +20,6 @@ require (
 	github.com/imdario/mergo v0.3.7
 	github.com/instrumenta/kubeval v0.0.0-20190804145309-805845b47dfc
 	github.com/justinbarrick/go-k8s-portforward v1.0.4-0.20190722134107-d79fe1b9d79d
-	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1
 	github.com/opentracing-contrib/go-stdlib v0.0.0-20190519235532-cf7a6c988dc9 // indirect
 	github.com/pkg/errors v0.8.1
@@ -31,6 +30,7 @@ require (
 	github.com/shurcooL/vfsgen v0.0.0-20181202132449-6a9ea43bcacd
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/pflag v1.0.3
+	github.com/spf13/viper v1.1.0
 	github.com/stretchr/testify v1.3.0
 	github.com/weaveworks/common v0.0.0-20190410110702-87611edc252e
 	github.com/weaveworks/go-checkpoint v0.0.0-20170503165305-ebbb8b0518ab

@@ -35,6 +35,10 @@ fluxctl install --git-url 'git@github.com:<your username>/flux-get-started' | ku
 		"Git label to keep track of Flux's sync progress; overrides both --git-sync-tag and --git-notes-ref")
 	cmd.Flags().StringVarP(&opts.GitUser, "git-user", "", "Flux",
 		"Username to use as git committer")
+	cmd.Flags().StringVarP(&opts.ConfigFile, "config-file", "", "",
+		"Config file used to configure Flux")
+	cmd.Flags().BoolVarP(&opts.ConfigAsConfigMap, "config-as-configmap", "", false,
+		"Create a ConfigMap to hold the Flux configuration. If false, a secret is used to hold the FLux configuration. ")
 	cmd.Flags().StringVarP(&opts.GitEmail, "git-email", "", "",
 		"Email to use as git committer")
 	cmd.Flags().StringVarP(&opts.Namespace, "namespace", "", getKubeConfigContextNamespace("default"),
@@ -48,12 +52,21 @@ fluxctl install --git-url 'git@github.com:<your username>/flux-get-started' | ku
 }
 
 func (opts *installOpts) RunE(cmd *cobra.Command, args []string) error {
-	if opts.GitURL == "" {
-		return fmt.Errorf("please supply a valid --git-url argument")
+	if opts.ConfigFile == "" {
+		if opts.GitURL == "" {
+			return fmt.Errorf("please supply a valid --git-url argument")
+		}
+		if opts.GitEmail == "" {
+			return fmt.Errorf("please supply a valid --git-email argument")
+		}
+	} else {
+		configFileReader, err := os.Open(opts.ConfigFile)
+		if err != nil {
+			return fmt.Errorf("unable to open flux config file: %s", err.Error())
+		}
+		opts.ConfigFileReader = configFileReader
 	}
-	if opts.GitEmail == "" {
-		return fmt.Errorf("please supply a valid --git-email argument")
-	}
+
 	manifests, err := install.FillInTemplates(install.TemplateParameters(*opts))
 	if err != nil {
 		return err

@@ -1,0 +1,8 @@
+{{- if and .Values.config.file .Values.config.asConfigMap -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "flux.configName" . }}
+data:  
+  {{- (.Files.Glob .Values.config.file).AsConfig | nindent 2 }}
+{{- end -}}

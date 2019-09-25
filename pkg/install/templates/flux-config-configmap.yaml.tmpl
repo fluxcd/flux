@@ -1,0 +1,15 @@
+{{ if and .ConfigFileContent .ConfigAsConfigMap }}
+# The following ConfigMap is used to provide a configuration for fluxd.
+# The Secret is created if the --config-file command line
+# option is provided. If --config-as-configmap is set to true, the
+# configuration is created as a ConfigMap, otherwise it is created as
+# a Secret.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flux-config{{ if .Namespace }}
+  namespace: {{ .Namespace }}{{ end }}
+data: 
+{{- printf "%s" .ConfigFileContent | nindent 2 }}
+{{ end }}

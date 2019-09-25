@@ -101,6 +101,16 @@ serviceAccount:
   # If not set and create is true, a name is generated using the fullname template
   name:
 
+config:
+  # the flux configuration file to load
+  file: 
+  # if asConfigMap=true, the config will be loaded into a configmap
+  # otherwise, the configuration will be loaded into a secret
+  asConfigMap:
+  # The name of the config to use.
+  # If not set and config.file is specified, a name is generated using the fullname template
+  name:
+
 # If create is `false` and no name is given, Flux and the Helm
 # Operator will be restricted to the namespace where they are
 # deployed, and the kubeconfig default context will be set to that

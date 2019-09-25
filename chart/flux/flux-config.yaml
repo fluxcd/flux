@@ -1,0 +1,5 @@
+git-url: "git@github.com:weaveworks/flux-get-started"
+ssh-keygen-dir: "/var/fluxd/keygen"
+git-branch: "master"
+listen-metrics: ":3031"
+memcached-service: ""

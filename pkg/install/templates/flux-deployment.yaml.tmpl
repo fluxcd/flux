@@ -58,6 +58,22 @@ spec:
       #   secret:
       #     secretName: flux-gpg-keys
       #     defaultMode: 0400
+      # The following volume is used to provide a configuration for fluxd
+      # The volume is created if the --config-file command line
+      # option is provided. If --config-as-configmap is set to true, the
+      # configuration is created as a ConfigMap, otherwise it is created as
+      # a Secret.
+      {{ if and .ConfigFileContent .ConfigAsConfigMap }}
+      - name: flux-config-volume
+        configMap:
+          name: flux-config
+      {{ end }}
+      {{ if and .ConfigFileContent (not .ConfigAsConfigMap) }}
+      - name: flux-config-volume
+        secret:
+          secretName: flux-config
+      {{ end }}
+
 
       containers:
       - name: flux
@@ -114,6 +130,10 @@ spec:
         # - name: gpg-keys
         #   mountPath: /root/gpg-import
         #   readOnly: true
+        {{ if .ConfigFileContent }}
+        - name: flux-config-volume
+          mountPath: /etc/fluxd
+        {{ end }}
 
         args:
 
