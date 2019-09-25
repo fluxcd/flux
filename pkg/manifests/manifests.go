@@ -24,7 +24,7 @@ type Manifests interface {
 	UpdateWorkloadPolicies(def []byte, id resource.ID, update resource.PolicyUpdate) ([]byte, error)
 	// CreateManifestPatch obtains a patch between the original and modified manifests
 	CreateManifestPatch(originalManifests, modifiedManifests []byte, originalSource, modifiedSource string) ([]byte, error)
-	// ApplyManifestPatch applies a manifest patch (obtained with CreateManifestDiff) returned the patched manifests
+	// ApplyManifestPatch applies a manifest patch (obtained with CreateManifestPatch) returning the patched manifests
 	ApplyManifestPatch(originalManifests, patchManifests []byte, originalSource, patchSource string) ([]byte, error)
 	// AppendManifestToBuffer concatenates manifest bytes to a
 	// (possibly empty) buffer of manifest bytes; the resulting bytes
