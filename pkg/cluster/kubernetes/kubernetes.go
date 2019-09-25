@@ -144,7 +144,7 @@ func (c *Cluster) SomeWorkloads(ctx context.Context, ids []resource.ID) (res []c
 
 		resourceKind, ok := resourceKinds[kind]
 		if !ok {
-			c.logger.Log("warning", "unsupported kind", "resource", id)
+			c.logger.Log("warning", "automation of this resource kind is not supported", "resource", id)
 			continue
 		}
 
