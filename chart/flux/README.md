@@ -37,10 +37,12 @@ until it can find one.
 ## Installation
 
 We put together a simple [Get Started
-tutorial](https://docs.fluxcd.io/en/latest/tutorials/get-started-helm.html) which takes about 5-10 minutes to follow.
+tutorial](https://docs.fluxcd.io/en/stable/tutorials/get-started-helm.html) which takes about 5-10 minutes to follow.
 You will have a fully working Flux installation deploying workloads to your cluster.
 
 ## Installing Flux using Helm
+
+The [configuration](#configuration) section lists all the parameters that can be configured during installation.
 
 ### Installing the Chart
 
@@ -50,28 +52,37 @@ Add the Flux repo:
 helm repo add fluxcd https://charts.fluxcd.io
 ```
 
-#### To install the chart with the release name `flux`
+#### Install the chart with the release name `flux`
 
-Replace `fluxcd/flux-get-started` with your own git repository and run helm install:
+1. Replace `fluxcd/flux-get-started` with your own git repository and run helm install:
 
-```sh
-$ helm install --name flux \
---set git.url=git@github.com:fluxcd/flux-get-started \
---namespace flux \
-fluxcd/flux
-```
+   ```sh
+   helm install --name flux \
+   --set git.url=git@github.com:fluxcd/flux-get-started \
+   --namespace flux \
+   fluxcd/flux
+   ```
 
-#### To connect Flux to a Weave Cloud instance:
+1. Setup Git deploy
 
-```sh
-helm install --name flux \
---set git.url=git@github.com:fluxcd/flux-get-started \
---set token=YOUR_WEAVE_CLOUD_SERVICE_TOKEN \
---namespace flux \
-fluxcd/flux
-```
+   > **Note:** this not required when [using git over HTTPS](#flux-with-git-over-https).
 
-#### To install Flux with the Helm operator:
+   At startup Flux generates a SSH key and logs the public key. Find the
+   SSH public key by installing [fluxctl](https://docs.fluxcd.io/en/stable/references/fluxctl.html)
+   and running:
+
+   ```sh
+   fluxctl identity --k8s-fwd-ns flux
+   ```
+
+   In order to sync your cluster state with GitHub you need to copy the
+   public key and create a deploy key with access on your GitHub
+   repository.  Go to _Settings > Deploy keys_ click on _Add deploy key_,
+   paste the Flux public key and click _Add key_. If you want Flux to
+   have write access to your repo, check _Allow write access_; if you
+   have set `git.readonly=true`, you can leave this box unchecked.
+
+#### Install Flux with the Helm operator
 
 Apply the Helm Release CRD:
 
@@ -82,7 +93,7 @@ kubectl apply -f https://raw.githubusercontent.com/fluxcd/flux/helm-0.10.1/deplo
 Install Flux with Helm:
 
 ```sh
-$ helm install --name flux \
+helm install --name flux \
 --set git.url=git@github.com:fluxcd/flux-get-started \
 --set helmOperator.create=true \
 --set helmOperator.createCRD=false \
@@ -122,7 +133,7 @@ to securely provide the HTTPS credentials which then can be used in the
    fluxcd/flux
    ```
 
-#### To install Flux with a private git host:
+#### Flux with a private git host
 
 When using a private git host, setting the `ssh.known_hosts` variable
 is required for enabling successful key matches because `StrictHostKeyChecking`
@@ -132,73 +143,61 @@ By setting the `ssh.known_hosts` variable, a configmap will be created
 called `flux-ssh-config` which in turn will be mounted into a volume named
 `sshdir` at `/root/.ssh/known_hosts`.
 
-* Get the `ssh.known_hosts` keys by running the following command:
+1. Get the `ssh.known_hosts` keys by running the following command:
+
+   ```sh
+   ssh-keyscan <your_git_host_domain>
+   ```
+
+   To prevent a potential man-in-the-middle attack, one should
+   verify the ssh keys acquired through the `ssh-keyscan` match expectations
+   using an alternate mechanism.
+
+1. Install Flux:
+
+   - Using a string for setting `known_hosts`
+
+     ```sh
+     YOUR_GIT_HOST=your_git_host.example.com
+     YOUR_GIT_USER=your_git_user
+     KNOWN_HOSTS='domain ssh-rsa line1
+     domain ecdsa-sha2-line2
+     domain ssh-ed25519 line3'
+
+     helm install \
+     --name flux \
+     --set git.url="git@${YOUR_GIT_HOST}:${YOUR_GIT_USER}/flux-get-started" \
+     --set-string ssh.known_hosts="${KNOWN_HOSTS}" \
+     --namespace flux \
+     chart/flux
+     ```
+
+   - Using a file for setting `known_hosts`
+
+     Copy `known_hosts` keys into a temporary file `/tmp/flux_known_hosts`
+
+     ```sh
+     YOUR_GIT_HOST=your_git_host.example.com
+     YOUR_GIT_USER=your_git_user
+
+     helm install \
+     --name flux \
+     --set git.url="git@${YOUR_GIT_HOST}:${YOUR_GIT_USER}/flux-get-started" \
+     --set-file ssh.known_hosts=/tmp/flux_known_hosts \
+     --namespace flux \
+     chart/flux
+     ```
+     
+#### Connect Flux to a Weave Cloud instance
 
 ```sh
-ssh-keyscan <your_git_host_domain>
+helm install --name flux \
+--set git.url=git@github.com:fluxcd/flux-get-started \
+--set token=YOUR_WEAVE_CLOUD_SERVICE_TOKEN \
+--namespace flux \
+fluxcd/flux
 ```
 
-To prevent a potential man-in-the-middle attack, one should
-verify the ssh keys acquired through the `ssh-keyscan` match expectations
-using an alternate mechanism.
-
-* Start Flux and Flux helm operator:
-
-  - Using a string for setting `known_hosts`
-
-    ```sh
-    YOUR_GIT_HOST=your_git_host.example.com
-    YOUR_GIT_USER=your_git_user
-    KNOWN_HOSTS='domain ssh-rsa line1
-    domain ecdsa-sha2-line2
-    domain ssh-ed25519 line3'
-
-    helm install \
-    --name flux \
-    --set helmOperator.create=true \
-    --set helmOperator.createCRD=false \
-    --set git.url="git@${YOUR_GIT_HOST}:${YOUR_GIT_USER}/flux-get-started" \
-    --set-string ssh.known_hosts="${KNOWN_HOSTS}" \
-    --namespace flux \
-    chart/flux
-    ```
-
-  - Using a file for setting `known_hosts`
-
-    Copy known_hosts keys into a temporary file `/tmp/flux_known_hosts`
-
-    ```sh
-    YOUR_GIT_HOST=your_git_host.example.com
-    YOUR_GIT_USER=your_git_user
-
-    helm install \
-    --name flux \
-    --set helmOperator.create=true \
-    --set helmOperator.createCRD=false \
-    --set git.url="git@${YOUR_GIT_HOST}:${YOUR_GIT_USER}/flux-get-started" \
-    --set-file ssh.known_hosts=/tmp/flux_known_hosts \
-    --namespace flux \
-    chart/flux
-    ```
-
-The [configuration](#configuration) section lists all the parameters that can be configured during installation.
-
-#### Setup Git deploy
-
-At startup Flux generates a SSH key and logs the public key.
-Find the SSH public key by installing [fluxctl](https://docs.fluxcd.io/en/latest/references/fluxctl.html) and
-running:
-
-```sh
-fluxctl identity --k8s-fwd-ns flux
-```
-
-In order to sync your cluster state with GitHub you need to copy the
-public key and create a deploy key with access on your GitHub
-repository.  Go to _Settings > Deploy keys_ click on _Add deploy key_,
-paste the Flux public key and click _Add key_. If you want Flux to
-have write access to your repo, check _Allow write access_; if you
-have set `git.readonly=true`, you can leave this box unchecked.
 
 ### Uninstalling the Chart
 
@@ -337,7 +336,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example:
 
 ```sh
-$ helm upgrade --install --wait flux \
+helm upgrade --install --wait flux \
 --set git.url=git@github.com:stefanprodan/k8s-podinfo \
 --set git.path="deploy/auto-scaling\,deploy/local-storage" \
 --namespace flux \
