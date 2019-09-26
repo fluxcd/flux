@@ -122,15 +122,13 @@ No. It applies changes to git only when a Flux command or API call makes them.
 
 ### Will Flux delete resources when I remove them from git?
 
-Flux has an experimental (for now) garbage collection feature,
-enabled by passing the command-line flag `--sync-garbage-collection`
-to `fluxd`.
+Flux has an garbage collection feature, enabled by passing the command-line
+flag `--sync-garbage-collection` to `fluxd`.
 
 The garbage collection is conservative: it is designed to not delete
 resources that were not created by `fluxd`. This means it will sometimes
-_not_ delete resources that _were_ created by `fluxd`, when
-reconfigured. Read more about garbage collection
-[here](references/garbagecollection.md).
+_not_ delete resources that _were_ created by `fluxd`, when reconfigured.
+Read more about garbage collection [here](references/garbagecollection.md).
 
 ### How do I give Flux access to an image registry?
 
