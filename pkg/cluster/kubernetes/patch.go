@@ -31,7 +31,7 @@ func createManifestPatch(originalManifests, modifiedManifests []byte, originalSo
 	}
 	// Sort output by resource identifiers
 	var originalIDs []string
-	for id, _ := range originalResources {
+	for id := range originalResources {
 		originalIDs = append(originalIDs, id)
 	}
 	sort.Strings(originalIDs)
@@ -80,7 +80,7 @@ func applyManifestPatch(originalManifests, patchManifests []byte, originalSource
 
 	// Sort output by resource identifiers
 	var originalIDs []string
-	for id, _ := range originalResources {
+	for id := range originalResources {
 		originalIDs = append(originalIDs, id)
 	}
 	sort.Strings(originalIDs)

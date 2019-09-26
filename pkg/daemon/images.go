@@ -50,7 +50,7 @@ func (d *Daemon) pollForNewAutomatedWorkloadImages(logger log.Logger) {
 type resources map[resource.ID]resource.Resource
 
 func (r resources) IDs() (ids []resource.ID) {
-	for k, _ := range r {
+	for k := range r {
 		ids = append(ids, k)
 	}
 	return ids

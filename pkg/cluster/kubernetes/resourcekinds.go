@@ -386,7 +386,7 @@ func (dk *cronJobKind) getWorkloads(ctx context.Context, c *Cluster, namespace s
 	}
 
 	var workloads []workload
-	for i, _ := range cronJobs.Items {
+	for i := range cronJobs.Items {
 		workloads = append(workloads, makeCronJobWorkload(&cronJobs.Items[i]))
 	}
 
@@ -428,7 +428,7 @@ func (fhr *fluxHelmReleaseKind) getWorkloads(ctx context.Context, c *Cluster, na
 	}
 
 	var workloads []workload
-	for i, _ := range fluxHelmReleases.Items {
+	for i := range fluxHelmReleases.Items {
 		workloads = append(workloads, makeFluxHelmReleaseWorkload(&fluxHelmReleases.Items[i]))
 	}
 
@@ -512,14 +512,14 @@ func (hr *helmReleaseKind) getWorkloads(ctx context.Context, c *Cluster, namespa
 	names := make(map[string]bool, 0)
 	workloads := make([]workload, 0)
 	if helmReleases, err := c.client.HelmV1().HelmReleases(namespace).List(meta_v1.ListOptions{}); err == nil {
-		for i, _ := range helmReleases.Items {
+		for i := range helmReleases.Items {
 			workload := makeHelmReleaseStableWorkload(&helmReleases.Items[i])
 			workloads = append(workloads, workload)
 			names[workload.GetName()] = true
 		}
 	}
 	if helmReleases, err := c.client.FluxV1beta1().HelmReleases(namespace).List(meta_v1.ListOptions{}); err == nil {
-		for i, _ := range helmReleases.Items {
+		for i := range helmReleases.Items {
 			workload := makeHelmReleaseBetaWorkload(&helmReleases.Items[i])
 			if names[workload.GetName()] {
 				continue

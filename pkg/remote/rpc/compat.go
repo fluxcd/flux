@@ -42,7 +42,7 @@ func requireServiceIDKinds(id resource.ID, kinds []string) error {
 func requireSpecKinds(s update.Spec, kinds []string) error {
 	switch s := s.Spec.(type) {
 	case resource.PolicyUpdates:
-		for id, _ := range s {
+		for id := range s {
 			_, kind, _ := id.Components()
 			if !contains(kinds, kind) {
 				return fmt.Errorf("Unsupported resource kind: %s", kind)

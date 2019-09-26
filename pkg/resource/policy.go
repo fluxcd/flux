@@ -40,7 +40,7 @@ func ChangesForPolicyUpdate(workload Workload, update PolicyUpdate) (map[string]
 		}
 		result[string(pol)] = val
 	}
-	for pol, _ := range del {
+	for pol := range del {
 		result[string(pol)] = ""
 	}
 	return result, nil

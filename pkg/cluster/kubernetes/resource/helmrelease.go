@@ -353,23 +353,23 @@ func containerImageMappingsFromAnnotations(annotations map[string]string) map[st
 		switch {
 		case strings.HasPrefix(k, ImageRegistryPrefix):
 			container := strings.TrimPrefix(k, ImageRegistryPrefix)
-			i, _ := cim[container]
+			i := cim[container]
 			i.Registry = v
 			cim[container] = i
 		case strings.HasPrefix(k, ImageRepositoryPrefix):
 			container := strings.TrimPrefix(k, ImageRepositoryPrefix)
-			i, _ := cim[container]
+			i := cim[container]
 			i.Repository = v
 			cim[container] = i
 		case strings.HasPrefix(k, ImageTagPrefix):
 			container := strings.TrimPrefix(k, ImageTagPrefix)
-			i, _ := cim[container]
+			i := cim[container]
 			i.Tag = v
 			cim[container] = i
 		}
 	}
-	for k, _ := range cim {
-		i, _ := cim[k]
+	for k := range cim {
+		i := cim[k]
 		i.BasePath = ImageBasePath
 		cim[k] = i
 	}

@@ -148,8 +148,8 @@ func (a *Automated) workloadMap() map[resource.ID][]Change {
 }
 
 func (a *Automated) workloadIDs() []resource.ID {
-	slice := []resource.ID{}
-	for workload, _ := range a.workloadMap() {
+	var slice []resource.ID
+	for workload := range a.workloadMap() {
 		slice = append(slice, resource.MustParseID(workload.String()))
 	}
 	return slice
