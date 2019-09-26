@@ -22,7 +22,6 @@ type Config struct {
 	SigningKey  string
 	SetAuthor   bool
 	SkipMessage string
-	GitSecret   bool
 }
 
 // Checkout is a local working clone of the remote repo. It is
@@ -189,7 +188,7 @@ func (c *Checkout) MoveTagAndPush(ctx context.Context, tagAction TagAction) erro
 }
 
 func (c *Checkout) Checkout(ctx context.Context, rev string) error {
-	return checkout(ctx, c.Dir(), rev, false)
+	return checkout(ctx, c.Dir(), rev)
 }
 
 func (c *Checkout) Add(ctx context.Context, path string) error {

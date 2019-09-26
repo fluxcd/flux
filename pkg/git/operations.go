@@ -79,18 +79,11 @@ func mirror(ctx context.Context, workingDir, repoURL string) (path string, err e
 	return repoPath, nil
 }
 
-func checkout(ctx context.Context, workingDir, ref string, gitSecretEnabled bool) error {
+func checkout(ctx context.Context, workingDir, ref string) error {
 	args := []string{"checkout", ref, "--"}
-
 	err := execGitCmd(ctx, args, gitCmdConfig{dir: workingDir})
 	if err != nil {
 		return err
-	}
-
-	if gitSecretEnabled {
-		if err := secretUnseal(ctx, workingDir); err != nil {
-			return err
-		}
 	}
 	return nil
 }
