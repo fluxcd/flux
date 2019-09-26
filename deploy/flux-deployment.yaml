@@ -69,7 +69,7 @@ spec:
         # There are no ":latest" images for flux. Find the most recent
         # release or image version at https://hub.docker.com/r/fluxcd/flux/tags
         # and replace the tag here.
-        image: fluxcd/flux
+        image: docker.io/fluxcd/flux:1.14.2
         imagePullPolicy: IfNotPresent
         resources:
           requests:
@@ -134,15 +134,15 @@ spec:
 
         # Use the memcached ClusterIP service name by setting the
         # memcached-service to string empty
-        #- --memcached-service=
+        - --memcached-service=
 
         # This must be supplied, and be in the tmpfs (emptyDir)
         # mounted above, for K8s >= 1.10
-        #- --ssh-keygen-dir=/var/fluxd/keygen
+        - --ssh-keygen-dir=/var/fluxd/keygen
 
         # Replace the following URL to change the Git repository used by Flux.
-        #- --git-url=git@github.com:fluxcd/flux-get-started
-        #- --git-branch=master
+        - --git-url=git@github.com:fluxcd/flux-get-started
+        - --git-branch=master
         # include this if you want to restrict the manifests considered by flux
         # to those under the following relative paths in the git repository
         # - --git-path=subdir1,subdir2
@@ -167,7 +167,7 @@ spec:
 
         # Serve /metrics endpoint at different port;
         # make sure to set prometheus' annotation to scrape the port value.
-        #- --listen-metrics=:3031
+        - --listen-metrics=:3031
 
       # Optional DNS settings, configuring the ndots option may resolve
       # nslookup issues on some Kubernetes setups.
