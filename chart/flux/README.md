@@ -243,6 +243,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `service.type`                                    | `ClusterIP`                                          | Service type to be used (exposing the Flux API outside of the cluster is not advised)
 | `service.port`                                    | `3030`                                               | Service port to be used
 | `sync.state`                                      | `git`                                                | Where to keep sync state; either a tag in the upstream repo (`git`), or as an annotation on the SSH secret (`secret`)
+| `sync.timeout`                                    | `None`                                               |  Duration after which sync operations time out (defaults to `1m`)
 | `git.url`                                         | `None`                                               | URL of git repo with Kubernetes manifests
 | `git.readonly`                                    | `false`                                              | If `true`, the git repo will be considered read-only, and Flux will not attempt to write to it
 | `git.branch`                                      | `master`                                             | Branch of git repo to use for Kubernetes manifests

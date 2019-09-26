@@ -59,6 +59,7 @@ Version controlling of cluster manifests provides reproducibility and a historic
 | --git-timeout                                    | `20s`                    | duration after which git operations time out
 | **syncing:** control over how config is applied to the cluster
 | --sync-interval                                  | `5m`                     | apply the git config to the cluster at least this often. New commits may provoke more frequent syncs
+| --sync-timeout                                   | `1m`                     |  duration after which sync operations time out
 | --sync-garbage-collection                        | `false`                  | experimental: when set, fluxd will delete resources that it created, but are no longer present in git
 | **registry cache:** (none of these need overriding, usually)
 | --memcached-hostname                             | `memcached`                        | hostname for memcached service to use for caching image metadata

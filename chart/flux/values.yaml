@@ -147,6 +147,8 @@ gpgKeys:
 sync:
   # use `.sync.state: secret` to store flux's state as an annotation on the secret (instead of a git tag)
   state: git
+  # Duration after which sync operations time out (defaults to 1m)
+  timeout:
 
 git:
   # URL of git repo with Kubernetes manifests; e.g. git.url=ssh://git@github.com/fluxcd/flux-get-started
