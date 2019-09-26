@@ -384,9 +384,9 @@ Disable image scanning for all images:
 
 Yes!
 
-Flux experimentally supports technology-agnostic manifest factorization through
-`.flux.yaml` configuration files placed in the Git repository. To enable this
-feature please supply `fluxd` with flag `--manifest-generation=true`.
+Flux supports technology-agnostic manifest factorization through `.flux.yaml` configuration
+files placed in the Git repository. To enable it supply the command-line flag
+`--manifest-generation=true` to `fluxd`.
 
 See [`.flux.yaml` configuration files documentation](references/fluxyaml-config-files.md) for
 further details.

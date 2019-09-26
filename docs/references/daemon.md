@@ -90,7 +90,7 @@ Version controlling of cluster manifests provides reproducibility and a historic
 | --ssh-keygen-bits                                |                                    | -b argument to ssh-keygen (default unspecified)
 | --ssh-keygen-type                                |                                    | -t argument to ssh-keygen (default unspecified)
 | **manifest generation**
-| --manifest-generation                            | false                              | experimental; search for .flux.yaml files to generate manifests
+| --manifest-generation                            | false                              | search for .flux.yaml files to generate manifests
 
 ## More information
 

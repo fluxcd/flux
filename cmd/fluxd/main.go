@@ -181,7 +181,7 @@ func main() {
 		sshKeygenDir = fs.String("ssh-keygen-dir", "", "directory, ideally on a tmpfs volume, in which to generate new SSH keys when necessary")
 
 		// manifest generation
-		manifestGeneration = fs.Bool("manifest-generation", false, "experimental; search for .flux.yaml files to generate manifests")
+		manifestGeneration = fs.Bool("manifest-generation", false, "search for .flux.yaml files to generate manifests")
 
 		// upstream connection settings
 		upstreamURL = fs.String("connect", "", "connect to an upstream service e.g., Weave Cloud, at this base address")
