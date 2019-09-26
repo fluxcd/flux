@@ -184,6 +184,9 @@ spec:
           - --k8s-secret-name={{ .Values.git.secretName | default (printf "%s-git-deploy" (include "flux.fullname" .)) }}
           - --memcached-hostname={{ .Values.memcached.hostnameOverride | default (printf "%s-memcached" (include "flux.fullname" .)) }}
           - --sync-state={{ .Values.sync.state }}
+          {{- if .Values.sync.timeout }}
+          - --sync-timeout={{ .Values.sync.timeout }}
+          {{- end }}
           {{- if .Values.memcached.createClusterIP }}
           - --memcached-service=
           {{- end }}

@@ -15,6 +15,7 @@ import (
 
 type LoopVars struct {
 	SyncInterval        time.Duration
+	SyncTimeout         time.Duration
 	AutomationInterval  time.Duration
 	GitTimeout          time.Duration
 	GitVerifySignatures bool

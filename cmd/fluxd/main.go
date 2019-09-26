@@ -136,6 +136,7 @@ func main() {
 
 		// syncing
 		syncInterval = fs.Duration("sync-interval", 5*time.Minute, "apply config in git to cluster at least this often, even if there are no new commits")
+		syncTimeout  = fs.Duration("sync-timeout", 1*time.Minute, "duration after which sync operations time out")
 		syncGC       = fs.Bool("sync-garbage-collection", false, "experimental; delete resources that were created by fluxd, but are no longer in the git repo")
 		dryGC        = fs.Bool("sync-garbage-collection-dry", false, "experimental; only log what would be garbage collected, rather than deleting. Implies --sync-garbage-collection")
 		syncState    = fs.String("sync-state", fluxsync.GitTagStateMode, fmt.Sprintf("method used by flux for storing state (one of {%s})", strings.Join([]string{fluxsync.GitTagStateMode, fluxsync.NativeStateMode}, ",")))
@@ -696,6 +697,7 @@ func main() {
 		GitSecretEnabled:          *gitSecret,
 		LoopVars: &daemon.LoopVars{
 			SyncInterval:        *syncInterval,
+			SyncTimeout:         *syncTimeout,
 			SyncState:           syncProvider,
 			AutomationInterval:  *automationInterval,
 			GitTimeout:          *gitTimeout,

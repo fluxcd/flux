@@ -168,6 +168,10 @@ In addition, `updaters` are provided with some environment variables:
   * `FLUX_POLICY_VALUE`: value of the policy to be added or updated in the controller. If the `FLUX_POLICY_VALUE`
   environment variable is not set, it means the policy should be removed.
 
+Please note that the default timeout for sync commands is set to one minute.
+If you run into errors like `error executing generator command: context deadline exceeded`,
+you can increase the timeout with the `--sync-timeout` fluxd command flag or the `sync.timeout` Helm chart option.
+
 ### Combining generators, updaters and raw manifest files
 
 The `.flux.yaml` files support including multiple generators and updaters. Here is an example combining multiple
