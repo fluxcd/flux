@@ -62,7 +62,7 @@ jobs:
     machine:
       image: ubuntu-1604:201903-01
     environment:
-      GO_VERSION: 1.12.5
+      GO_VERSION: 1.13.1
       # We don't need a GOPATH but CircleCI defines it, so we override it
       GOPATH: /home/circleci/go
       GO111MODULE: 'on'

@@ -46,7 +46,7 @@ parts:
       - gcc
       - git
     build-snaps:
-      - go/1.12/stable
+      - go/1.13/stable
     stage:
       - -bin/fluxd
       - -bin/helm-operator
