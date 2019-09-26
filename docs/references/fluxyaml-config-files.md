@@ -2,7 +2,7 @@
 
 ## Enabling search of `.flux.yaml` files
 
-This feature is still experimental. To enable it please supply `fluxd` with flag `--manifest-generation=true`.
+To enable it supply the command-line flag `--manifest-generation=true` to `fluxd`.
 
 ## Goal
 

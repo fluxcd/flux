@@ -59,8 +59,9 @@ Version controlling of cluster manifests provides reproducibility and a historic
 | --git-timeout                                    | `20s`                    | duration after which git operations time out
 | **syncing:** control over how config is applied to the cluster
 | --sync-interval                                  | `5m`                     | apply the git config to the cluster at least this often. New commits may provoke more frequent syncs
-| --sync-timeout                                   | `1m`                     |  duration after which sync operations time out
-| --sync-garbage-collection                        | `false`                  | experimental: when set, fluxd will delete resources that it created, but are no longer present in git
+| --sync-timeout                                   | `1m`                     | duration after which sync operations time out
+| --sync-garbage-collection                        | `false`                  | when set, fluxd will delete resources that it created, but are no longer present in git
+| --sync-garbage-collection-dry                    | `false`                  | only log what would be garbage collected, rather than deleting. Implies --sync-garbage-collection
 | **registry cache:** (none of these need overriding, usually)
 | --memcached-hostname                             | `memcached`                        | hostname for memcached service to use for caching image metadata
 | --memcached-timeout                              | `1s`                               | maximum time to wait before giving up on memcached requests
@@ -81,7 +82,7 @@ Version controlling of cluster manifests provides reproducibility and a historic
 | --k8s-secret-volume-mount-path                   | `/etc/fluxd/ssh`                   | mount location of the k8s secret storing the private SSH key
 | --k8s-secret-data-key                            | `identity`                         | data key holding the private SSH key within the k8s secret
 | **k8s configuration**
-| --k8s-allow-namespace                            |                                    | experimental: restrict all operations to the provided namespaces
+| --k8s-allow-namespace                            |                                    | restrict all operations to the provided namespaces
 | **upstream service**
 | --connect                                        |                                    | connect to an upstream service e.g., Weave Cloud, at this base address
 | --token                                          |                                    | authentication token for upstream service
@@ -89,7 +90,7 @@ Version controlling of cluster manifests provides reproducibility and a historic
 | --ssh-keygen-bits                                |                                    | -b argument to ssh-keygen (default unspecified)
 | --ssh-keygen-type                                |                                    | -t argument to ssh-keygen (default unspecified)
 | **manifest generation**
-| --manifest-generation                            | false                              | experimental; search for .flux.yaml files to generate manifests
+| --manifest-generation                            | false                              | search for .flux.yaml files to generate manifests
 
 ## More information
 
