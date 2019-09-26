@@ -269,8 +269,6 @@ Here's the relevant docs for some common CI systems:
 
 ### Can I restrict the namespaces that Flux can see or operate on?
 
-Yes, though support for this is experimental at the minute.
-
 Flux will only operate on the namespaces that its service account has
 access to; so the most effective way to restrict it to certain
 namespaces is to use Kubernetes' role-based access control (RBAC) to
@@ -278,9 +276,8 @@ make a service account that has restricted access itself. You may need
 to experiment to find the most restrictive permissions that work for
 your case.
 
-You will need to use the (experimental) command-line flag
-`--k8s-allow-namespace` to enumerate the namespaces that Flux
-attempts to scan for workloads.
+You will need to use the command-line flag `--k8s-allow-namespace`
+to enumerate the namespaces that Flux attempts to scan for workloads.
 
 ### Can I change the namespace Flux puts things in by default?
 
