@@ -20,7 +20,6 @@ require (
 	github.com/imdario/mergo v0.3.7
 	github.com/instrumenta/kubeval v0.0.0-20190804145309-805845b47dfc
 	github.com/justinbarrick/go-k8s-portforward v1.0.4-0.20190722134107-d79fe1b9d79d
-	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1
 	github.com/opentracing-contrib/go-stdlib v0.0.0-20190519235532-cf7a6c988dc9 // indirect
 	github.com/pkg/errors v0.8.1

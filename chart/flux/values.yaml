@@ -176,11 +176,13 @@ git:
   pollInterval: "5m"
   # Duration after which git operations time out
   timeout: "20s"
-  # generate a SSH key named identity: ssh-keygen -q -N "" -f ./identity
-  # create a Kubernetes secret: kubectl -n flux create secret generic flux-ssh --from-file=./identity
-  # delete the private key: rm ./identity
-  # add ./identity.pub as a deployment key with write access in your Git repo
-  # set the secret name (flux-ssh) below
+  # The secret name can be used to supply your own SSH key, instead of
+  # relying on Flux to generate one for you:
+  # 1. Generate a SSH key named identity: ssh-keygen -q -N "" -f ./identity
+  # 2. Create a Kubernetes secret: kubectl -n flux create secret generic flux-ssh --from-file=./identity
+  # 3. Delete the private key: rm ./identity
+  # 4. Add ./identity.pub as a deployment key with write access in your Git repo
+  # 5. Set the secret name (flux-ssh) below
   secretName: ""
   # Global Git configuration See https://git-scm.com/docs/git-config for more details.
   config:
@@ -274,6 +276,12 @@ kube:
 # For https://github.com/justinbarrick/fluxcloud/
 # additionalArgs:
 # - --connect=ws://fluxcloud
+
+# The contents of the secret will be defined as environment variables
+# in the Flux container. Once defined, you can use the variables in your
+# `git.url`: `https://$(GIT_AUTHUSER):$(GIT_AUTHKEY)@github.com/fluxcd/flux-get-started.git`
+env:
+  secretName: ""
 
 # Additional environment variables to set
 extraEnvs: []

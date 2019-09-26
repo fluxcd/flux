@@ -168,6 +168,11 @@ spec:
           {{- if .Values.extraEnvs }}
 {{ toYaml .Values.extraEnvs | indent 10 }}
           {{- end }}
+          {{- if .Values.env.secretName }}
+          envFrom:
+          - secretRef:
+              name: {{ .Values.env.secretName }}
+          {{- end }}
           args:
           {{- if not .Values.clusterRole.create }}
           - --k8s-allow-namespace={{ .Release.Namespace }}

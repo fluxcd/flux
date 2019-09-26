@@ -542,7 +542,7 @@ func (d *Daemon) NotifyChange(ctx context.Context, change v9.Change) error {
 	switch change.Kind {
 	case v9.GitChange:
 		gitUpdate := change.Source.(v9.GitUpdate)
-		if gitUpdate.URL != d.Repo.Origin().URL && gitUpdate.Branch != d.GitConfig.Branch {
+		if d.Repo.Origin().Equivalent(gitUpdate.URL) && gitUpdate.Branch != d.GitConfig.Branch {
 			// It isn't strictly an _error_ to be notified about a repo/branch pair
 			// that isn't ours, but it's worth logging anyway for debugging.
 			d.Logger.Log("msg", "notified about unrelated change",
