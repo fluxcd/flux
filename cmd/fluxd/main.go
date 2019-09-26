@@ -613,7 +613,6 @@ func main() {
 		SigningKey:  *gitSigningKey,
 		SetAuthor:   *gitSetAuthor,
 		SkipMessage: *gitSkipMessage,
-		GitSecret:   *gitSecret,
 	}
 
 	repo := git.NewRepo(gitRemote, git.PollInterval(*gitPollInterval), git.Timeout(*gitTimeout), git.Branch(*gitBranch), git.IsReadOnly(*gitReadonly))
@@ -694,6 +693,7 @@ func main() {
 		JobStatusCache:            &job.StatusCache{Size: 100},
 		Logger:                    log.With(logger, "component", "daemon"),
 		ManifestGenerationEnabled: *manifestGeneration,
+		GitSecretEnabled:          *gitSecret,
 		LoopVars: &daemon.LoopVars{
 			SyncInterval:        *syncInterval,
 			SyncState:           syncProvider,

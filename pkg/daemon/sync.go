@@ -49,6 +49,15 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, newRevision string
 	cancel()
 	defer working.Clean()
 
+	// Unseal any secrets if enabled
+	if d.GitSecretEnabled {
+		ctxt, cancel := context.WithTimeout(ctx, d.GitTimeout)
+		if err := working.SecretUnseal(ctxt); err != nil {
+			return err
+		}
+		cancel()
+	}
+
 	// Retrieve change set of commits we need to sync
 	c, err := getChangeSet(ctx, ratchet, newRevision, d.Repo, d.GitTimeout, d.GitConfig.Paths)
 	if err != nil {
