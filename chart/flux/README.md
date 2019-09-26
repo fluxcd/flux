@@ -169,7 +169,7 @@ called `flux-ssh-config` which in turn will be mounted into a volume named
      --set git.url="git@${YOUR_GIT_HOST}:${YOUR_GIT_USER}/flux-get-started" \
      --set-string ssh.known_hosts="${KNOWN_HOSTS}" \
      --namespace flux \
-     chart/flux
+     fluxcd/flux
      ```
 
    - Using a file for setting `known_hosts`
@@ -185,7 +185,7 @@ called `flux-ssh-config` which in turn will be mounted into a volume named
      --set git.url="git@${YOUR_GIT_HOST}:${YOUR_GIT_USER}/flux-get-started" \
      --set-file ssh.known_hosts=/tmp/flux_known_hosts \
      --namespace flux \
-     chart/flux
+     fluxcd/flux
      ```
      
 #### Connect Flux to a Weave Cloud instance
