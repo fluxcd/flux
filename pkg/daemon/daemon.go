@@ -31,15 +31,6 @@ import (
 	"github.com/fluxcd/flux/pkg/update"
 )
 
-const (
-	// This is set to be in sympathy with the request / RPC timeout (i.e., empirically)
-	defaultHandlerTimeout = 10 * time.Second
-	// A job can take an arbitrary amount of time but we want to have
-	// a (generous) threshold for considering a job stuck and
-	// abandoning it
-	defaultJobTimeout = 60 * time.Second
-)
-
 // Daemon is the fully-functional state of a daemon (compare to
 // `NotReadyDaemon`).
 type Daemon struct {
@@ -277,7 +268,7 @@ func (d *Daemon) makeJobFromUpdate(update updateFunc) jobFunc {
 // executeJob runs a job func and keeps track of its status, so the
 // daemon can report it when asked.
 func (d *Daemon) executeJob(id job.ID, do jobFunc, logger log.Logger) (job.Result, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), defaultJobTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), d.SyncTimeout)
 	defer cancel()
 	d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusRunning})
 	result, err := do(ctx, id, logger)
@@ -372,7 +363,7 @@ func (d *Daemon) UpdateManifests(ctx context.Context, spec update.Spec) (job.ID,
 func (d *Daemon) sync() jobFunc {
 	return func(ctx context.Context, jobID job.ID, logger log.Logger) (job.Result, error) {
 		var result job.Result
-		ctx, cancel := context.WithTimeout(ctx, defaultJobTimeout)
+		ctx, cancel := context.WithTimeout(ctx, d.SyncTimeout)
 		defer cancel()
 		err := d.Repo.Refresh(ctx)
 		if err != nil {
