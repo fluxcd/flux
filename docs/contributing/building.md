@@ -1,6 +1,6 @@
 # Building
 
-You'll need a working `go` environment version >= 1.11 (official releases are built against `1.12`).
+You'll need a working `go` environment version >= 1.11 (official releases are built against `1.13`).
 It's also expected that you have a Docker daemon for building images.
 
 Clone the repository. The project uses [Go Modules](https://github.com/golang/go/wiki/Modules),

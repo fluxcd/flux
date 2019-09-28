@@ -122,15 +122,13 @@ No. It applies changes to git only when a Flux command or API call makes them.
 
 ### Will Flux delete resources when I remove them from git?
 
-Flux has an experimental (for now) garbage collection feature,
-enabled by passing the command-line flag `--sync-garbage-collection`
-to `fluxd`.
+Flux has an garbage collection feature, enabled by passing the command-line
+flag `--sync-garbage-collection` to `fluxd`.
 
 The garbage collection is conservative: it is designed to not delete
 resources that were not created by `fluxd`. This means it will sometimes
-_not_ delete resources that _were_ created by `fluxd`, when
-reconfigured. Read more about garbage collection
-[here](references/garbagecollection.md).
+_not_ delete resources that _were_ created by `fluxd`, when reconfigured.
+Read more about garbage collection [here](references/garbagecollection.md).
 
 ### How do I give Flux access to an image registry?
 
@@ -271,8 +269,6 @@ Here's the relevant docs for some common CI systems:
 
 ### Can I restrict the namespaces that Flux can see or operate on?
 
-Yes, though support for this is experimental at the minute.
-
 Flux will only operate on the namespaces that its service account has
 access to; so the most effective way to restrict it to certain
 namespaces is to use Kubernetes' role-based access control (RBAC) to
@@ -280,9 +276,8 @@ make a service account that has restricted access itself. You may need
 to experiment to find the most restrictive permissions that work for
 your case.
 
-You will need to use the (experimental) command-line flag
-`--k8s-allow-namespace` to enumerate the namespaces that Flux
-attempts to scan for workloads.
+You will need to use the command-line flag `--k8s-allow-namespace`
+to enumerate the namespaces that Flux attempts to scan for workloads.
 
 ### Can I change the namespace Flux puts things in by default?
 
@@ -389,9 +384,9 @@ Disable image scanning for all images:
 
 Yes!
 
-Flux experimentally supports technology-agnostic manifest factorization through
-`.flux.yaml` configuration files placed in the Git repository. To enable this
-feature please supply `fluxd` with flag `--manifest-generation=true`.
+Flux supports technology-agnostic manifest factorization through `.flux.yaml` configuration
+files placed in the Git repository. To enable it supply the command-line flag
+`--manifest-generation=true` to `fluxd`.
 
 See [`.flux.yaml` configuration files documentation](references/fluxyaml-config-files.md) for
 further details.

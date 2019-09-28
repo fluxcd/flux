@@ -31,15 +31,6 @@ import (
 	"github.com/fluxcd/flux/pkg/update"
 )
 
-const (
-	// This is set to be in sympathy with the request / RPC timeout (i.e., empirically)
-	defaultHandlerTimeout = 10 * time.Second
-	// A job can take an arbitrary amount of time but we want to have
-	// a (generous) threshold for considering a job stuck and
-	// abandoning it
-	defaultJobTimeout = 60 * time.Second
-)
-
 // Daemon is the fully-functional state of a daemon (compare to
 // `NotReadyDaemon`).
 type Daemon struct {
@@ -55,6 +46,7 @@ type Daemon struct {
 	EventWriter               event.EventWriter
 	Logger                    log.Logger
 	ManifestGenerationEnabled bool
+	GitSecretEnabled          bool
 	// bookkeeping
 	*LoopVars
 }
@@ -276,7 +268,7 @@ func (d *Daemon) makeJobFromUpdate(update updateFunc) jobFunc {
 // executeJob runs a job func and keeps track of its status, so the
 // daemon can report it when asked.
 func (d *Daemon) executeJob(id job.ID, do jobFunc, logger log.Logger) (job.Result, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), defaultJobTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), d.SyncTimeout)
 	defer cancel()
 	d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusRunning})
 	result, err := do(ctx, id, logger)
@@ -371,7 +363,7 @@ func (d *Daemon) UpdateManifests(ctx context.Context, spec update.Spec) (job.ID,
 func (d *Daemon) sync() jobFunc {
 	return func(ctx context.Context, jobID job.ID, logger log.Logger) (job.Result, error) {
 		var result job.Result
-		ctx, cancel := context.WithTimeout(ctx, defaultJobTimeout)
+		ctx, cancel := context.WithTimeout(ctx, d.SyncTimeout)
 		defer cancel()
 		err := d.Repo.Refresh(ctx)
 		if err != nil {
@@ -542,7 +534,7 @@ func (d *Daemon) NotifyChange(ctx context.Context, change v9.Change) error {
 	switch change.Kind {
 	case v9.GitChange:
 		gitUpdate := change.Source.(v9.GitUpdate)
-		if gitUpdate.URL != d.Repo.Origin().URL && gitUpdate.Branch != d.GitConfig.Branch {
+		if d.Repo.Origin().Equivalent(gitUpdate.URL) && gitUpdate.Branch != d.GitConfig.Branch {
 			// It isn't strictly an _error_ to be notified about a repo/branch pair
 			// that isn't ours, but it's worth logging anyway for debugging.
 			d.Logger.Log("msg", "notified about unrelated change",
@@ -659,6 +651,11 @@ func (d *Daemon) WithWorkingClone(ctx context.Context, fn func(*git.Checkout) er
 		return err
 	}
 	defer co.Clean()
+	if d.GitSecretEnabled {
+		if err := co.SecretUnseal(ctx); err != nil {
+			return err
+		}
+	}
 	return fn(co)
 }
 
@@ -675,6 +672,11 @@ func (d *Daemon) WithReadonlyClone(ctx context.Context, fn func(*git.Export) err
 		return err
 	}
 	defer co.Clean()
+	if d.GitSecretEnabled {
+		if err := co.SecretUnseal(ctx); err != nil {
+			return err
+		}
+	}
 	return fn(co)
 }
 

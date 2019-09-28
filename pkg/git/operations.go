@@ -81,7 +81,11 @@ func mirror(ctx context.Context, workingDir, repoURL string) (path string, err e
 
 func checkout(ctx context.Context, workingDir, ref string) error {
 	args := []string{"checkout", ref, "--"}
-	return execGitCmd(ctx, args, gitCmdConfig{dir: workingDir})
+	err := execGitCmd(ctx, args, gitCmdConfig{dir: workingDir})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func add(ctx context.Context, workingDir, path string) error {

@@ -2,7 +2,7 @@
 
 ## Enabling search of `.flux.yaml` files
 
-This feature is still experimental. To enable it please supply `fluxd` with flag `--manifest-generation=true`.
+To enable it supply the command-line flag `--manifest-generation=true` to `fluxd`.
 
 ## Goal
 
@@ -167,6 +167,10 @@ In addition, `updaters` are provided with some environment variables:
   * `FLUX_POLICY`: the name of the policy to be added or updated in the workload. To make into an annotation name, prefix with `fluxcd.io/`
   * `FLUX_POLICY_VALUE`: value of the policy to be added or updated in the controller. If the `FLUX_POLICY_VALUE`
   environment variable is not set, it means the policy should be removed.
+
+Please note that the default timeout for sync commands is set to one minute.
+If you run into errors like `error executing generator command: context deadline exceeded`,
+you can increase the timeout with the `--sync-timeout` fluxd command flag or the `sync.timeout` Helm chart option.
 
 ### Combining generators, updaters and raw manifest files
 

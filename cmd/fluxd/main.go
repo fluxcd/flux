@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -101,6 +102,7 @@ type Config struct {
 	GitVerifySignatures      bool          `mapstructure:"git-verify-signatures"`
 	GitSigningKey            string        `mapstructure:"git-signing-key"`
 	SyncInterval             time.Duration `mapstructure:"sync-interval"`
+	SyncTimeout              time.Duration `mapstructure:"sync-timeout"`
 	SyncGarbageCollection    bool          `mapstructure:"sync-garbage-collection"`
 	SyncGarbageCollectionDry bool          `mapstructure:"sync-garbage-collection-dry"`
 	SyncState                string        `mapstructure:"sync-state"`
@@ -195,6 +197,7 @@ func main() {
 
 	// syncing
 	_ = fs.Duration("sync-interval", 5*time.Minute, "apply config in git to cluster at least this often, even if there are no new commits")
+	_ = fs.Duration("sync-timeout", 1*time.Minute, "duration after which sync operations time out")
 	_ = fs.Bool("sync-garbage-collection", false, "experimental; delete resources that were created by fluxd, but are no longer in the git repo")
 	_ = fs.Bool("sync-garbage-collection-dry", false, "experimental; only log what would be garbage collected, rather than deleting. Implies --sync-garbage-collection")
 	_ = fs.String("sync-state", fluxsync.GitTagStateMode, fmt.Sprintf("method used by flux for storing state (one of {%s})", strings.Join([]string{fluxsync.GitTagStateMode, fluxsync.NativeStateMode}, ",")))
@@ -404,9 +407,16 @@ func main() {
 		}
 	}
 
-	if config.SSHKeygenDir == "" {
+	// Used to determine if we need to generate a SSH key and setup a keyring
+	var httpGitURL bool
+	if pURL, err := url.Parse(config.GitURL); err == nil {
+		httpGitURL = pURL.Scheme == "http" || pURL.Scheme == "https"
+	}
+
+	if config.SSHKeygenDir == "" && !httpGitURL {
 		logger.Log("info", fmt.Sprintf("SSH keygen dir (--ssh-keygen-dir) not provided, so using the deploy key volume (--k8s-secret-volume-mount-path=%s); this may cause problems if the deploy key volume is mounted read-only", config.K8sSecretVolumeMountPath))
 		config.SSHKeygenDir = config.K8sSecretVolumeMountPath
+
 	}
 
 	// Import GPG keys, if we've been told where to look for them
@@ -515,7 +525,7 @@ func main() {
 		}
 		clusterVersion = "kubernetes-" + serverVersion.GitVersion
 
-		if config.K8sInCluster {
+		if config.K8sInCluster && !httpGitURL {
 			namespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 			if err != nil {
 				logger.Log("err", err)
@@ -691,7 +701,6 @@ func main() {
 		SigningKey:  config.GitSigningKey,
 		SetAuthor:   config.GitSetAuthor,
 		SkipMessage: config.GitCISkipMessage,
-		GitSecret:   config.GitSecret,
 	}
 
 	repo := git.NewRepo(gitRemote, git.PollInterval(config.GitPollInterval), git.Timeout(config.GitTimeout), git.Branch(config.GitBranch), git.IsReadOnly(config.GitReadonly))
@@ -772,8 +781,10 @@ func main() {
 		JobStatusCache:            &job.StatusCache{Size: 100},
 		Logger:                    log.With(logger, "component", "daemon"),
 		ManifestGenerationEnabled: config.ManifestGeneration,
+		GitSecretEnabled:          config.GitSecret,
 		LoopVars: &daemon.LoopVars{
 			SyncInterval:        config.SyncInterval,
+			SyncTimeout:         config.SyncTimeout,
 			SyncState:           syncProvider,
 			AutomationInterval:  config.AutomationInterval,
 			GitTimeout:          config.GitTimeout,
