@@ -77,6 +77,66 @@ var (
 	RequireValues = []string{RequireECR}
 )
 
+type Config struct {
+	LogFormat                string        `mapstructure:"log-format"`
+	Listen                   string        `mapstructure:"listen"`
+	ListenMetrics            string        `mapstructure:"listen-metrics"`
+	KubernetesKubectl        string        `mapstructure:"kubernetes-kubectl"`
+	GitURL                   string        `mapstructure:"git-url"`
+	GitBranch                string        `mapstructure:"git-branch"`
+	GitPath                  []string      `mapstructure:"git-path"`
+	GitReadonly              bool          `mapstructure:"git-readonly"`
+	GitUser                  string        `mapstructure:"git-user"`
+	GitEmail                 string        `mapstructure:"git-email"`
+	GitSetAuthor             bool          `mapstructure:"git-set-author"`
+	GitLabel                 string        `mapstructure:"git-label"`
+	GitSecret                bool          `mapstructure:"git-secret"`
+	GitSyncTag               string        `mapstructure:"git-sync-tag"`
+	GitNotesRef              string        `mapstructure:"git-notes-ref"`
+	GitCISkip                bool          `mapstructure:"git-ci-skip"`
+	GitCISkipMessage         string        `mapstructure:"git-ci-skip-message"`
+	GitPollInterval          time.Duration `mapstructure:"git-poll-interval"`
+	GitTimeout               time.Duration `mapstructure:"git-timeout"`
+	GitGPGKeyImport          []string      `mapstructure:"git-gpg-key-import"`
+	GitVerifySignatures      bool          `mapstructure:"git-verify-signatures"`
+	GitSigningKey            string        `mapstructure:"git-signing-key"`
+	SyncInterval             time.Duration `mapstructure:"sync-interval"`
+	SyncGarbageCollection    bool          `mapstructure:"sync-garbage-collection"`
+	SyncGarbageCollectionDry bool          `mapstructure:"sync-garbage-collection-dry"`
+	SyncState                string        `mapstructure:"sync-state"`
+	MemcachedHostname        string        `mapstructure:"memcached-hostname"`
+	MemcachedPort            int           `mapstructure:"memcached-port"`
+	MemcachedService         string        `mapstructure:"memcached-service"`
+	MemcachedTimeout         time.Duration `mapstructure:"memcached-timeout"`
+	AutomationInterval       time.Duration `mapstructure:"automation-interval"`
+	RegistryPollInterval     time.Duration `mapstructure:"registry-poll-interval"`
+	RegistryRPS              float64       `mapstructure:"registry-rps"`
+	RegistryBurst            int           `mapstructure:"registry-burst"`
+	RegistryTrace            bool          `mapstructure:"registry-trace"`
+	RegistryInsecureHost     []string      `mapstructure:"registry-insecure-host"`
+	RegistryExcludeImage     []string      `mapstructure:"registry-exclude-image"`
+	RegistryUseLabels        []string      `mapstructure:"registry-use-labels"`
+	RegistryECRRegion        []string      `mapstructure:"registry-ecr-region"`
+	RegistryECRIncludeID     []string      `mapstructure:"registry-ecr-include-id"`
+	RegistryECRExcludeID     []string      `mapstructure:"registry-ecr-exclude-id"`
+	RegistryRequire          []string      `mapstructure:"registry-require"`
+	K8sInCluster             bool          `mapstructure:"k8s-in-cluster"`
+	K8sSecretName            string        `mapstructure:"k8s-secret-name"`
+	K8sSecretVolumeMountPath string        `mapstructure:"k8s-secret-volume-mount-path"`
+	K8sSecretDataKey         string        `mapstructure:"k8s-secret-data-key"`
+	K8sNamespaceWhitelist    []string      `mapstructure:"k8s-namespace-whitelist"`
+	K8sAllowNamespace        []string      `mapstructure:"k8s-allow-namespace"`
+	K8sVerbosity             int           `mapstructure:"k8s-verbosity"`
+	SSHKeygenDir             string        `mapstructure:"ssh-keygen-dir"`
+	ManifestGeneration       bool          `mapstructure:"manifest-generation"`
+	Connect                  string        `mapstructure:"connect"`
+	Token                    string        `mapstructure:"token"`
+	RPCTimeout               time.Duration `mapstructure:"rpc-timeout"`
+	Version                  bool          `mapstructure:"version"`
+	RegistryCacheExpiry      string        `mapstructure:"registry-cache-expiry"`
+	DockerConfig             string        `mapstructure:"docker-config"`
+}
+
 func optionalVar(fs *pflag.FlagSet, value ssh.OptionalValue, name, usage string) ssh.OptionalValue {
 	fs.Var(value, name, usage)
 	return value
@@ -211,7 +271,11 @@ func main() {
 
 	err := fs.Parse(os.Args[1:])
 
-	// Configure viper to check for a config file
+	// Configure viper to check for a environment variables or a config file
+	// environment variables will override config file variables
+	viper.SetEnvPrefix("FLUXCD")
+	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+	viper.AutomaticEnv()
 	viper.SetConfigName("flux-config")
 	viper.AddConfigPath("/etc/fluxd/")
 	if err := viper.ReadInConfig(); err != nil {
@@ -220,67 +284,14 @@ func main() {
 		} else {
 			fmt.Printf("error loading config file: %s\n", err.Error())
 		}
-		fmt.Printf("using command-line options and defaults:\n")
 	} else {
 		fmt.Printf("using configuration from /etc/fluxd/flux-config.yaml with command-line overrides\n")
 	}
 	// Bind Viper to the pflags defined above
 	viper.BindPFlags(fs)
-	logFormat := viper.GetString("log-format")
-	listenAddr := viper.GetString("listen")
-	listenMetricsAddr := viper.GetString("listen-metrics")
-	kubernetesKubectl := viper.GetString("kubernetes-kubectl")
-	gitURL := viper.GetString("git-url")
-	gitBranch := viper.GetString("git-branch")
-	gitPath := viper.GetStringSlice("git-path")
-	gitReadonly := viper.GetBool("git-readonly")
-	gitUser := viper.GetString("git-user")
-	gitEmail := viper.GetString("git-email")
-	gitSetAuthor := viper.GetBool("git-set-author")
-	gitLabel := viper.GetString("git-label")
-	gitSecret := viper.GetBool("git-secret")
-	gitSyncTag := viper.GetString("git-sync-tag")
-	gitNotesRef := viper.GetString("git-notes-ref")
-	gitSkip := viper.GetBool("git-ci-skip")
-	gitSkipMessage := viper.GetString("git-ci-skip-message")
-	gitPollInterval := viper.GetDuration("git-poll-interval")
-	gitTimeout := viper.GetDuration("git-timeout")
-	gitImportGPG := viper.GetStringSlice("git-gpg-key-import")
-	gitSigningKey := viper.GetString("git-signing-key")
-	gitVerifySignatures := viper.GetBool("git-verify-signatures")
-	syncInterval := viper.GetDuration("sync-interval")
-	syncGC := viper.GetBool("sync-garbage-collection")
-	dryGC := viper.GetBool("sync-garbage-collection-dry")
-	syncState := viper.GetString("sync-state")
-	memcachedHostname := viper.GetString("memcached-hostname")
-	memcachedPort := viper.GetInt("memcached-port")
-	memcachedTimeout := viper.GetDuration("memcached-timeout")
-	memcachedService := viper.GetString("memcached-service")
-	automationInterval := viper.GetDuration("automation-interval")
-	registryPollInterval := viper.GetDuration("registry-poll-interval")
-	registryRPS := viper.GetFloat64("registry-rps")
-	registryBurst := viper.GetInt("registry-burst")
-	registryTrace := viper.GetBool("registry-trace")
-	registryInsecure := viper.GetStringSlice("registry-insecure-host")
-	registryExcludeImage := viper.GetStringSlice("registry-exclude-image")
-	registryUseLabels := viper.GetStringSlice("registry-use-labels")
-	registryAWSRegions := viper.GetStringSlice("registry-ecr-region")
-	registryAWSAccountIDs := viper.GetStringSlice("registry-ecr-include-id")
-	registryAWSBlockAccountIDs := viper.GetStringSlice("registry-ecr-exclude-id")
-	registryRequire := viper.GetStringSlice("registry-require")
-	k8sInCluster := viper.GetBool("k8s-in-cluster")
-	k8sSecretName := viper.GetString("k8s-secret-name")
-	k8sSecretVolumeMountPath := viper.GetString("k8s-secret-volume-mount-path")
-	k8sSecretDataKey := viper.GetString("k8s-secret-data-key")
-	k8sNamespaceWhitelist := viper.GetStringSlice("k8s-namespace-whitelist")
-	k8sAllowNamespace := viper.GetStringSlice("k8s-allow-namespace")
-	k8sVerbosity := viper.GetInt("k8s-verbosity")
-	sshKeygenDir := viper.GetString("ssh-keygen-dir")
-	manifestGeneration := viper.GetBool("manifest-generation")
-	upstreamURL := viper.GetString("connect")
-	token := viper.GetString("token")
-	rpcTimeout := viper.GetDuration("rpc-timeout")
-	dockerConfig := viper.GetString("docker-config")
+	var config Config
+	viper.Unmarshal(&config)
+
 	switch {
 	case err == pflag.ErrHelp:
 		os.Exit(0)
@@ -294,16 +305,16 @@ func main() {
 	}
 
 	// set klog verbosity level
-	if k8sVerbosity > 0 {
+	if config.K8sVerbosity > 0 {
 		verbosity := klogFlags.Lookup("v")
-		verbosity.Value.Set(strconv.Itoa(k8sVerbosity))
+		verbosity.Value.Set(strconv.Itoa(config.K8sVerbosity))
 		klog.V(4).Infof("Kubernetes client verbosity level set to %v", klogFlags.Lookup("v").Value)
 	}
 
 	// Logger component.
 	var logger log.Logger
 	{
-		switch logFormat {
+		switch config.LogFormat {
 		case "json":
 			logger = log.NewJSONLogger(log.NewSyncWriter(os.Stderr))
 		case "fmt":
@@ -337,10 +348,10 @@ func main() {
 
 	// Argument validation
 
-	if gitReadonly {
-		if syncState == fluxsync.GitTagStateMode {
+	if config.GitReadonly {
+		if config.SyncState == fluxsync.GitTagStateMode {
 			logger.Log("warning", fmt.Sprintf("--git-readonly prevents use of --sync-state=%s. Forcing to --sync-state=%s", fluxsync.GitTagStateMode, fluxsync.NativeStateMode))
-			syncState = fluxsync.NativeStateMode
+			config.SyncState = fluxsync.NativeStateMode
 		}
 
 		gitRelatedFlags := []string{
@@ -366,41 +377,41 @@ func main() {
 	// flag, but only if the --automation-interval is not set to a custom
 	// (non default) value.
 	if fs.Changed("registry-poll-interval") && !fs.Changed("automation-interval") {
-		automationInterval = registryPollInterval
+		config.AutomationInterval = config.RegistryPollInterval
 	}
 
 	// Sort out values for the git tag and notes ref. There are
 	// running deployments that assume the defaults as given, so don't
 	// mess with those unless explicitly told.
 	if fs.Changed("git-label") {
-		gitSyncTag = gitLabel
-		gitNotesRef = gitLabel
+		config.GitSyncTag = config.GitLabel
+		config.GitNotesRef = config.GitLabel
 		for _, f := range []string{"git-sync-tag", "git-notes-ref"} {
 			if fs.Changed(f) {
-				logger.Log("overridden", f, "value", gitLabel)
+				logger.Log("overridden", f, "value", config.GitLabel)
 			}
 		}
 	}
 
-	if gitSkipMessage == "" && gitSkip {
-		gitSkipMessage = defaultGitSkipMessage
+	if config.GitCISkipMessage == "" && config.GitCISkip {
+		config.GitCISkipMessage = defaultGitSkipMessage
 	}
 
-	for _, path := range gitPath {
+	for _, path := range config.GitPath {
 		if len(path) > 0 && path[0] == '/' {
 			logger.Log("err", "subdirectory given as --git-path should not have leading forward slash")
 			os.Exit(1)
 		}
 	}
 
-	if sshKeygenDir == "" {
-		logger.Log("info", fmt.Sprintf("SSH keygen dir (--ssh-keygen-dir) not provided, so using the deploy key volume (--k8s-secret-volume-mount-path=%s); this may cause problems if the deploy key volume is mounted read-only", k8sSecretVolumeMountPath))
-		sshKeygenDir = k8sSecretVolumeMountPath
+	if config.SSHKeygenDir == "" {
+		logger.Log("info", fmt.Sprintf("SSH keygen dir (--ssh-keygen-dir) not provided, so using the deploy key volume (--k8s-secret-volume-mount-path=%s); this may cause problems if the deploy key volume is mounted read-only", config.K8sSecretVolumeMountPath))
+		config.SSHKeygenDir = config.K8sSecretVolumeMountPath
 	}
 
 	// Import GPG keys, if we've been told where to look for them
-	for _, p := range gitImportGPG {
-		keyfiles, err := gpg.ImportKeys(p, gitVerifySignatures)
+	for _, p := range config.GitGPGKeyImport {
+		keyfiles, err := gpg.ImportKeys(p, config.GitVerifySignatures)
 		if err != nil {
 			logger.Log("error", fmt.Sprintf("failed to import GPG key(s) from %s", p), "err", err.Error())
 		}
@@ -410,15 +421,15 @@ func main() {
 	}
 
 	possiblyRequired := stringset(RequireValues)
-	for _, r := range registryRequire {
+	for _, r := range config.RegistryRequire {
 		if !possiblyRequired.has(r) {
 			logger.Log("err", fmt.Sprintf("--registry-require value %q is not in possible values {%s}", r, strings.Join(RequireValues, ",")))
 			os.Exit(1)
 		}
 	}
-	mandatoryRegistry := stringset(registryRequire)
+	mandatoryRegistry := stringset(config.RegistryRequire)
 
-	if gitSecret && len(gitImportGPG) == 0 {
+	if config.GitSecret && len(config.GitGPGKeyImport) == 0 {
 		logger.Log("warning", fmt.Sprintf("--git-secret is enabled but there is no GPG key(s) provided using --git-gpg-key-import, we assume you mounted the keyring directly and continue"))
 	}
 
@@ -442,7 +453,7 @@ func main() {
 
 	var restClientConfig *rest.Config
 	{
-		if k8sInCluster {
+		if config.K8sInCluster {
 			logger.Log("msg", "using in cluster config to connect to the cluster")
 			restClientConfig, err = rest.InClusterConfig()
 			if err != nil {
@@ -504,7 +515,7 @@ func main() {
 		}
 		clusterVersion = "kubernetes-" + serverVersion.GitVersion
 
-		if k8sInCluster {
+		if config.K8sInCluster {
 			namespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 			if err != nil {
 				logger.Log("err", err)
@@ -513,12 +524,12 @@ func main() {
 
 			sshKeyRing, err = kubernetes.NewSSHKeyRing(kubernetes.SSHKeyRingConfig{
 				SecretAPI:             clientset.CoreV1().Secrets(string(namespace)),
-				SecretName:            k8sSecretName,
-				SecretVolumeMountPath: k8sSecretVolumeMountPath,
-				SecretDataKey:         k8sSecretDataKey,
+				SecretName:            config.K8sSecretName,
+				SecretVolumeMountPath: config.K8sSecretVolumeMountPath,
+				SecretDataKey:         config.K8sSecretDataKey,
 				KeyBits:               sshKeyBits,
 				KeyType:               sshKeyType,
-				KeyGenDir:             sshKeygenDir,
+				KeyGenDir:             config.SSHKeygenDir,
 			})
 			if err != nil {
 				logger.Log("err", err)
@@ -536,7 +547,7 @@ func main() {
 
 		logger.Log("host", restClientConfig.Host, "version", clusterVersion)
 
-		kubectl := kubernetesKubectl
+		kubectl := config.KubernetesKubectl
 		if kubectl == "" {
 			kubectl, err = exec.LookPath("kubectl")
 		} else {
@@ -550,10 +561,10 @@ func main() {
 
 		client := kubernetes.MakeClusterClientset(clientset, dynamicClientset, fhrClientset, hrClientset, discoClientset)
 		kubectlApplier := kubernetes.NewKubectl(kubectl, restClientConfig)
-		allowedNamespaces := append(k8sNamespaceWhitelist, k8sAllowNamespace...)
-		k8sInst := kubernetes.NewCluster(client, kubectlApplier, sshKeyRing, logger, allowedNamespaces, registryExcludeImage)
-		k8sInst.GC = syncGC
-		k8sInst.DryGC = dryGC
+		allowedNamespaces := append(config.K8sNamespaceWhitelist, config.K8sAllowNamespace...)
+		k8sInst := kubernetes.NewCluster(client, kubectlApplier, sshKeyRing, logger, allowedNamespaces, config.RegistryExcludeImage)
+		k8sInst.GC = config.SyncGarbageCollection
+		k8sInst.DryGC = config.SyncGarbageCollectionDry
 
 		if err := k8sInst.Ping(); err != nil {
 			logger.Log("ping", err)
@@ -576,9 +587,9 @@ func main() {
 	// Wrap the procedure for collecting images to scan
 	{
 		awsConf := registry.AWSRegistryConfig{
-			Regions:    registryAWSRegions,
-			AccountIDs: registryAWSAccountIDs,
-			BlockIDs:   registryAWSBlockAccountIDs,
+			Regions:    config.RegistryECRRegion,
+			AccountIDs: config.RegistryECRIncludeID,
+			BlockIDs:   config.RegistryECRExcludeID,
 		}
 
 		awsPreflight, credsWithAWSAuth := registry.ImageCredsWithAWSAuth(imageCreds, log.With(logger, "component", "aws"), awsConf)
@@ -590,8 +601,8 @@ func main() {
 		}
 		imageCreds = credsWithAWSAuth
 
-		if dockerConfig != "" {
-			credsWithDefaults, err := registry.ImageCredsWithDefaults(imageCreds, dockerConfig)
+		if config.DockerConfig != "" {
+			credsWithDefaults, err := registry.ImageCredsWithDefaults(imageCreds, config.DockerConfig)
 			if err != nil {
 				logger.Log("warning", "--docker-config not used; pre-flight check failed", "err", err)
 			} else {
@@ -608,18 +619,18 @@ func main() {
 		var cacheClient cache.Client
 		var memcacheClient *registryMemcache.MemcacheClient
 		memcacheConfig := registryMemcache.MemcacheConfig{
-			Host:           memcachedHostname,
-			Service:        memcachedService,
-			Timeout:        memcachedTimeout,
+			Host:           config.MemcachedHostname,
+			Service:        config.MemcachedService,
+			Timeout:        config.MemcachedTimeout,
 			UpdateInterval: 1 * time.Minute,
 			Logger:         log.With(logger, "component", "memcached"),
-			MaxIdleConns:   registryBurst,
+			MaxIdleConns:   config.RegistryBurst,
 		}
 
 		// if no memcached service is specified use the ClusterIP name instead of SRV records
-		if memcachedService == "" {
+		if config.MemcachedService == "" {
 			memcacheClient = registryMemcache.NewFixedServerMemcacheClient(memcacheConfig,
-				fmt.Sprintf("%s:%d", memcachedHostname, memcachedPort))
+				fmt.Sprintf("%s:%d", config.MemcachedHostname, config.MemcachedPort))
 		} else {
 			memcacheClient = registryMemcache.NewMemcacheClient(memcacheConfig)
 		}
@@ -630,7 +641,7 @@ func main() {
 		cacheRegistry = &cache.Cache{
 			Reader: cacheClient,
 			Decorators: []cache.Decorator{
-				cache.TimestampLabelWhitelist(registryUseLabels),
+				cache.TimestampLabelWhitelist(config.RegistryUseLabels),
 			},
 		}
 		cacheRegistry = registry.NewInstrumentedRegistry(cacheRegistry)
@@ -638,20 +649,20 @@ func main() {
 		// Remote client, for warmer to refresh entries
 		registryLogger := log.With(logger, "component", "registry")
 		registryLimits := &registryMiddleware.RateLimiters{
-			RPS:    registryRPS,
-			Burst:  registryBurst,
+			RPS:    config.RegistryRPS,
+			Burst:  config.RegistryBurst,
 			Logger: log.With(logger, "component", "ratelimiter"),
 		}
 		remoteFactory := &registry.RemoteClientFactory{
 			Logger:        registryLogger,
 			Limiters:      registryLimits,
-			Trace:         registryTrace,
-			InsecureHosts: registryInsecure,
+			Trace:         config.RegistryTrace,
+			InsecureHosts: config.RegistryInsecureHost,
 		}
 
 		// Warmer
 		var err error
-		cacheWarmer, err = cache.NewWarmer(remoteFactory, cacheClient, registryBurst)
+		cacheWarmer, err = cache.NewWarmer(remoteFactory, cacheClient, config.RegistryBurst)
 		if err != nil {
 			logger.Log("err", err)
 			os.Exit(1)
@@ -666,24 +677,24 @@ func main() {
 	updateCheckLogger := log.With(logger, "component", "checkpoint")
 	checkpointFlags := map[string]string{
 		"cluster-version": clusterVersion,
-		"git-configured":  strconv.FormatBool(gitURL != ""),
+		"git-configured":  strconv.FormatBool(config.GitURL != ""),
 	}
 	checkpoint.CheckForUpdates(product, version, checkpointFlags, updateCheckLogger)
 
-	gitRemote := git.Remote{URL: gitURL}
+	gitRemote := git.Remote{URL: config.GitURL}
 	gitConfig := git.Config{
-		Paths:       gitPath,
-		Branch:      gitBranch,
-		NotesRef:    gitNotesRef,
-		UserName:    gitUser,
-		UserEmail:   gitEmail,
-		SigningKey:  gitSigningKey,
-		SetAuthor:   gitSetAuthor,
-		SkipMessage: gitSkipMessage,
-		GitSecret:   gitSecret,
+		Paths:       config.GitPath,
+		Branch:      config.GitBranch,
+		NotesRef:    config.GitNotesRef,
+		UserName:    config.GitUser,
+		UserEmail:   config.GitEmail,
+		SigningKey:  config.GitSigningKey,
+		SetAuthor:   config.GitSetAuthor,
+		SkipMessage: config.GitCISkipMessage,
+		GitSecret:   config.GitSecret,
 	}
 
-	repo := git.NewRepo(gitRemote, git.PollInterval(gitPollInterval), git.Timeout(gitTimeout), git.Branch(gitBranch), git.IsReadOnly(gitReadonly))
+	repo := git.NewRepo(gitRemote, git.PollInterval(config.GitPollInterval), git.Timeout(config.GitTimeout), git.Branch(config.GitBranch), git.IsReadOnly(config.GitReadonly))
 	{
 		shutdownWg.Add(1)
 		go func() {
@@ -695,17 +706,17 @@ func main() {
 	}
 
 	logger.Log(
-		"url", gitURL,
-		"user", gitUser,
-		"email", gitEmail,
-		"signing-key", gitSigningKey,
-		"verify-signatures", gitVerifySignatures,
-		"sync-tag", gitSyncTag,
-		"state", syncState,
-		"readonly", gitReadonly,
-		"notes-ref", gitNotesRef,
-		"set-author", gitSetAuthor,
-		"git-secret", gitSecret,
+		"url", config.GitURL,
+		"user", config.GitUser,
+		"email", config.GitEmail,
+		"signing-key", config.GitSigningKey,
+		"verify-signatures", config.GitVerifySignatures,
+		"sync-tag", config.GitSyncTag,
+		"state", config.SyncState,
+		"readonly", config.GitReadonly,
+		"notes-ref", config.GitNotesRef,
+		"set-author", config.GitSetAuthor,
+		"git-secret", config.GitSecret,
 	)
 
 	var jobs *job.Queue
@@ -714,7 +725,7 @@ func main() {
 	}
 
 	var syncProvider fluxsync.State
-	switch syncState {
+	switch config.SyncState {
 	case fluxsync.NativeStateMode:
 		namespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 		if err != nil {
@@ -724,7 +735,7 @@ func main() {
 
 		syncProvider, err = fluxsync.NewNativeSyncProvider(
 			string(namespace),
-			k8sSecretName,
+			config.K8sSecretName,
 		)
 		if err != nil {
 			logger.Log("err", err)
@@ -734,9 +745,9 @@ func main() {
 	case fluxsync.GitTagStateMode:
 		syncProvider, err = fluxsync.NewGitTagSyncProvider(
 			repo,
-			gitSyncTag,
-			gitSigningKey,
-			gitVerifySignatures,
+			config.GitSyncTag,
+			config.GitSigningKey,
+			config.GitVerifySignatures,
 			gitConfig,
 		)
 		if err != nil {
@@ -745,7 +756,7 @@ func main() {
 		}
 
 	default:
-		logger.Log("error", "unknown sync state mode", "mode", syncState)
+		logger.Log("error", "unknown sync state mode", "mode", config.SyncState)
 		os.Exit(1)
 	}
 
@@ -760,29 +771,29 @@ func main() {
 		Jobs:                      jobs,
 		JobStatusCache:            &job.StatusCache{Size: 100},
 		Logger:                    log.With(logger, "component", "daemon"),
-		ManifestGenerationEnabled: manifestGeneration,
+		ManifestGenerationEnabled: config.ManifestGeneration,
 		LoopVars: &daemon.LoopVars{
-			SyncInterval:        syncInterval,
+			SyncInterval:        config.SyncInterval,
 			SyncState:           syncProvider,
-			AutomationInterval:  automationInterval,
-			GitTimeout:          gitTimeout,
-			GitVerifySignatures: gitVerifySignatures,
+			AutomationInterval:  config.AutomationInterval,
+			GitTimeout:          config.GitTimeout,
+			GitVerifySignatures: config.GitVerifySignatures,
 		},
 	}
 
 	{
 		// Connect to fluxsvc if given an upstream address
-		if upstreamURL != "" {
+		if config.Connect != "" {
 			upstreamLogger := log.With(logger, "component", "upstream")
-			upstreamLogger.Log("URL", upstreamURL)
+			upstreamLogger.Log("URL", config.Connect)
 			upstream, err := daemonhttp.NewUpstream(
 				&http.Client{Timeout: 10 * time.Second},
 				fmt.Sprintf("fluxd/%v", version),
-				client.Token(token),
+				client.Token(config.Token),
 				transport.NewUpstreamRouter(),
-				upstreamURL,
+				config.Connect,
 				remote.NewErrorLoggingServer(daemon, upstreamLogger),
-				rpcTimeout,
+				config.RPCTimeout,
 				upstreamLogger,
 			)
 			if err != nil {
@@ -804,28 +815,28 @@ func main() {
 
 	cacheWarmer.Notify = daemon.AskForAutomatedWorkloadImageUpdates
 	cacheWarmer.Priority = daemon.ImageRefresh
-	cacheWarmer.Trace = registryTrace
+	cacheWarmer.Trace = config.RegistryTrace
 	shutdownWg.Add(1)
 	go cacheWarmer.Loop(log.With(logger, "component", "warmer"), shutdown, shutdownWg, imageCreds)
 
 	go func() {
 		mux := http.DefaultServeMux
 		// Serve /metrics alongside API
-		if listenMetricsAddr == "" {
+		if config.ListenMetrics == "" {
 			mux.Handle("/metrics", promhttp.Handler())
 		}
 		handler := daemonhttp.NewHandler(daemon, daemonhttp.NewRouter())
 		mux.Handle("/api/flux/", http.StripPrefix("/api/flux", handler))
-		logger.Log("addr", listenAddr)
-		errc <- http.ListenAndServe(listenAddr, mux)
+		logger.Log("addr", config.Listen)
+		errc <- http.ListenAndServe(config.Listen, mux)
 	}()
 
-	if listenMetricsAddr != "" {
+	if config.ListenMetrics != "" {
 		go func() {
 			mux := http.NewServeMux()
 			mux.Handle("/metrics", promhttp.Handler())
-			logger.Log("metrics-addr", listenMetricsAddr)
-			errc <- http.ListenAndServe(listenMetricsAddr, mux)
+			logger.Log("metrics-addr", config.ListenMetrics)
+			errc <- http.ListenAndServe(config.ListenMetrics, mux)
 		}()
 	}
 

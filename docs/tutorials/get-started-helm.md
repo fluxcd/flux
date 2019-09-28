@@ -81,6 +81,29 @@ In this next step you install Flux using `helm`. Simply
       --namespace flux \
       fluxcd/flux
       ```
+      
+    - You can also use a configuration file to configure Flux instead of specifying command line arguments. The flux-config.yaml file must be located in the chart/flux directory:
+
+      ```sh
+      helm upgrade -i flux \
+      --set helmOperator.create=true \
+      --set helmOperator.createCRD=false \
+      --set config.file=flux-config.yaml \
+      --namespace flux \
+      fluxcd/flux
+      ```
+
+      The flux-config.yaml configuration file accepts any of the command-line arguments. Command-line arguments override configuration file values. By default, a Kubernetes Secret will be created to store the Flux configuration. If you prefer to use a Config Map to specify the Flux configuration, use the following:
+
+      ```sh
+      helm upgrade -i flux \
+      --set helmOperator.create=true \
+      --set helmOperator.createCRD=false \
+      --set config.file=flux-config.yaml \
+      --set config.asConfigMap=true \
+      --namespace flux \
+      fluxcd/flux
+      ```
 
     - Using a private git server:
 

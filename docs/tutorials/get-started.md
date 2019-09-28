@@ -58,6 +58,18 @@ Wait for Flux to start:
 kubectl -n flux rollout status deployment/flux
 ```
 
+You can also use a configuration file to configure Flux instead of specifying command line arguments:
+
+```sh
+fluxctl install --config-file=deploy/flux-config.yaml --namespace=flux | kubectl apply -f -
+```
+
+The flux-config.yaml configuration file accepts any of the command-line arguments. Command-line arguments override configuration file values. By default, a Kubernetes Secret will be created to store the Flux configuration. If you prefer to use a Config Map to specify the Flux configuration, use the following:
+
+```sh
+fluxctl install --config-file=deploy/flux-config.yaml --config-as-configmap=true --namespace=flux | kubectl apply -f -
+```
+
 ## Giving write access
 
 At startup Flux generates a SSH key and logs the public key. Find
