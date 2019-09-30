@@ -196,6 +196,9 @@ Connecting:
   # To a fluxd running in namespace "weave" in your current kubectl context
   fluxctl --k8s-fwd-ns=weave list-workloads
 
+  # To a Weave Cloud instance, with your instance token in $TOKEN
+  fluxctl --token $TOKEN list-workloads
+
 Workflow:
   fluxctl list-workloads                                                   # Which workloads are running?
   fluxctl list-images --workload=default:deployment/foo                    # Which images are running/available?
@@ -205,29 +208,43 @@ Usage:
   fluxctl [command]
 
 Available Commands:
-  automate         Turn on automatic deployment for a workload.
-  deautomate       Turn off automatic deployment for a workload.
-  help             Help about any command
-  identity         Display SSH public key
-  list-workloads   List workloads currently running in the cluster.
-  list-images      Show the deployed and available images.
-  lock             Lock a workload, so it cannot be deployed.
-  policy           Manage policies for a workload.
-  release          Release a new version of a workload.
-  save             save workload definitions to local files in cluster-native format
-  sync             synchronize the cluster with the git repository, now
-  unlock           Unlock a workload, so it can be deployed.
-  version          Output the version of fluxctl
+  automate       Turn on automatic deployment for a workload.
+  deautomate     Turn off automatic deployment for a workload.
+  help           Help about any command
+  identity       Display SSH public key
+  install        Print and tweak Kubernetes manifests needed to install Flux in a Cluster
+  list-images    Show deployed and available images.
+  list-workloads List workloads currently running in the cluster.
+  lock           Lock a workload, so it cannot be deployed.
+  policy         Manage policies for a workload.
+  release        Release a new version of a workload.
+  save           save workload definitions to local files in cluster-native format
+  sync           synchronize the cluster with the git repository, now
+  unlock         Unlock a workload, so it can be deployed.
+  version        Output the version of fluxctl
 
 Flags:
   -h, --help                            help for fluxctl
       --k8s-fwd-labels stringToString   Labels used to select the fluxd pod a port forward should be created for. You can also set the environment variable FLUX_FORWARD_LABELS (default [app=flux])
       --k8s-fwd-ns string               Namespace in which fluxd is running, for creating a port forward to access the API. No port forward will be created if a URL or token is given. You can also set the environment variable FLUX_FORWARD_NAMESPACE (default "default")
+      --timeout duration                Global command timeout; you can also set the environment variable FLUX_TIMEOUT (default 1m0s)
   -t, --token string                    Weave Cloud authentication token; you can also set the environment variable WEAVE_CLOUD_TOKEN or FLUX_SERVICE_TOKEN
   -u, --url string                      Base URL of the Flux API (defaults to "https://cloud.weave.works/api/flux" if a token is provided); you can also set the environment variable FLUX_URL
 
 Use "fluxctl [command] --help" for more information about a command.
 ```
+
+### Using `fluxctl install`
+
+Installs Flux into your cluster, taking as input your Git details and namespace you want to target.
+
+Example:
+
+```sh
+fluxctl install --git-url 'git@github.com:<your username>/flux-get-started' | kubectl -f -
+```
+
+See [here](../tutorials/get-started.html#set-up-flux) for a full tutorial which makes use of `fluxctl install`.
 
 ## Workloads
 
