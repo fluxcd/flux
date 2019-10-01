@@ -1,3 +1,114 @@
+## 1.15.0 (2019-10-02)
+
+This feature release adds secure support for Git over HTTPS, updates
+`kubectl` and `kustomize`, and does a lot of internal rewiring
+_without_ changing user-visible functions or the public APIs.
+From this release forward, garbage collection, namespace scoping,
+and manifest generation are no longer considered experimental.
+
+### Fixes
+
+- Reinstate `git-secret` support after accidentally breaking it 
+  during a refactor that landed in `1.14.0` [fluxcd/flux#2429][]
+- Fix error handling in `splitConfigFilesAndRawManifestPaths`
+  [fluxcd/flux#2455][]
+
+### Enhancements
+
+- Support secure Git over HTTPS using credentials from environment
+  variables [fluxcd/flux#2470][]
+- Add a flag `--sync-timeout`, for configuring the timeout of sync
+  operations. This is mainly of interest to people making use of the
+  manifest generation feature, or people who are operating
+  exceptionally large Git repositories [fluxcd/flux#2481][]
+- Update `kubectl` to `1.14.7` and `kustomize` to `3.2.0`
+  [fluxcd/flux#2461][]
+- De-experimental-ise garbage collection, namespace scoping, and
+  manifest generation features [fluxcd/flux#2485][]
+- Improve logged warning about unsupported automated resource kinds
+  [fluxcd/flux#2471][]
+
+## Maintenance and documentation
+
+- Build: upgrade Go to `1.13.1` [fluxcd/flux#2482][]
+- Build: avoid spurious diffs in generated files by fixing their
+  modtimes to Unix epoch [fluxcd/flux#2473][]
+- Build: update Kind, used for end-to-end tests, to `0.5.1`
+  [fluxcd/flux#2461][]
+- Build: simplify the files included in `snapcraft.yaml`
+  [fluxcd/flux#2427][]
+- Build: stop publishing Docker images to Weaveworks' DockerHub
+  [fluxcd/flux#2491][]
+- Build: republish Git tag with a `v` prefix during release, to make
+  it available to Go Mod [fluxcd/flux#2491][]
+- Code: change import paths from `weaveworks` to `fluxcd`
+  [fluxcd/flux#2305][]
+- Code: move all packages to `pkg/` [fluxcd/flux#2464][]
+- Code: fix some typos in comments [fluxcd/flux#2478][]
+- Documentation: update organization mentions (`weaveworks` -> `fluxcd`)
+  [fluxcd/flux#2430][]
+- Documentation: remove `values.` prefix from annotation examples
+  [fluxcd/flux#2436][]
+- Documentation: include installation instructions for `fluxctl` on
+  Windows using Chocolatey [fluxcd/flux#2457][]
+- Documentation: provide some additional links within the documentation
+  to using Flux with Kustomize, Helm, or Flagger [fluxcd/flux#2358][]
+- Documentation: reflow commit customization bits in `fluxctl`
+  documentation [fluxcd/flux#2459][]
+- Documentation: small `.flux.yaml` documentation improvements
+  fluxcd/flux#{[#2466][fluxcd/flux#2466], [#2467][fluxcd/flux#2467]}
+- Documentation: remove mention of `mergePatchUpdater` in `.flux.yaml`
+  documentation, as it is not a thing [fluxcd/flux#2469][]
+- Documentation: use `flux` as a default namespace in `deploy/`
+  examples [fluxcd/flux#2475][]
+- Documentation: fix incorrectly documented Helm chart repository
+  [fluxcd/flux#2484][]
+- Documentation: update the documented `fluxctl` output
+  [fluxcd/flux#2489][]
+- Documentation: fix `--git-path` argument in 'get started' and
+  'driving Flux' tutorials
+  fluxcd/flux#{[#2423][fluxcd/flux#2423], [#2424][fluxcd/flux#2424]}
+- Documentation: add HMCTS and WGTwo as production users (:tada:)
+  fluxcd/flux#{[#2458][fluxcd/flux#2458], [#2450][fluxcd/flux#2450]}
+
+### Thanks
+
+Tip of the hat and many thanks to @davidpristovnik, @dananichev,
+@Keralin, @domgoodwin @luxas, @squaremo, @stefanprodan, @hiddeco,
+@elzapp, @nodanero, @dholbach, @stealthybox, @arsiesys, @alexmt,
+@DarinDouglass, @holger-wg2,  @chrisfowles, @timja, @2opremio,
+@adusumillipraveen for contributions to this release.
+
+[fluxcd/flux#2305]: https://github.com/fluxcd/flux/pull/2305
+[fluxcd/flux#2358]: https://github.com/fluxcd/flux/pull/2358
+[fluxcd/flux#2423]: https://github.com/fluxcd/flux/pull/2423
+[fluxcd/flux#2424]: https://github.com/fluxcd/flux/pull/2424
+[fluxcd/flux#2427]: https://github.com/fluxcd/flux/pull/2427
+[fluxcd/flux#2429]: https://github.com/fluxcd/flux/pull/2429
+[fluxcd/flux#2430]: https://github.com/fluxcd/flux/pull/2430
+[fluxcd/flux#2436]: https://github.com/fluxcd/flux/pull/2436
+[fluxcd/flux#2450]: https://github.com/fluxcd/flux/pull/2450
+[fluxcd/flux#2455]: https://github.com/fluxcd/flux/pull/2455
+[fluxcd/flux#2457]: https://github.com/fluxcd/flux/pull/2457
+[fluxcd/flux#2458]: https://github.com/fluxcd/flux/pull/2458
+[fluxcd/flux#2459]: https://github.com/fluxcd/flux/pull/2459
+[fluxcd/flux#2461]: https://github.com/fluxcd/flux/pull/2461
+[fluxcd/flux#2464]: https://github.com/fluxcd/flux/pull/2464
+[fluxcd/flux#2466]: https://github.com/fluxcd/flux/pull/2466
+[fluxcd/flux#2467]: https://github.com/fluxcd/flux/pull/2467
+[fluxcd/flux#2469]: https://github.com/fluxcd/flux/pull/2469
+[fluxcd/flux#2470]: https://github.com/fluxcd/flux/pull/2470
+[fluxcd/flux#2471]: https://github.com/fluxcd/flux/pull/2471
+[fluxcd/flux#2473]: https://github.com/fluxcd/flux/pull/2473
+[fluxcd/flux#2475]: https://github.com/fluxcd/flux/pull/2475
+[fluxcd/flux#2478]: https://github.com/fluxcd/flux/pull/2478
+[fluxcd/flux#2481]: https://github.com/fluxcd/flux/pull/2481
+[fluxcd/flux#2482]: https://github.com/fluxcd/flux/pull/2482
+[fluxcd/flux#2484]: https://github.com/fluxcd/flux/pull/2484
+[fluxcd/flux#2485]: https://github.com/fluxcd/flux/pull/2485
+[fluxcd/flux#2489]: https://github.com/fluxcd/flux/pull/2489
+[fluxcd/flux#2491]: https://github.com/fluxcd/flux/pull/2491
+
 ## 1.14.2 (2019-09-02)
 
 This is a patch release, with some important fixes to the handling of
