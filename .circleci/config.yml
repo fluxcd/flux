@@ -127,13 +127,7 @@ jobs:
           name: Maybe push prerelease images
           command: |
             if [ -z "${CIRCLE_TAG}" -a "${CIRCLE_BRANCH}" == "master" ]; then
-              # Push to weaveworks org
-              echo "$DOCKER_REGISTRY_PASSWORD" | docker login --username "$DOCKER_REGISTRY_USER" --password-stdin
-
-              docker tag "docker.io/fluxcd/flux:$(docker/image-tag)" "docker.io/weaveworks/flux-prerelease:$(docker/image-tag)"
-              docker push "docker.io/weaveworks/flux-prerelease:$(docker/image-tag)"
-
-              # Push to fluxcd org
+              # Re-tag image as prerelease and publish on DockerHub
               echo "$DOCKER_FLUXCD_PASSWORD" | docker login --username "$DOCKER_FLUXCD_USER" --password-stdin
               docker tag "docker.io/fluxcd/flux:$(docker/image-tag)" "docker.io/fluxcd/flux-prerelease:$(docker/image-tag)"
               docker push "docker.io/fluxcd/flux-prerelease:$(docker/image-tag)"
@@ -142,17 +136,25 @@ jobs:
           name: Maybe push release image and upload binaries
           command: |
             if echo "${CIRCLE_TAG}" | grep -Eq "^[0-9]+(\.[0-9]+)*(-[a-z0-9]+)?$"; then
+              # Publish binaries to GitHub
               go get github.com/weaveworks/github-release
               make release-bins
               bin/upload-binaries
-              # Push to weaveworks org
-              echo "$DOCKER_REGISTRY_PASSWORD" | docker login --username "$DOCKER_REGISTRY_USER" --password-stdin
-              docker tag "docker.io/fluxcd/flux:${CIRCLE_TAG}" "docker.io/weaveworks/flux:${CIRCLE_TAG}"
-              docker push "docker.io/weaveworks/flux:${CIRCLE_TAG}"
 
-              # Push to fluxcd org
+              # Publish image on DockerHub
               echo "$DOCKER_FLUXCD_PASSWORD" | docker login --username "$DOCKER_FLUXCD_USER" --password-stdin
               docker push "docker.io/fluxcd/flux:${CIRCLE_TAG}"
+
+              # Republish tag with v prefix so it is available to Go Mod
+              git config --global user.email fluxcdbot@users.noreply.github.com
+              git config --global user.name fluxcdbot
+
+              REPOSITORY="https://fluxcdbot:${GITHUB_TOKEN}@github.com/fluxcd/flux.git"
+              git remote set-url origin ${REPOSITORY}
+
+              V_TAG="v${CIRCLE_TAG}"
+              git tag ${V_TAG} $(git rev-list -n1 ${CIRCLE_TAG})
+              git push origin ${V_TAG}
             fi
 
 workflows:
