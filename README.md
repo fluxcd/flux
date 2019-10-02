@@ -47,6 +47,7 @@ container images and config changes are propagated to the cluster.
 
 - [ABA English](https://www.abaenglish.com)
 - [APPUiO](https://appuio.ch)
+- [Apester](https://apester.com)
 - [ArangoDB Oasis](https://arangodb.com/managed-service)
 - [Avisi](https://avisi.nl)
 - [Babylon Health](https://www.babylonhealth.com/)
