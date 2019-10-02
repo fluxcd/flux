@@ -144,6 +144,17 @@ jobs:
               # Publish image on DockerHub
               echo "$DOCKER_FLUXCD_PASSWORD" | docker login --username "$DOCKER_FLUXCD_USER" --password-stdin
               docker push "docker.io/fluxcd/flux:${CIRCLE_TAG}"
+
+              # Republish tag with v prefix so it is available to Go Mod
+              git config --global user.email fluxcdbot@users.noreply.github.com
+              git config --global user.name fluxcdbot
+
+              REPOSITORY="https://fluxcdbot:${GITHUB_TOKEN}@github.com/fluxcd/flux.git"
+              git remote set-url origin ${REPOSITORY}
+
+              V_TAG="v${CIRCLE_TAG}"
+              git tag ${V_TAG} $(git rev-list -n1 ${CIRCLE_TAG})
+              git push origin ${V_TAG}
             fi
 
 workflows:
