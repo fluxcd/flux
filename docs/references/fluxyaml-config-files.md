@@ -82,7 +82,7 @@ command and a `policy` command, covering the corresponding two types of workload
 > * Some configurations (even those for Kubernetes clusters) may encode policies symbolically.
 
 Here is a specific `.flux.yaml` example, declaring a generator and an updater using [Kustomize](https://github.com/kubernetes-sigs/kustomize)
-(see [https://github.com/fluxcd/flux-kustomize-example](https://github.com/fluxcd/flux-kustomize-example)
+(see [https://github.com/weaveworks/flux-kustomize-example](https://github.com/weaveworks/flux-kustomize-example)
 for a complete example).
 
 ```yaml
