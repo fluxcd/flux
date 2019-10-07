@@ -1,5 +1,12 @@
 ## 0.15.0 (2019-10-07)
 
+**Note** The Helm Operator options will be **removed** from this chart in the next major release.
+Please see the [install instruction](https://github.com/fluxcd/helm-operator/tree/master/chart/helm-operator)
+for Helm Operator v1.0.0. To keep using the same SSH key as Flux see the docs
+[here](https://github.com/fluxcd/helm-operator/tree/master/chart/helm-operator#use-fluxs-git-deploy-key).
+The upgrade procedure for `HelmReleases` from `v1beta1` to `v1` can be found
+[here](https://docs.fluxcd.io/projects/helm-operator/en/latest/guides/upgrading-to-ga.html).
+
 ### Improvements
 
  - Updated Flux to `1.15.0`

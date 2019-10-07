@@ -12,26 +12,11 @@ a [Kubernetes](http://kubernetes.io) cluster using the [Helm](https://helm.sh) p
 
 ## Prerequisites
 
-### Kubernetes
-
-Kubernetes >= v1.10 is recommended. Kubernetes v1.8 (the first to support
-Custom Resources) appears to have problems with repeated application of
-custom resources (see https://github.com/kubernetes/kubernetes/issues/53379).
-This means fluxd can fail to apply changes to HelmRelease resources.
-
-### Helm
-
-Tiller should be running in the cluster, though
-[helm-operator](https://github.com/fluxcd/helm-operator) will wait
-until it can find one.
+Kubernetes >= v1.11
 
 # Git repo
 
- - One repo containing cluster config (i.e., Kubernetes YAMLs) and zero or more git repos containing Charts themselves.
- - Charts can be co-located with config in the git repo, or be from Helm repositories.
- - Custom Resource namespace reflects where the release should be done.
-   Both the Helm release and its corresponding Custom Resource will
-   live in this namespace.
+ - One repo containing cluster config (i.e., Kubernetes YAMLs)
  - Example of a test repo: https://github.com/fluxcd/flux-get-started
 
 ## Installation
@@ -81,25 +66,6 @@ helm repo add fluxcd https://charts.fluxcd.io
    paste the Flux public key and click _Add key_. If you want Flux to
    have write access to your repo, check _Allow write access_; if you
    have set `git.readonly=true`, you can leave this box unchecked.
-
-#### Install Flux with the Helm operator
-
-Apply the Helm Release CRD:
-
-```sh
-kubectl apply -f https://raw.githubusercontent.com/fluxcd/flux/helm-0.10.1/deploy-helm/flux-helm-release-crd.yaml
-```
-
-Install Flux with Helm:
-
-```sh
-helm install --name flux \
---set git.url=git@github.com:fluxcd/flux-get-started \
---set helmOperator.create=true \
---set helmOperator.createCRD=false \
---namespace flux \
-fluxcd/flux
-```
 
 #### Flux with git over HTTPS
 
@@ -198,7 +164,6 @@ helm install --name flux \
 fluxcd/flux
 ```
 
-
 ### Uninstalling the Chart
 
 To uninstall/delete the `flux` deployment:
@@ -293,41 +258,6 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `memcached.securityContext`                       | [See values.yaml](/chart/flux/values.yaml#L192-L195) | Container security context for memcached
 | `memcached.nodeSelector`                          | `{}`                                                 | Node Selector properties for the memcached deployment
 | `memcached.tolerations`                           | `[]`                                                 | Tolerations properties for the memcached deployment
-| `helmOperator.create`                             | `false`                                              | If `true`, install the Helm operator
-| `helmOperator.createCRD`                          | `false`                                              | Create the `v1beta1` and `v1alpha2` Flux CRDs. Dependent on `helmOperator.create=true`
-| `helmOperator.repository`                         | `docker.io/fluxcd/helm-operator`                     | Helm operator image repository
-| `helmOperator.tag`                                | `<VERSION>`                                          | Helm operator image tag
-| `helmOperator.replicaCount`                       | `1`                                                  | Number of helm operator pods to deploy, more than one is not desirable.
-| `helmOperator.pullPolicy`                         | `IfNotPresent`                                       | Helm operator image pull policy
-| `helmOperator.pullSecret`                         | `None`                                               | Image pull secret
-| `helmOperator.updateChartDeps`                    | `true`                                               | Update dependencies for charts
-| `helmOperator.git.pollInterval`                   | `git.pollInterval`                                   | Period on which to poll git chart sources for changes
-| `helmOperator.git.timeout`                        | `git.timeout`                                        | Duration after which git operations time out
-| `helmOperator.git.secretName`                     | `None`                                               | The name of the kubernetes secret with the SSH private key, supercedes `git.secretName`
-| `helmOperator.chartsSyncInterval`                 | `3m`                                                 | Interval at which to check for changed charts
-| `helmOperator.workers`                            | `None`                                               | (Experimental) amount of workers processing releases
-| `helmOperator.extraEnvs`                          | `[]`                                                 | Extra environment variables for the Helm operator pod
-| `helmOperator.logReleaseDiffs`                    | `false`                                              | Helm operator should log the diff when a chart release diverges (possibly insecure)
-| `helmOperator.allowNamespace`                     | `None`                                               | If set, this limits the scope to a single namespace. If not specified, all namespaces will be watched
-| `helmOperator.tillerNamespace`                    | `kube-system`                                        | Namespace in which the Tiller server can be found
-| `helmOperator.tls.enable`                         | `false`                                              | Enable TLS for communicating with Tiller
-| `helmOperator.tls.verify`                         | `false`                                              | Verify the Tiller certificate, also enables TLS when set to true
-| `helmOperator.tls.secretName`                     | `helm-client-certs`                                  | Name of the secret containing the TLS client certificates for communicating with Tiller
-| `helmOperator.tls.keyFile`                        | `tls.key`                                            | Name of the key file within the k8s secret
-| `helmOperator.tls.certFile`                       | `tls.crt`                                            | Name of the certificate file within the k8s secret
-| `helmOperator.tls.caContent`                      | `None`                                               | Certificate Authority content used to validate the Tiller server certificate
-| `helmOperator.tls.hostname`                       | `None`                                               | The server name used to verify the hostname on the returned certificates from the Tiller server
-| `helmOperator.configureRepositories.enable`       | `false`                                              | Enable volume mount for a `repositories.yaml` configuration file and respository cache
-| `helmOperator.configureRepositories.volumeName`   | `repositories-yaml`                                  | Name of the volume for the `repositories.yaml` file
-| `helmOperator.configureRepositories.secretName`   | `flux-helm-repositories`                             | Name of the secret containing the contents of the `repositories.yaml` file
-| `helmOperator.configureRepositories.cacheName`    | `repositories-cache`                                 | Name for the repository cache volume
-| `helmOperator.configureRepositories.repositories` | `None`                                               | List of custom Helm repositories to add. If non empty, the corresponding secret with a `repositories.yaml` will be created
-| `helmOperator.resources.requests.cpu`             | `50m`                                                | CPU resource requests for the helmOperator deployment
-| `helmOperator.resources.requests.memory`          | `64Mi`                                               | Memory resource requests for the helmOperator deployment
-| `helmOperator.resources.limits`                   | `None`                                               | CPU/memory resource limits for the helmOperator deployment
-| `helmOperator.nodeSelector`                       | `{}`                                                 | Node Selector properties for the helmOperator deployment
-| `helmOperator.tolerations`                        | `[]`                                                 | Tolerations properties for the helmOperator deployment
-| `helmOperator.affinity`                           | `{}`                                                 | Affinity properties for the helmOperator deployment
 | `kube.config`                                     | [See values.yaml](/chart/flux/values.yaml#L151-L165) | Override for kubectl default config in the Flux pod(s).
 | `prometheus.enabled`                              | `false`                                              | If enabled, adds prometheus annotations to Flux and helmOperator pod(s)
 | `syncGarbageCollection.enabled`                   | `false`                                              | If enabled, fluxd will delete resources that it created, but are no longer present in git (see [garbage collection](/docs/references/garbagecollection.md))
