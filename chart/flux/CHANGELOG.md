@@ -1,3 +1,20 @@
+## 0.15.0 (2019-10-07)
+
+### Improvements
+
+ - Updated Flux to `1.15.0`
+   [fluxcd/flux#2490](https://github.com/fluxcd/flux/pull/2490)
+ - Support secure Git over HTTPS using credentials from environment variables
+   [fluxcd/flux#2470](https://github.com/fluxcd/flux/pull/2470)
+ - Make sync operations timeout configurable with the `sync.timeout` option
+   [fluxcd/flux#2481](https://github.com/fluxcd/flux/pull/2481)
+
+### Bug fixes
+
+ - Mount AKS service principal through secret instead of hostPath for ACR support
+   [fluxcd/flux#2437](https://github.com/fluxcd/flux/pull/2437)
+   [fluxcd/flux#2434](https://github.com/fluxcd/flux/pull/2434)
+   
 ## 0.14.1 (2019-09-04)
 
 ### Improvements
