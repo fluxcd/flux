@@ -62,6 +62,7 @@ container images and config changes are propagated to the cluster.
 - [Improwised Technologies](https://www.improwised.com/)
 - [iQmetrix](https://www.iqmetrix.com)
 - [karriere tutor GmbH](https://www.karrieretutor.de)
+- [Limejump](https://limejump.com)
 - [loveholidays](https://www.loveholidays.com/)
 - [Mettle](https://mettle.co.uk)
 - [Omise](https://www.omise.co)
