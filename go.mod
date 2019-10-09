@@ -43,7 +43,6 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-kit/kit v0.9.0
 	github.com/gogo/googleapis v1.3.1 // indirect
-	github.com/gogo/protobuf v1.3.1
 	github.com/gogo/status v1.1.0 // indirect
 	github.com/golang/gddo v0.0.0-20190312205958-5a2505f3dbf0
 	github.com/google/go-containerregistry v0.0.0-20200121192426-b0ae1fc74a66
@@ -61,6 +60,7 @@ require (
 	github.com/ryanuber/go-glob v1.0.0
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/pflag v1.0.5
+	github.com/spf13/viper v1.3.2
 	github.com/stretchr/testify v1.4.0
 	github.com/uber/jaeger-client-go v2.21.1+incompatible // indirect
 	github.com/uber/jaeger-lib v2.2.0+incompatible // indirect
@@ -73,14 +73,11 @@ require (
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
 	golang.org/x/sys v0.0.0-20191028164358-195ce5e7f934
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
-	gonum.org/v1/gonum v0.0.0-20190331200053-3d26580ed485
 	gopkg.in/yaml.v2 v2.2.4
 	k8s.io/api v0.17.0
 	k8s.io/apiextensions-apiserver v0.0.0-20191016113550-5357c4baaf65
 	k8s.io/apimachinery v0.17.0
 	k8s.io/client-go v11.0.0+incompatible
-	k8s.io/code-generator v0.17.1
-	k8s.io/gengo v0.0.0-20190822140433-26a664648505
 	k8s.io/helm v2.16.1+incompatible
 	k8s.io/klog v1.0.0
 )
