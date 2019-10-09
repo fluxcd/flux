@@ -51,6 +51,7 @@ container images and config changes are propagated to the cluster.
 - [ArangoDB Oasis](https://arangodb.com/managed-service)
 - [Avisi](https://avisi.nl)
 - [Babylon Health](https://www.babylonhealth.com/)
+- [bimspot](https://bimspot.io)
 - [CLVR Cloud Ltd](https://clvr.cloud)
 - [College of William & Mary](https://www.wm.edu)
 - [Control Plane](https://control-plane.io)
