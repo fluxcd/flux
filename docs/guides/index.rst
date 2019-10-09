@@ -8,6 +8,6 @@ Guides
    :maxdepth: 1
 
    provide-own-ssh-key
-   use-git-over-https
+   use-git-https
    use-private-git-host
    upgrading-to-1.0
