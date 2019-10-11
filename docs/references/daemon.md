@@ -57,11 +57,13 @@ Version controlling of cluster manifests provides reproducibility and a historic
 | --git-notes-ref                                  | `flux`                   | ref to use for keeping commit annotations in git notes
 | --git-poll-interval                              | `5m`                     | period at which to fetch any new commits from the git repo
 | --git-timeout                                    | `20s`                    | duration after which git operations time out
+| --git-readonly                                   | `false`                  | If `true`, the git repo will be considered read-only, and Flux will not attempt to write to it. Implies -sync-state=secret
 | **syncing:** control over how config is applied to the cluster
 | --sync-interval                                  | `5m`                     | apply the git config to the cluster at least this often. New commits may provoke more frequent syncs
 | --sync-timeout                                   | `1m`                     | duration after which sync operations time out
 | --sync-garbage-collection                        | `false`                  | when set, fluxd will delete resources that it created, but are no longer present in git
 | --sync-garbage-collection-dry                    | `false`                  | only log what would be garbage collected, rather than deleting. Implies --sync-garbage-collection
+| --sync-state                                     | `git`                    | Where to keep sync state; either a tag in the upstream repo (`git`), or as an annotation on the SSH secret (`secret`)
 | **registry cache:** (none of these need overriding, usually)
 | --memcached-hostname                             | `memcached`                        | hostname for memcached service to use for caching image metadata
 | --memcached-timeout                              | `1s`                               | maximum time to wait before giving up on memcached requests
