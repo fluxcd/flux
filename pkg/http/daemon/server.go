@@ -53,6 +53,7 @@ func NewHandler(s api.Server, r *mux.Router) http.Handler {
 	r.Get(transport.Ping).HandlerFunc(handle.Ping)
 	r.Get(transport.Version).HandlerFunc(handle.Version)
 	r.Get(transport.Notify).HandlerFunc(handle.Notify)
+	r.Get(transport.SyncGit).HandlerFunc(handle.SyncGit)
 
 	// v6-v11 handlers
 	r.Get(transport.ListServices).HandlerFunc(handle.ListServicesWithOptions)
@@ -109,6 +110,15 @@ func (s HTTPServer) Notify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.server.NotifyChange(r.Context(), change); err != nil {
+		transport.ErrorResponse(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
+}
+
+func (s HTTPServer) SyncGit(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	if err := s.server.SyncGit(r.Context()); err != nil {
 		transport.ErrorResponse(w, r, err)
 		return
 	}

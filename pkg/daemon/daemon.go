@@ -550,6 +550,11 @@ func (d *Daemon) NotifyChange(ctx context.Context, change v9.Change) error {
 	return nil
 }
 
+func (d *Daemon) SyncGit(ctx context.Context) error {
+	d.Repo.Notify()
+	return nil
+}
+
 // JobStatus - Ask the daemon how far it's got committing things; in particular, is the job
 // queued? running? committed? If it is done, the commit ref is returned.
 func (d *Daemon) JobStatus(ctx context.Context, jobID job.ID) (job.Status, error) {

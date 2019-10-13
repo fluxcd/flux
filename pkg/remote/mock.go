@@ -40,6 +40,7 @@ type MockServer struct {
 	UpdateManifestsError   error
 
 	NotifyChangeError error
+	SyncGitError error
 
 	SyncStatusAnswer []string
 	SyncStatusError  error
@@ -90,6 +91,10 @@ func (p *MockServer) UpdateManifests(ctx context.Context, s update.Spec) (job.ID
 
 func (p *MockServer) NotifyChange(ctx context.Context, change v9.Change) error {
 	return p.NotifyChangeError
+}
+
+func (p *MockServer) SyncGit(ctx context.Context) error {
+	return p.SyncGitError
 }
 
 func (p *MockServer) SyncStatus(context.Context, string) ([]string, error) {
@@ -234,6 +239,10 @@ func ServerTestBattery(t *testing.T, wrap func(mock api.Server) api.Server) {
 
 	change := v9.Change{Kind: v9.GitChange, Source: v9.GitUpdate{URL: "git@example.com:foo/bar"}}
 	if err := client.NotifyChange(ctx, change); err != nil {
+		t.Error(err)
+	}
+
+	if err := client.SyncGit(ctx); err != nil {
 		t.Error(err)
 	}
 

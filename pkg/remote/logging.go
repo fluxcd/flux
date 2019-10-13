@@ -133,3 +133,12 @@ func (p *ErrorLoggingServer) NotifyChange(ctx context.Context, change v9.Change)
 	}()
 	return p.server.NotifyChange(ctx, change)
 }
+
+func (p *ErrorLoggingServer) SyncGit(ctx context.Context) (err error) {
+	defer func() {
+		if err != nil {
+			p.logger.Log("method", "SyncGit", "error", err)
+		}
+	}()
+	return p.server.SyncGit(ctx)
+}

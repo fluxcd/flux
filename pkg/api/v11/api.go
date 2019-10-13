@@ -17,6 +17,8 @@ type ListServicesOptions struct {
 type Server interface {
 	v10.Server
 
+	SyncGit(context.Context) error
+
 	ListServicesWithOptions(ctx context.Context, opts ListServicesOptions) ([]v6.ControllerStatus, error)
 
 	// NB Upstream methods move into the public API, since

@@ -164,6 +164,23 @@ func (p *RPCServer) NotifyChange(c v9.Change, resp *NotifyChangeResponse) error 
 	return err
 }
 
+type SyncGitResponse struct {
+	ApplicationError *fluxerr.Error
+}
+
+func (p *RPCServer) SyncGit(_, resp *SyncGitResponse) error {
+	ctx, cancel := context.WithTimeout(context.Background(), p.timeout)
+	defer cancel()
+	err := p.s.SyncGit(ctx)
+	if err != nil {
+		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {
+			resp.ApplicationError = err
+			return nil
+		}
+	}
+	return err
+}
+
 type JobStatusResponse struct {
 	Result           job.Status
 	ApplicationError *fluxerr.Error

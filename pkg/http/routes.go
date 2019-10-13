@@ -5,6 +5,7 @@ const (
 	Ping    = "Ping"
 	Version = "Version"
 	Notify  = "Notify"
+	SyncGit = "SyncGit"
 
 	ListServices            = "ListServices"
 	ListServicesWithOptions = "ListServicesWithOptions"

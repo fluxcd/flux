@@ -68,6 +68,10 @@ func (c *Client) NotifyChange(ctx context.Context, change v9.Change) error {
 	return c.PostWithBody(ctx, transport.Notify, change)
 }
 
+func (c *Client) SyncGit(ctx context.Context) error {
+	return c.Post(ctx, transport.SyncGit)
+}
+
 func (c *Client) ListServices(ctx context.Context, namespace string) ([]v6.ControllerStatus, error) {
 	var res []v6.ControllerStatus
 	err := c.Get(ctx, &res, transport.ListServices, "namespace", namespace)

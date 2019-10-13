@@ -56,6 +56,10 @@ func (bc baseClient) NotifyChange(context.Context, v9.Change) error {
 	return remote.UpgradeNeededError(errors.New("NotifyChange method not implemented"))
 }
 
+func (bc baseClient) SyncGit(context.Context) error {
+	return remote.UpgradeNeededError(errors.New("SyncGit method not implemented"))
+}
+
 func (bc baseClient) JobStatus(context.Context, job.ID) (job.Status, error) {
 	return job.Status{}, remote.UpgradeNeededError(errors.New("JobStatus method not implemented"))
 }

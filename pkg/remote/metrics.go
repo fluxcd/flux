@@ -157,3 +157,13 @@ func (i *instrumentedServer) NotifyChange(ctx context.Context, change v9.Change)
 	}(time.Now())
 	return i.s.NotifyChange(ctx, change)
 }
+
+func (i *instrumentedServer) SyncGit(ctx context.Context) (err error) {
+	defer func(begin time.Time) {
+		requestDuration.With(
+			fluxmetrics.LabelMethod, "SyncGit",
+			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
+		).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return i.s.SyncGit(ctx)
+} 

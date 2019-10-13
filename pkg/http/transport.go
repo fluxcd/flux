@@ -32,6 +32,7 @@ func NewAPIRouter() *mux.Router {
 	r.NewRoute().Name(Ping).Methods("GET").Path("/v11/ping")
 	r.NewRoute().Name(Version).Methods("GET").Path("/v11/version")
 	r.NewRoute().Name(Notify).Methods("POST").Path("/v11/notify")
+	r.NewRoute().Name(SyncGit).Methods("POST").Path("/v11/sync-git")
 
 	r.NewRoute().Name(ListServices).Methods("GET").Path("/v6/services")
 	r.NewRoute().Name(ListServicesWithOptions).Methods("GET").Path("/v11/services")
