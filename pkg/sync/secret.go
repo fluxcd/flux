@@ -11,7 +11,7 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-const syncMarkerKey = "flux.weave.works/sync-hwm"
+const syncMarkerKey = "state.fluxcd.io/high-water-mark"
 
 // NativeSyncProvider keeps information related to the native state of a sync marker stored in a "native" kubernetes resource.
 type NativeSyncProvider struct {
