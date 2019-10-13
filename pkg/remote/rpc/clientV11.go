@@ -50,7 +50,7 @@ func (p *RPCClientV11) ListServicesWithOptions(ctx context.Context, opts v11.Lis
 
 func (p *RPCClientV11) SyncGit(ctx context.Context) error {
 	var resp SyncGitResponse
-	err := p.client.Call("RPCServer.SyncGit", "", &resp)
+	err := p.client.Call("RPCServer.SyncGit", struct{}{}, &resp)
 	if err != nil {
 		if _, ok := err.(rpc.ServerError); !ok && err != nil {
 			err = remote.FatalError{err}
