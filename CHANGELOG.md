@@ -1,10 +1,928 @@
-This is the changelog for the Flux daemon; the changelog for the Helm
-operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
+## 1.15.0 (2019-10-02)
+
+This feature release adds secure support for Git over HTTPS, updates
+`kubectl` and `kustomize`, and does a lot of internal rewiring
+_without_ changing user-visible functions or the public APIs.
+From this release forward, garbage collection, namespace scoping,
+and manifest generation are no longer considered experimental.
+
+### Fixes
+
+- Reinstate `git-secret` support after accidentally breaking it 
+  during a refactor that landed in `1.14.0` [fluxcd/flux#2429][]
+- Fix error handling in `splitConfigFilesAndRawManifestPaths`
+  [fluxcd/flux#2455][]
+
+### Enhancements
+
+- Support secure Git over HTTPS using credentials from environment
+  variables [fluxcd/flux#2470][]
+- Add a flag `--sync-timeout`, for configuring the timeout of sync
+  operations. This is mainly of interest to people making use of the
+  manifest generation feature, or people who are operating
+  exceptionally large Git repositories [fluxcd/flux#2481][]
+- Update `kubectl` to `1.14.7` and `kustomize` to `3.2.0`
+  [fluxcd/flux#2461][]
+- De-experimental-ise garbage collection, namespace scoping, and
+  manifest generation features [fluxcd/flux#2485][]
+- Improve logged warning about unsupported automated resource kinds
+  [fluxcd/flux#2471][]
+
+## Maintenance and documentation
+
+- Build: upgrade Go to `1.13.1` [fluxcd/flux#2482][]
+- Build: avoid spurious diffs in generated files by fixing their
+  modtimes to Unix epoch [fluxcd/flux#2473][]
+- Build: update Kind, used for end-to-end tests, to `0.5.1`
+  [fluxcd/flux#2461][]
+- Build: simplify the files included in `snapcraft.yaml`
+  [fluxcd/flux#2427][]
+- Build: stop publishing Docker images to Weaveworks' DockerHub
+  [fluxcd/flux#2491][]
+- Build: republish Git tag with a `v` prefix during release, to make
+  it available to Go Mod [fluxcd/flux#2491][]
+- Code: change import paths from `weaveworks` to `fluxcd`
+  [fluxcd/flux#2305][]
+- Code: move all packages to `pkg/` [fluxcd/flux#2464][]
+- Code: fix some typos in comments [fluxcd/flux#2478][]
+- Documentation: update organization mentions (`weaveworks` -> `fluxcd`)
+  [fluxcd/flux#2430][]
+- Documentation: remove `values.` prefix from annotation examples
+  [fluxcd/flux#2436][]
+- Documentation: include installation instructions for `fluxctl` on
+  Windows using Chocolatey [fluxcd/flux#2457][]
+- Documentation: provide some additional links within the documentation
+  to using Flux with Kustomize, Helm, or Flagger [fluxcd/flux#2358][]
+- Documentation: reflow commit customization bits in `fluxctl`
+  documentation [fluxcd/flux#2459][]
+- Documentation: small `.flux.yaml` documentation improvements
+  fluxcd/flux#{[#2466][fluxcd/flux#2466], [#2467][fluxcd/flux#2467]}
+- Documentation: remove mention of `mergePatchUpdater` in `.flux.yaml`
+  documentation, as it is not a thing [fluxcd/flux#2469][]
+- Documentation: use `flux` as a default namespace in `deploy/`
+  examples [fluxcd/flux#2475][]
+- Documentation: fix incorrectly documented Helm chart repository
+  [fluxcd/flux#2484][]
+- Documentation: update the documented `fluxctl` output
+  [fluxcd/flux#2489][]
+- Documentation: fix `--git-path` argument in 'get started' and
+  'driving Flux' tutorials
+  fluxcd/flux#{[#2423][fluxcd/flux#2423], [#2424][fluxcd/flux#2424]}
+- Documentation: add HMCTS and WGTwo as production users (:tada:)
+  fluxcd/flux#{[#2458][fluxcd/flux#2458], [#2450][fluxcd/flux#2450]}
+
+### Thanks
+
+Tip of the hat and many thanks to @davidpristovnik, @dananichev,
+@Keralin, @domgoodwin @luxas, @squaremo, @stefanprodan, @hiddeco,
+@elzapp, @nodanero, @dholbach, @stealthybox, @arsiesys, @alexmt,
+@DarinDouglass, @holger-wg2,  @chrisfowles, @timja, @2opremio,
+@adusumillipraveen for contributions to this release.
+
+[fluxcd/flux#2305]: https://github.com/fluxcd/flux/pull/2305
+[fluxcd/flux#2358]: https://github.com/fluxcd/flux/pull/2358
+[fluxcd/flux#2423]: https://github.com/fluxcd/flux/pull/2423
+[fluxcd/flux#2424]: https://github.com/fluxcd/flux/pull/2424
+[fluxcd/flux#2427]: https://github.com/fluxcd/flux/pull/2427
+[fluxcd/flux#2429]: https://github.com/fluxcd/flux/pull/2429
+[fluxcd/flux#2430]: https://github.com/fluxcd/flux/pull/2430
+[fluxcd/flux#2436]: https://github.com/fluxcd/flux/pull/2436
+[fluxcd/flux#2450]: https://github.com/fluxcd/flux/pull/2450
+[fluxcd/flux#2455]: https://github.com/fluxcd/flux/pull/2455
+[fluxcd/flux#2457]: https://github.com/fluxcd/flux/pull/2457
+[fluxcd/flux#2458]: https://github.com/fluxcd/flux/pull/2458
+[fluxcd/flux#2459]: https://github.com/fluxcd/flux/pull/2459
+[fluxcd/flux#2461]: https://github.com/fluxcd/flux/pull/2461
+[fluxcd/flux#2464]: https://github.com/fluxcd/flux/pull/2464
+[fluxcd/flux#2466]: https://github.com/fluxcd/flux/pull/2466
+[fluxcd/flux#2467]: https://github.com/fluxcd/flux/pull/2467
+[fluxcd/flux#2469]: https://github.com/fluxcd/flux/pull/2469
+[fluxcd/flux#2470]: https://github.com/fluxcd/flux/pull/2470
+[fluxcd/flux#2471]: https://github.com/fluxcd/flux/pull/2471
+[fluxcd/flux#2473]: https://github.com/fluxcd/flux/pull/2473
+[fluxcd/flux#2475]: https://github.com/fluxcd/flux/pull/2475
+[fluxcd/flux#2478]: https://github.com/fluxcd/flux/pull/2478
+[fluxcd/flux#2481]: https://github.com/fluxcd/flux/pull/2481
+[fluxcd/flux#2482]: https://github.com/fluxcd/flux/pull/2482
+[fluxcd/flux#2484]: https://github.com/fluxcd/flux/pull/2484
+[fluxcd/flux#2485]: https://github.com/fluxcd/flux/pull/2485
+[fluxcd/flux#2489]: https://github.com/fluxcd/flux/pull/2489
+[fluxcd/flux#2491]: https://github.com/fluxcd/flux/pull/2491
+
+## 1.14.2 (2019-09-02)
+
+This is a patch release, with some important fixes to the handling of
+HelmRelease resources.
+
+### Fixes
+
+- Correct a problem that prevented automated HelmRelease updates
+  [fluxcd/flux#2412][]
+- Fix a crash triggered when `helm.fluxcd.io/v1` resources are present
+  in the cluster [fluxcd/flux#2404][]
+
+### Enhancements
+
+- Add a flag `--k8s-verbosity`, for controlling Kubernetes client
+  logging (formerly, this was left disabled) [fluxcd/flux#2410][]
+
+### Maintenance and documentation
+
+- Rakuten is now listed as a production user [fluxcd/flux#2413][]
+
+### Thanks
+
+Bouquets to @HighwayofLife, @IsNull, @adeleglise, @aliartiza75,
+@antonosmond, @bforchhammer, @brunowego, @cartyc, @chainlink,
+@cristian-radu, @dholbach, @dranner-bgt, @fshot, @hiddeco, @isen-ng,
+@jonohill, @kingdonb, @mflendrich, @mfrister, @mgenov, @raravena80,
+@rndstr, @robertgates55, @sklemmer, @smartpcr, @squaremo,
+@stefanprodan, @stefansedich, @yellowmegaman, @ysaakpr for
+contributions to this release.
+
+[fluxcd/flux#2404]: https://github.com/fluxcd/flux/pull/2404
+[fluxcd/flux#2410]: https://github.com/fluxcd/flux/pull/2410
+[fluxcd/flux#2412]: https://github.com/fluxcd/flux/pull/2412
+[fluxcd/flux#2413]: https://github.com/fluxcd/flux/pull/2413
+
+## 1.14.1 (2019-08-22)
+
+This is a patch release.
+
+### Fixes
+
+- Automated updates of auto detected images in `HelmRelease`
+  resources has been fixed
+  [fluxcd/flux#2400][]
+- `fluxctl install` `--git-paths` option has been replaced by
+  `--git-path`, to match the `fluxd` option, the `--git-paths` has
+  been deprecated but still works
+  [fluxcd/flux#2392][]
+- `fluxctl` port forward looks for a pod with one of the labels again,
+  instead of stopping when the first label did not return a result
+  [fluxcd/flux#2394][]  
+
+### Maintenance and documentation
+
+- Starbucks is now listed as production user (:tada:!)
+  [fluxcd/flux#2389][]
+- Various fixes to the installation documentation
+  fluxcd/flux{[#2384][fluxcd/flux#2384], [#2395][fluxcd/flux#2395]}
+- Snap build has been updated to work with Go Modules and Go `1.12.x`
+  [fluxcd/flux#2385][]
+- Typo fixes in code comments
+  [fluxcd/flux#2381][]
+  
+### Thanks
+
+Thanks @aliartiza75, @ethan-daocloud, @HighwayOfLife, @stefanprodan,
+@2opremio, @dhbolach, @mbridgen, @hiddeco for contributing to this
+release.
+ 
+[fluxcd/flux#2381]: https://github.com/fluxcd/flux/pull/2381
+[fluxcd/flux#2384]: https://github.com/fluxcd/flux/pull/2384
+[fluxcd/flux#2385]: https://github.com/fluxcd/flux/pull/2385
+[fluxcd/flux#2389]: https://github.com/fluxcd/flux/pull/2389
+[fluxcd/flux#2392]: https://github.com/fluxcd/flux/pull/2392
+[fluxcd/flux#2394]: https://github.com/fluxcd/flux/pull/2394
+[fluxcd/flux#2395]: https://github.com/fluxcd/flux/pull/2395
+[fluxcd/flux#2400]: https://github.com/fluxcd/flux/pull/2400
+
+## 1.14.0 (2019-08-21)
+
+This feature release adds a read-only mode to the Flux daemon, adds
+support for mapping images in `HelmRelease` resources using YAML dot
+notation annotations, eases the deployment of Flux with a new `fluxctl
+install` command which generates the required YAML manifests, lots of
+documentation improvements, and many more.
+
+### Fixes
+
+- Fetch before branch check to detect upstream changes made after the
+  initial clone
+  [fluxcd/flux#2371][]
+
+### Enhancements
+
+- With `--git-readonly`, `fluxd` can now sync a git repo without having
+  write access to it. In this mode, `fluxd` will not make any commits
+  to the repo.
+  [fluxcd/flux#1807][]
+- Mapping images in `HelmRelease resources` using YAML dot notation
+  annotations is now supported
+  [fluxcd/flux#2249][]
+- `fluxctl` has a new `install` command to ease generating the YAML
+  manifests required to deploy Flux
+  [fluxcd/flux#2287][]
+- Kubectl and Kustomize have been upgraded
+  - `kubectl` -> `1.13.8` [fluxcd/flux#2327][]
+  - `kustomize` -> `3.1.0` [fluxcd/flux#2299][]
+- The annotation domain has been changed to `fluxcd.io`, but backwards
+  compatibility with the old (`flux.weave.works`) domain is maintained
+  [fluxcd/flux#2219][]
+- The number of sorts done by `ListImagesWithOptions` has been reduced
+  [fluxcd/flux#2338][]
+- `fluxctl` will only look for running `fluxcd` pods while attempting
+  to setup a port forward
+  [fluxcd/flux#2283][]
+- `--registry-poll-interval` has been renamed to `--automation-interval`
+  to better reflect what it controls; the interval at which automated
+  workloads are checked for updates, and updated.
+  [fluxcd/flux#2284][]
+- `fluxctl` now has a global `--timeout` flag, which controls how long
+  it waits for jobs sent to `fluxd` to complete
+  [fluxcd/flux#2056][]
+
+### Maintenance and documentation
+
+- Documentation is now hosted on ReadTheDocs
+  [fluxcd/flux#2152][]
+- Helm Operator has been removed from the codebase, as it has been moved
+  to a dedicated repository (`fluxcd/helm-operator`)
+  fluxcd/flux{[#2329][fluxcd/flux#2329], [#2356][fluxcd/flux#2356]}
+- Documentation on how to use `fluxctl install` has been added
+  [fluxcd/flux#2298][]
+- Reference about automated image updates has been added to the
+  documentation
+  [fluxcd/flux#2369][]
+- Documentation has been added on how to deploy Flux with Kustomize
+  [fluxcd/flux#2375][]
+- CLVR, IBM Cloudant, Omise, Replicated, and Yusofleet are now listed as
+  production users (:tada:!)
+  fluxcd/flux{[#2331][fluxcd/flux#2331], [#2343][fluxcd/flux#2342], [#2360][fluxcd/flux#2360], [#2373][fluxcd/flux#2373], [#2378][fluxcd/flux#2378]}
+- Various changes to the documentation
+  fluxcd/flux{[#2306][fluxcd/flux#2306], [#2311][fluxcd/flux#2311], [#2313][fluxcd/flux#2313], [#2314][fluxcd/flux#2314],
+    [#2315][fluxcd/flux#2315], [#2332][fluxcd/flux#2332], [#2351][fluxcd/flux#2351], [#2353][fluxcd/flux#2353],
+    [#2358][fluxcd/flux#2358], [#2363][fluxcd/flux#2363], [#2364][fluxcd/flux#2364], [#2365][fluxcd/flux#2365],
+    [#2367][fluxcd/flux#2367], [#2368][fluxcd/flux#2368], [#2372][fluxcd/flux#2372]}
+- Soon-to-be deprecated version script has been removed from the Snapcraft
+  build configuration
+  [fluxcd/flux#2350][]
+- Various typos have been fixed
+  fluxcd/flux{[#2348][fluxcd/flux#2348], [#2352][fluxcd/flux#2352], [#2295][fluxcd/flux#2295]}
+- Various CI build tweaks (i.a. support preleases containing numbers, Go
+  tarball cleanup after installation, Helm chart release changes)
+  fluxcd/flux{[#2301][fluxcd/flux#2301], [#2302][fluxcd/flux#2302], [#2312][fluxcd/flux#2312], [#2320][fluxcd/flux#2320], 
+    [#2336][fluxcd/flux#2336], [#2349][fluxcd/flux#2349], [#2361][fluxcd/flux#2361]}
+- Helm chart repository has been changed to `charts.fluxcd.io`
+  fluxcd/flux{[#2337][fluxcd/flux#2337], [#2339][fluxcd/flux#2339], [#2341][fluxcd/flux#2341]}
+  
+### Thanks
+
+Many thanks for contributions from @2opremio, @AndriiOmelianenko,
+@GODBS, @JDavis10213, @MehrCurry, @Sleepy-GH, @adusumillipraveen,
+@ainmosni, @alanjcastonguay, @aliartiza75, @autarchprinceps,
+@benmathews, @blancsys, @carlosjgp, @cristian-radu, @cristian04,
+@davidkarlsen, @dcherman, @demisx, @derrickburns, @dholbach,
+@ethan-daocloud, @fred, @gldraphael, @hiddeco, @hlascelles, @ianmiell,
+@ilya-spv, @jacobsin, @judewin-alef, @jwenz723, @kaspernissen,
+@knackaron, @ksaritek, @larhauga, @laverya, @linuxbsdfreak,
+@luxas, @matthewbednarski, @mhumeSF, @mzachh, @nabadger, @obiesmans,
+@ogerbron, @onedr0p, @paulmil1, @primeroz, @rhockenbury, @runningman84,
+@rytswd, @semyonslepov, @squaremo, @stealthybox, @stefanprodan,
+@stefansedich, @suvl, @tjanson, @tomaszkiewicz, @tomcheah, @tschonnie,
+@ttarczynski, @willholley, @yellowmegaman, @zcourt.
+  
+[fluxcd/flux#1807]: https://github.com/fluxcd/flux/pull/1807
+[fluxcd/flux#2056]: https://github.com/fluxcd/flux/pull/2056
+[fluxcd/flux#2152]: https://github.com/fluxcd/flux/pull/2152
+[fluxcd/flux#2219]: https://github.com/fluxcd/flux/pull/2219
+[fluxcd/flux#2249]: https://github.com/fluxcd/flux/pull/2249
+[fluxcd/flux#2283]: https://github.com/fluxcd/flux/pull/2283
+[fluxcd/flux#2284]: https://github.com/fluxcd/flux/pull/2284
+[fluxcd/flux#2287]: https://github.com/fluxcd/flux/pull/2287
+[fluxcd/flux#2295]: https://github.com/fluxcd/flux/pull/2295
+[fluxcd/flux#2298]: https://github.com/fluxcd/flux/pull/2298
+[fluxcd/flux#2299]: https://github.com/fluxcd/flux/pull/2299
+[fluxcd/flux#2301]: https://github.com/fluxcd/flux/pull/2301
+[fluxcd/flux#2302]: https://github.com/fluxcd/flux/pull/2302
+[fluxcd/flux#2306]: https://github.com/fluxcd/flux/pull/2306
+[fluxcd/flux#2311]: https://github.com/fluxcd/flux/pull/2311
+[fluxcd/flux#2312]: https://github.com/fluxcd/flux/pull/2312
+[fluxcd/flux#2313]: https://github.com/fluxcd/flux/pull/2313
+[fluxcd/flux#2314]: https://github.com/fluxcd/flux/pull/2314
+[fluxcd/flux#2315]: https://github.com/fluxcd/flux/pull/2315
+[fluxcd/flux#2320]: https://github.com/fluxcd/flux/pull/2320
+[fluxcd/flux#2327]: https://github.com/fluxcd/flux/pull/2327
+[fluxcd/flux#2329]: https://github.com/fluxcd/flux/pull/2329
+[fluxcd/flux#2331]: https://github.com/fluxcd/flux/pull/2331
+[fluxcd/flux#2332]: https://github.com/fluxcd/flux/pull/2332
+[fluxcd/flux#2336]: https://github.com/fluxcd/flux/pull/2336
+[fluxcd/flux#2337]: https://github.com/fluxcd/flux/pull/2337
+[fluxcd/flux#2338]: https://github.com/fluxcd/flux/pull/2338
+[fluxcd/flux#2339]: https://github.com/fluxcd/flux/pull/2339
+[fluxcd/flux#2341]: https://github.com/fluxcd/flux/pull/2341
+[fluxcd/flux#2342]: https://github.com/fluxcd/flux/pull/2342
+[fluxcd/flux#2348]: https://github.com/fluxcd/flux/pull/2348
+[fluxcd/flux#2349]: https://github.com/fluxcd/flux/pull/2349
+[fluxcd/flux#2350]: https://github.com/fluxcd/flux/pull/2350
+[fluxcd/flux#2351]: https://github.com/fluxcd/flux/pull/2351
+[fluxcd/flux#2352]: https://github.com/fluxcd/flux/pull/2352
+[fluxcd/flux#2353]: https://github.com/fluxcd/flux/pull/2353
+[fluxcd/flux#2356]: https://github.com/fluxcd/flux/pull/2356
+[fluxcd/flux#2358]: https://github.com/fluxcd/flux/pull/2358
+[fluxcd/flux#2360]: https://github.com/fluxcd/flux/pull/2360
+[fluxcd/flux#2361]: https://github.com/fluxcd/flux/pull/2361
+[fluxcd/flux#2363]: https://github.com/fluxcd/flux/pull/2363
+[fluxcd/flux#2364]: https://github.com/fluxcd/flux/pull/2364
+[fluxcd/flux#2365]: https://github.com/fluxcd/flux/pull/2365
+[fluxcd/flux#2367]: https://github.com/fluxcd/flux/pull/2367
+[fluxcd/flux#2368]: https://github.com/fluxcd/flux/pull/2368
+[fluxcd/flux#2369]: https://github.com/fluxcd/flux/pull/2369
+[fluxcd/flux#2371]: https://github.com/fluxcd/flux/pull/2371
+[fluxcd/flux#2372]: https://github.com/fluxcd/flux/pull/2372
+[fluxcd/flux#2373]: https://github.com/fluxcd/flux/pull/2373
+[fluxcd/flux#2375]: https://github.com/fluxcd/flux/pull/2375
+[fluxcd/flux#2378]: https://github.com/fluxcd/flux/pull/2378
+
+## 1.13.3 (2019-07-25)
+
+This is a patch release, mostly concerned with adapting documentation
+to Flux's new home in https://github.com/fluxcd/ and the [CNCF
+sandbox](https://www.cncf.io/sandbox-projects/).
+
+### Fixes
+
+- Correct the name of the `--registry-require` argument mentioned in a
+  log message [fluxcd/flux#2256][]
+- Parse Docker credentials that have a host and port, but not a scheme
+  [fluxcd/flux#2248][]
+
+### Maintenance and documentation
+
+- Change references to weaveworks/flux to fluxcd/flux
+  [fluxcd/flux#2240][], [fluxcd/flux#2244][], [fluxcd/flux#2257][],
+  [fluxcd/flux#2271][]
+- Add Walmart to production users (:tada:!) [fluxcd/flux#2268][]
+- Mention the multi-tenancy tutorial in the README
+  [fluxcd/flux#2286][]
+- Fix the filename given in the `.flux.yaml` (manifest generation)
+  docs [fluxcd/flux#2270][]
+- Run credentials tests in parallel, without sleeping
+  [fluxcd/flux#2254][]
+- Correct the Prometheus annotations given in examples
+  [fluxcd/flux#2278][]
+
+### Thanks
+
+Thanks to the following for contributions since the last release:
+@2opremio, @aaron-trout, @adusumillipraveen, @alexhumphreys,
+@aliartiza75, @ariep, @binjheBenjamin, @bricef, @caniszczyk,
+@carlosjgp, @carlpett, @chriscorn-takt, @cloudoutloud, @derrickburns,
+@dholbach, @fnmeissner, @gled4er, @hiddeco, @jmtrusona, @jowparks,
+@jpellizzari, @ksaritek, @ktsakalozos, @mar1n3r0, @mzachh, @primeroz,
+@squaremo, @stefanprodan, @sureshamk, @vyckou, @ybaruchel, @zoni.
+
+[fluxcd/flux#2240]: https://github.com/fluxcd/flux/pull/2240
+[fluxcd/flux#2244]: https://github.com/fluxcd/flux/pull/2244
+[fluxcd/flux#2248]: https://github.com/fluxcd/flux/pull/2248
+[fluxcd/flux#2254]: https://github.com/fluxcd/flux/pull/2254
+[fluxcd/flux#2256]: https://github.com/fluxcd/flux/pull/2256
+[fluxcd/flux#2257]: https://github.com/fluxcd/flux/pull/2257
+[fluxcd/flux#2268]: https://github.com/fluxcd/flux/pull/2268
+[fluxcd/flux#2270]: https://github.com/fluxcd/flux/pull/2270
+[fluxcd/flux#2271]: https://github.com/fluxcd/flux/pull/2271
+[fluxcd/flux#2278]: https://github.com/fluxcd/flux/pull/2278
+[fluxcd/flux#2286]: https://github.com/fluxcd/flux/pull/2286
+
+## 1.13.2 (2019-07-10)
+
+This is a patch release, including a fix for [problems with using image
+labels as timestamps][weaveworks/flux#2176].
+
+### Fixes
+
+- Because image labels are inherited from base images, fluxd cannot
+  indiscriminately use labels to determine the image created date. You
+  must now explicitly allow that behaviour with the argument
+  `--registry-use-labels` [weaveworks/flux#2176][]
+- Image timestamps can be missing (or zero) if ordering them by semver
+  version rather than timestamp [weaveworks/flux#2175][]
+- Environment variables needed by the Google Cloud SDK helper are now
+  propagated to git [weaveworks/flux#2222][]
+
+### Maintenance and documentation
+
+- Image builds are pushed to both weaveworks/ and fluxcd/ orgs on
+  DockerHub, in preparation for the project moving organisations
+  [weaveworks/flux#2213][]
+- Calculate Go dependencies more efficiently during the build
+  [weaveworks/flux#2207][]
+- Refactor to remove a spurious top-level package
+  [weaveworks/flux#2201][]
+- Update the version of Kubernetes-in-Docker used in end-to-end test,
+  to v0.4.0 [weaveworks/flux#2202][]
+- Bump the Ubuntu version used in CI [weaveworks/flux#2195][]
+
+### Thanks
+
+Thanks go to the following for contributions: @2opremio, @4c74356b41,
+@ArchiFleKs, @adrian, @alanjcastonguay, @alexanderbuhler,
+@alexhumphreys, @bobbytables, @derrickburns, @dholbach, @dlespiau,
+@gaffneyd4, @hiddeco, @hkalsi, @hlascelles, @jaksonwkr, @jblunck,
+@jwenz723, @linuxbsdfreak, @luxas, @mpashka, @nlamot, @semyonslepov,
+@squaremo, @stefanprodan, @tegamckinney, @ysaakpr.
+
+[weaveworks/flux#2175]: https://github.com/weaveworks/flux/pull/2175
+[weaveworks/flux#2176]: https://github.com/weaveworks/flux/pull/2176
+[weaveworks/flux#2195]: https://github.com/weaveworks/flux/pull/2195
+[weaveworks/flux#2201]: https://github.com/weaveworks/flux/pull/2201
+[weaveworks/flux#2202]: https://github.com/weaveworks/flux/pull/2202
+[weaveworks/flux#2207]: https://github.com/weaveworks/flux/pull/2207
+[weaveworks/flux#2213]: https://github.com/weaveworks/flux/pull/2213
+[weaveworks/flux#2222]: https://github.com/weaveworks/flux/pull/2222
+
+## 1.13.1 (2019-06-27)
+
+This is a patch release.
+
+### Fixes
+
+- Use a context with a timeout for every request that comes through
+  the upstream connection, so they may be abandoned if taking too long [weaveworks/flux#2171][]
+- Initialise the high-water mark once, so it doesn't get continually
+  reset and cause notification noise [weaveworks/flux#2177][]
+- Force tag updates when making local clones, to account for changes
+  in git 2.20 [weaveworks/flux#2184][]
+
+### Thanks
+
+Cheers to the following people for their contributions: @2opremio,
+@J-Lou, @aarnaud, @adrian, @airmap-madison, @alanjcastonguay,
+@arsiesys, @atbe-crowe, @azazel75, @bia, @carlosjgp, @chriscorn-takt,
+@cristian-radu, @davidkarlsen, @derrickburns, @dholbach, @dlespiau,
+@errordeveloper, @ewoutp, @hiddeco, @humayunjamal, @isen-ng,
+@judewin-alef, @kevinm444, @muhlba91, @roaddemon, @runningman84,
+@squaremo, @starkers, @stefanprodan, @sukrit007, @willholley.
+
+[weaveworks/flux#2171]: https://github.com/weaveworks/flux/pull/2171
+[weaveworks/flux#2177]: https://github.com/weaveworks/flux/pull/2177
+[weaveworks/flux#2184]: https://github.com/weaveworks/flux/pull/2184
+
+## 1.13.0 (2019-06-13)
+
+This feature release contains an experimental feature for [generating
+manifests from the sources in git][manifest-generation-docs] and
+completes the support for [GPG signatures][gpg-docs].
+
+### Fixes
+
+- Use openssh-client rather than openssh in container image
+  [weaveworks/flux#2142][]
+- Cope when filenames from git start or end with spaces
+  [weaveworks/flux#2117][]
+- Ignore `metrics` API group, known to be problematic
+  [weaveworks/flux#2096][]
+- Remove a possible deadlock from code calling `git`
+  [weaveworks/flux#2086][]
+
+### Enhancements
+
+- When `--manifest-generation` is set, look for `.flux.yaml` files in
+  the git repo and generate manifests according to the instructions
+  therein (see [the docs][manifest-generation-docs])
+  [weaveworks/flux#1848][]
+- Verify GPG signatures on commits (when `--git-verify-signatures` is
+  set; see [the docs][gpg-docs]) [weaveworks/flux#1791][]
+- Make the log format configurable (specifically to admit JSON
+  logging) [weaveworks/flux#2138][]
+- Log when a requested workload is not of a kind known to fluxd
+  [weaveworks/flux#2097][]
+- Get image build time from OCI labels, if present
+  [weaveworks/flux#1992][], [weaveworks/flux#2084][]
+- A new flag `--garbage-collection-dry-run` will report what _would_
+  be deleted by garbage collection in the log, without deleting it
+  [weaveworks/flux#2063][]
+
+### Maintenance and documentation
+
+- Let fluxd be run outside a cluster, for development convenience
+  [weaveworks/flux#2140][]
+- Documentation edits [weaveworks/flux#2134][], [weaveworks/flux#2109][]
+- Improve some tests [weaveworks/flux#2111][], [weaveworks/flux#2110][],
+  [weaveworks/flux#2085][], [weaveworks/flux#2090][]
+- Give the memcached pod a security context [weaveworks/flux#2125][]
+- Move to `go mod`ules and abandon `go dep` [weaveworks/flux#2083][],
+  [weaveworks/flux#2127][], [weaveworks/flux#2094][]
+- Give an example of DNS settings in the example deployment
+  [weaveworks/flux#2116][]
+- Document how to get the fluxctl `snap` [weaveworks/flux#1966][],
+  [weaveworks/flux#2108][]
+- Give more guidance on how to contribute to Flux
+  [weaveworks/flux#2104][]
+- Speed CI builds up by using CircleCI caching [weaveworks/flux#2078][]
+
+### Thanks
+
+Many thanks for contributions from @2opremio, @AndriiOmelianenko,
+@ArchiFleKs, @RGPosadas, @RoryShively, @alanjcastonguay, @amstee,
+@arturo-c, @azazel75, @billimek, @brezerk, @bzon, @derrickburns,
+@dholbach, @dminca, @dmitri-lerko, @guzmo, @hiddeco, @imrtfm,
+@jan-schumacher, @jp83, @jpds, @kennethredler, @leoblanc,
+@marcelonaso, @marcossv9, @marklcg, @michaelgeorgeattard, @mr-karan,
+@nabadger, @ncabatoff, @primeroz, @rdubya16, @rjanovski,
+@rkouyoumjian, @rndstr, @runningman84, @squaremo, @stefanprodan,
+@stefansedich, @suvl, @tckb, @timja, @vovkanaz, @willholley.
+
+[weaveworks/flux#1791]: https://github.com/weaveworks/flux/pull/1791
+[weaveworks/flux#1848]: https://github.com/weaveworks/flux/pull/1848
+[weaveworks/flux#1966]: https://github.com/weaveworks/flux/pull/1966
+[weaveworks/flux#1992]: https://github.com/weaveworks/flux/pull/1992
+[weaveworks/flux#2063]: https://github.com/weaveworks/flux/pull/2063
+[weaveworks/flux#2078]: https://github.com/weaveworks/flux/pull/2078
+[weaveworks/flux#2083]: https://github.com/weaveworks/flux/pull/2083
+[weaveworks/flux#2084]: https://github.com/weaveworks/flux/pull/2084
+[weaveworks/flux#2085]: https://github.com/weaveworks/flux/pull/2085
+[weaveworks/flux#2086]: https://github.com/weaveworks/flux/pull/2086
+[weaveworks/flux#2090]: https://github.com/weaveworks/flux/pull/2090
+[weaveworks/flux#2094]: https://github.com/weaveworks/flux/pull/2094
+[weaveworks/flux#2096]: https://github.com/weaveworks/flux/pull/2096
+[weaveworks/flux#2097]: https://github.com/weaveworks/flux/pull/2097
+[weaveworks/flux#2104]: https://github.com/weaveworks/flux/pull/2104
+[weaveworks/flux#2108]: https://github.com/weaveworks/flux/pull/2108
+[weaveworks/flux#2109]: https://github.com/weaveworks/flux/pull/2109
+[weaveworks/flux#2110]: https://github.com/weaveworks/flux/pull/2110
+[weaveworks/flux#2111]: https://github.com/weaveworks/flux/pull/2111
+[weaveworks/flux#2116]: https://github.com/weaveworks/flux/pull/2116
+[weaveworks/flux#2117]: https://github.com/weaveworks/flux/pull/2117
+[weaveworks/flux#2125]: https://github.com/weaveworks/flux/pull/2125
+[weaveworks/flux#2127]: https://github.com/weaveworks/flux/pull/2127
+[weaveworks/flux#2134]: https://github.com/weaveworks/flux/pull/2134
+[weaveworks/flux#2138]: https://github.com/weaveworks/flux/pull/2138
+[weaveworks/flux#2140]: https://github.com/weaveworks/flux/pull/2140
+[weaveworks/flux#2142]: https://github.com/weaveworks/flux/pull/2142
+[manifest-generation-docs]: https://github.com/weaveworks/flux/blob/master/site/fluxyaml-config-files.md
+[gpg-docs]: https://github.com/weaveworks/flux/blob/master/site/git-gpg.md
+
+## 1.12.3 (2019-05-22)
+
+This is a patch release.
+
+### Fixes
+
+- Show tag image for workload in list-images
+  [weaveworks/flux#2024][]
+- Log warning when not applying resource by namespace
+  [weaveworks/flux#2034][]
+- Always list the status of a workload in `fluxctl`
+  [weaveworks/flux#2035][]
+- Ensure Flux installs gnutls >=3.6.7, to resolve security scan issues
+  [weaveworks/flux#2044][]
+- Rename controller to workload in `fluxctl release`
+  [weaveworks/flux#2048][]
+- Give full output of git command on errors
+  [weaveworks/flux#2054][]
+
+### Maintenance and documentation
+
+- Warn about Flux only supporting YAML and not JSON
+  [weaveworks/flux#2010][]
+- Fix and refactor end-to-end tests
+  [weaveworks/flux#2050][] [weaveworks/flux#2058][]
+
+### Thanks
+
+Thanks to @2opremio, @hiddeco, @squaremo and @xtellurian for contributions.
+
+[weaveworks/flux#2010]: https://github.com/weaveworks/flux/pull/2010
+[weaveworks/flux#2024]: https://github.com/weaveworks/flux/pull/2024
+[weaveworks/flux#2034]: https://github.com/weaveworks/flux/pull/2034
+[weaveworks/flux#2035]: https://github.com/weaveworks/flux/pull/2035
+[weaveworks/flux#2044]: https://github.com/weaveworks/flux/pull/2044
+[weaveworks/flux#2048]: https://github.com/weaveworks/flux/pull/2048
+[weaveworks/flux#2050]: https://github.com/weaveworks/flux/pull/2050
+[weaveworks/flux#2054]: https://github.com/weaveworks/flux/pull/2054
+[weaveworks/flux#2058]: https://github.com/weaveworks/flux/pull/2058
+
+## 1.12.2 (2019-05-08)
+
+This is a patch release.
+
+### Fixes
+
+- Fix error shadowing when parsing YAML manifests
+  [weaveworks/flux#1994][]
+- Fix 'workspace' -> 'workload' typo in deprecated controller flag
+  [weaveworks/flux#1987][] [weaveworks/flux#1996][]
+- Improve internal Kubernetes error logging, by removing the duplicate
+  timestamp and providing a full path to the Kubernetes file emitting
+  the error
+  [weaveworks/flux#2000][]
+- Improve `fluxctl` auto portforward connection error, by better
+  guiding the user about what could be wrong
+  [weaveworks/flux#2001][]
+- Ignore discovery errors for metrics resources, to prevent syncs from
+  failing when the metrics API is misconfigured
+  [weaveworks/flux#2009][]
+- Fix `(Flux)HelmRelease` cluster lookups, before this change, the
+  same resource ID would be reported for all `HelmRelease`s with e.g.
+  `fluctl list-workloads`
+  [weaveworks/flux#2018][]
+  
+
+### Maintenance and documentation
+
+- Replace deprecated `--controller` flag in documentation with
+  `--workload`
+  [weaveworks/flux#1985][]
+- Update `MAINTAINERS` and include email addresses
+  [weaveworks/flux#1995][]
+
+### Thanks
+
+Thanks to @2opremio, @cdenneen, @hiddeco, @jan-schumacher, @squaremo,
+@stefanprodan for contributions.
+
+[weaveworks/flux#1985]: https://github.com/weaveworks/flux/pull/1985
+[weaveworks/flux#1987]: https://github.com/weaveworks/flux/pull/1987
+[weaveworks/flux#1994]: https://github.com/weaveworks/flux/pull/1994
+[weaveworks/flux#1995]: https://github.com/weaveworks/flux/pull/1995
+[weaveworks/flux#1996]: https://github.com/weaveworks/flux/pull/1996
+[weaveworks/flux#2000]: https://github.com/weaveworks/flux/pull/2000
+[weaveworks/flux#2001]: https://github.com/weaveworks/flux/pull/2001
+[weaveworks/flux#2009]: https://github.com/weaveworks/flux/pull/2009
+[weaveworks/flux#2018]: https://github.com/weaveworks/flux/pull/2018
+
+## 1.12.1 (2019-04-25)
+
+This is a patch release.
+
+### Fixes
+
+- Be more tolerant of image manifests being missing in the registry,
+  when we don't need them [weaveworks/flux#1916][]
+- Give image registry fetches a timeout, so the image metadata DB
+  doesn't get stuck [weaveworks/flux#1970][]
+- Allow insecure host arguments to exclude the port
+  [weaveworks/flux#1967][]
+- Make sure client-go logs to stderr [weaveworks/flux#1945][]
+- Cope gracefully when custom API resources are not present in the
+  cluster or in git (and therefore we cannot determine how a custom
+  resource is scoped) [weaveworks/flux#1943][]
+- Warn when the configured branch does not exist in git, and use the
+  configured branch to check writablility [weaveworks/flux#1937][]
+- Deal with YAML document end markers [weaveworks/flux#1931][],
+  [weaveworks/flux#1973][]
+
+### Maintenance and documentation
+
+- Add some known production users to the README
+  [weaveworks/flux#1958][], [weaveworks/flux#1946][],
+  [weaveworks/flux#1932][]
+- Move images to DockerHub and have a separate pre-releases image repo
+  [weaveworks/flux#1949][], [weaveworks/flux#1956][]
+- Support `arm` and `arm64` builds [weaveworks/flux#1950][]
+- Refactor the core image metadata fetching func
+  [weaveworks/flux#1935][]
+- Update client-go to v1.11 [weaveworks/flux#1929][]
+- Retry keyscan when building images, to mitigate for occasional
+  timeouts [weaveworks/flux#1971][]
+- Give the GitHub repo an issue template for bug reports
+  [weaveworks/flux#1968][]
+
+### Thanks
+
+Thanks to @2opremio, @UnwashedMeme, @alexanderbuhler, @aronne,
+@arturo-c, @autarchprinceps, @benhartley, @brantb, @brezerk,
+@dholbach, @dlespiau, @dvelitchkov, @dwightbiddle-ef, @gtseres,
+@hiddeco, @hpurmann, @ingshtrom, @isen-ng, @jimangel, @jpds,
+@kingdonb, @koustubh25, @koustubhg, @michaelfig, @moltar, @nabadger,
+@primeroz, @rdubya16, @squaremo, @stealthybox, @stefanprodan, @tycoles
+for contributions.
+
+[weaveworks/flux#1916]: https://github.com/weaveworks/flux/pull/1916
+[weaveworks/flux#1929]: https://github.com/weaveworks/flux/pull/1929
+[weaveworks/flux#1931]: https://github.com/weaveworks/flux/pull/1931
+[weaveworks/flux#1932]: https://github.com/weaveworks/flux/pull/1932
+[weaveworks/flux#1935]: https://github.com/weaveworks/flux/pull/1935
+[weaveworks/flux#1937]: https://github.com/weaveworks/flux/pull/1937
+[weaveworks/flux#1943]: https://github.com/weaveworks/flux/pull/1943
+[weaveworks/flux#1945]: https://github.com/weaveworks/flux/pull/1945
+[weaveworks/flux#1946]: https://github.com/weaveworks/flux/pull/1946
+[weaveworks/flux#1949]: https://github.com/weaveworks/flux/pull/1949
+[weaveworks/flux#1950]: https://github.com/weaveworks/flux/pull/1950
+[weaveworks/flux#1956]: https://github.com/weaveworks/flux/pull/1956
+[weaveworks/flux#1958]: https://github.com/weaveworks/flux/pull/1958
+[weaveworks/flux#1967]: https://github.com/weaveworks/flux/pull/1967
+[weaveworks/flux#1968]: https://github.com/weaveworks/flux/pull/1968
+[weaveworks/flux#1970]: https://github.com/weaveworks/flux/pull/1970
+[weaveworks/flux#1971]: https://github.com/weaveworks/flux/pull/1971
+[weaveworks/flux#1973]: https://github.com/weaveworks/flux/pull/1973
+
+## 1.12.0 (2019-04-11)
+
+This release renames some fluxctl commands and arguments while
+deprecating others, to better follow Kubernetes terminology. In
+particular, it drops the term "controller" in favour of "workload";
+e.g., instead of
+
+    fluxctl list-controllers --controller=...
+
+there is now
+
+    fluxctl list-workloads --workload=...
+
+The old commands are deprecated but still available for now.
+
+It also extends the namespace restriction flag
+(`--k8s-allow-namespace`, with a deprecated alias
+`--k8s-namespace-whitelist`) to cover all operations, including
+syncing; previously, it covered only query operations e.g.,
+`list-images` etc..
+
+### Fixes
+
+- Periodically refresh memcached addresses, to recover from DNS
+  outages [weaveworks/flux#1913][]
+- Properly apply `fluxctl policy --tag-all` when a manifest does not
+  have a namespace [weaveworks/flux#1901][]
+- Support newer git versions (>=2.21) [weaveworks/flux#1884][]
+- Avoid errors arising from ambiguous git refs
+  [weaveworks/flux#1875][] and [weaveworks/flux#1829][]
+- Reload the API definitions periodically, to account for the API
+  server being unavailable when starting [weaveworks/flux#1859][]
+- Admit `<cluster>` when parsing resource IDs, since it's now used to
+  mark cluster-scoped resources [weaveworks/flux#1851][]
+- Better recognise and tolerate when Kubernetes API errors mean "not
+  accessible" [weaveworks/flux#1840][] and [weaveworks/flux#1832][],
+  and stop the Kubernetes client from needlessly logging them
+  [weaveworks/flux#1837][]
+
+### Improvements
+
+- Use "workload" as the term for resources that specify pods to run,
+  in `fluxctl` commands and wherever else it is needed
+  [weaveworks/flux#1777][]
+- Make `regex` an alias for `regexp` in tag filters
+  [weaveworks/flux#1915][]
+- Be more sparing when logging AWS detection failures; add flag for
+  requiring AWS authentication; observe ECR restrictions on region and
+  account regardless of AWS detection [weaveworks/flux#1863][]
+- Treat all `*List` (e.g., `DeploymentList`) resources as lists
+  [weaveworks/flux#1883][]
+- Add host key for legacy VSTS (now Azure DevOps)
+  [weaveworks/flux#1870][]
+- Extend namespace restriction to all operations, and change the name
+  of the flag to `--k8s-allow-namespace` [weaveworks/flux#1668][]
+- Avoid updating images when there is no record for the current image
+  [weaveworks/flux#1831][]
+- Include the file name in the error when kubeyaml fails to update a
+  manifest [weaveworks/flux#1815][]
+
+### Maintenance and documentation
+
+- Avoid creating a cached image when host key verification fails while
+  building [weaveworks/flux#1908][]
+- Separate "Get started" instructions for fluxd vs. fluxd with the
+  Helm operator [weaveworks/flux#1902][], [weaveworks/flux#1912][]
+- Add an end-to-end smoke test to run in CI [weaveworks/flux#1800][]
+- Make git tracing report more output [weaveworks/flux#1844][]
+- Fix flaky API discovery test [weaveworks/flux#1849][]
+
+### Thanks
+
+Many thanks to @2opremio, @AmberAttebery, @alanjcastonguay,
+@alexanderbuhler, @arturo-c, @benhartley, @cruisehall, @dholbach,
+@dimitropoulos, @hiddeco, @hlascelles, @ipedrazas, @jrryjcksn,
+@marchmallow, @mazzy89, @mulcahys, @nabadger, @pmquang,
+@southbanksoftwaredeveloper, @squaremo, @srueg, @stefanprodan,
+@stevenpall, @stillinbeta, @swade1987, @timfpark, @vanderstack for
+contributions.
+
+[weaveworks/flux#1913]: https://github.com/weaveworks/flux/pull/1913
+[weaveworks/flux#1912]: https://github.com/weaveworks/flux/pull/1912
+[weaveworks/flux#1901]: https://github.com/weaveworks/flux/pull/1901
+[weaveworks/flux#1884]: https://github.com/weaveworks/flux/pull/1884
+[weaveworks/flux#1875]: https://github.com/weaveworks/flux/pull/1875
+[weaveworks/flux#1829]: https://github.com/weaveworks/flux/pull/1829
+[weaveworks/flux#1859]: https://github.com/weaveworks/flux/pull/1859
+[weaveworks/flux#1851]: https://github.com/weaveworks/flux/pull/1851
+[weaveworks/flux#1840]: https://github.com/weaveworks/flux/pull/1840
+[weaveworks/flux#1832]: https://github.com/weaveworks/flux/pull/1832
+[weaveworks/flux#1837]: https://github.com/weaveworks/flux/pull/1837
+[weaveworks/flux#1777]: https://github.com/weaveworks/flux/pull/1777
+[weaveworks/flux#1915]: https://github.com/weaveworks/flux/pull/1915
+[weaveworks/flux#1863]: https://github.com/weaveworks/flux/pull/1863
+[weaveworks/flux#1883]: https://github.com/weaveworks/flux/pull/1883
+[weaveworks/flux#1870]: https://github.com/weaveworks/flux/pull/1870
+[weaveworks/flux#1668]: https://github.com/weaveworks/flux/pull/1668
+[weaveworks/flux#1831]: https://github.com/weaveworks/flux/pull/1831
+[weaveworks/flux#1815]: https://github.com/weaveworks/flux/pull/1815
+[weaveworks/flux#1908]: https://github.com/weaveworks/flux/pull/1908
+[weaveworks/flux#1902]: https://github.com/weaveworks/flux/pull/1902
+[weaveworks/flux#1912]: https://github.com/weaveworks/flux/pull/1912
+[weaveworks/flux#1800]: https://github.com/weaveworks/flux/pull/1800
+[weaveworks/flux#1844]: https://github.com/weaveworks/flux/pull/1844
+[weaveworks/flux#1849]: https://github.com/weaveworks/flux/pull/1849
+
+## 1.11.1 (2019-04-01)
+
+This is a bugfix release, fixing a regression introduced in 1.11.0 which caused 
+syncs to fail when adding a CRD and instance(s) from that CRD at the same time.
+
+### Fixes
+
+- Obtain scope of CRD instances from its manifest as a fallback
+  [weaveworks/flux#1876][#1876]
+  
+[#1876]: https://github.com/weaveworks/flux/pull/1876
+
+## 1.11.0 (2019-03-13)
+
+This release comes with experimental garbage collection and Git commit signing:
+
+1. Experimental garbage collection of cluster resources. When providing the
+   `--sync-garbage-collection` flag, cluster resources no longer existing in Git 
+   will be removed. Read the [garbage collection documentation](site/garbagecollection.md) 
+   for further details.
+
+2. [GPG](https://en.wikipedia.org/wiki/GNU_Privacy_Guard)
+   [Git commit signing](https://git-scm.com/docs/git-commit#Documentation/git-commit.txt--Sltkeyidgt),
+   when providing `--git-signing-key` flag. GPG keys can be imported with
+   `--git-gpg-key-import`. By default Flux will import to and use the keys
+   in `~/.gnupg`. This path can be overridden by setting the `GNUPGHOME` environment
+   variable.
+
+   Commit signature verification is in the works and will be released shortly.
+
+### Fixes
+
+- Wait for shutdown before returning from `main()`
+  [weaveworks/flux#1789][#1789]
+- Make `fluxctl list-images` adhere to namespace filter
+  [weaveworks/flux#1763][#1763]
+- Take ignore policy into account when working with automated resources
+  [weaveworks/flux#1749][#1749]
+
+### Improvements
+
+- Delete resources no longer in git
+  [weaveworks/flux#1442][#1442]
+  [weaveworks/flux#1798][#1798]
+  [weaveworks/flux#1806][#1806]
+- Git commit signing
+  [weaveworks/flux#1394][#1394]
+- Apply user defined Git timeout on all operations
+  [weaveworks/flux#1767][#1767]
+
+### Maintenance and documentation
+
+- Bump Alpine version from v3.6 to v3.9
+  [weaveworks/flux#1801][#1801]
+- Increase memcached memory defaults
+  [weaveworks/flux#1780][#1780]
+- Update developing docs to remind to `make test`
+  [weaveworks/flux#1796][#1796]
+- Fix Github link
+  [weaveworks/flux#1795][#1795]
+- Improve Docs (focusing on local development)
+  [weaveworks/flux#1771][#1771]
+- Increase timeouts in daemon_test.go
+  [weaveworks/flux#1779][#1779]
+- Rename resource method `Policy()` to `Policies()`
+  [weaveworks/flux#1775][#1775]
+- Improve testing in local environments other than linux-amd64
+  [weaveworks/flux#1765][#1765]
+- Re-flow sections to order by importance
+  [weaveworks/flux#1754][#1754]
+- Document flux-dev mailing list
+  [weaveworks/flux#1755][#1755]
+- Updates Docs (wording, typos, formatting)
+  [weaveworks/flux#1753][#1753]
+- Document source of Azure SSH host key
+  [weaveworks/flux#1751][#1751]
+
+### Thanks
+
+Lots of thanks to @2opremio, @Timer, @bboreham, @dholbach, @dimitropoulos,
+@hiddeco, @scjudd, @squaremo and @stefanprodan  for their contributions to
+this release.
+
+[#1394]: https://github.com/weaveworks/flux/pull/1394
+[#1442]: https://github.com/weaveworks/flux/pull/1442
+[#1749]: https://github.com/weaveworks/flux/pull/1749
+[#1751]: https://github.com/weaveworks/flux/pull/1751
+[#1753]: https://github.com/weaveworks/flux/pull/1753
+[#1754]: https://github.com/weaveworks/flux/pull/1754
+[#1755]: https://github.com/weaveworks/flux/pull/1755
+[#1763]: https://github.com/weaveworks/flux/pull/1763
+[#1765]: https://github.com/weaveworks/flux/pull/1765
+[#1767]: https://github.com/weaveworks/flux/pull/1767
+[#1771]: https://github.com/weaveworks/flux/pull/1771
+[#1775]: https://github.com/weaveworks/flux/pull/1775
+[#1779]: https://github.com/weaveworks/flux/pull/1779
+[#1780]: https://github.com/weaveworks/flux/pull/1780
+[#1789]: https://github.com/weaveworks/flux/pull/1789
+[#1795]: https://github.com/weaveworks/flux/pull/1795
+[#1796]: https://github.com/weaveworks/flux/pull/1796
+[#1798]: https://github.com/weaveworks/flux/pull/1798
+[#1801]: https://github.com/weaveworks/flux/pull/1801
+[#1806]: https://github.com/weaveworks/flux/pull/1806
 
 ## 1.10.1 (2019-02-13)
 
-This release provides a deeper integration with Azure (DevOps Git hosts 
-and ACR) and allows configuring how `fluxctl` finds `fluxd` (useful for 
+This release provides a deeper integration with Azure (DevOps Git hosts
+and ACR) and allows configuring how `fluxctl` finds `fluxd` (useful for
 clusters with multiple fluxd installations).
 
 ### Improvements
@@ -19,7 +937,7 @@ clusters with multiple fluxd installations).
 
 ### Thanks
 
-Lots of thanks to @alanjcastonguay, @hiddeco, and @sarath-p for their 
+Lots of thanks to @alanjcastonguay, @hiddeco, and @sarath-p for their
 contributions to this release.
 
 [#1694]: https://github.com/weaveworks/flux/pull/1694
@@ -324,7 +1242,7 @@ because it introduces a new flag, `--listen-metrics`.
 ### Improvements
 
 - Prometheus metrics can be exposed on a port different from that of
-  the flux API, using the flag `--listen-metrics`
+  the Flux API, using the flag `--listen-metrics`
   [weaveworks/flux#1325](https://github.com/weaveworks/flux/pull/1325)
 
 ### Thanks
@@ -555,7 +1473,7 @@ reindent blocks the first time it changes a file.
 
 ### Improvements
 
-- Let the flux daemon operate without a git repo, and report cluster resources as read-only when there is no corresponding manifest [weaveworks/flux#962](https://github.com/weaveworks/flux/pull/962)
+- Let the Flux daemon operate without a git repo, and report cluster resources as read-only when there is no corresponding manifest [weaveworks/flux#962](https://github.com/weaveworks/flux/pull/962)
 - Reinstate command-line arg for setting the git polling interval `--git-poll-interval` [weaveworks/flux#1030](https://github.com/weaveworks/flux/pull/1030)
 - Add `--git-ci-skip` (and for more fine control, `--git-ci-skip-message`) for customising flux's commit messages such that CI systems ignore the commits [weaveworks/flux#1011](https://github.com/weaveworks/flux/pull/1011)
 - Log the daemon version on startup [weaveworks/flux#1017](https://github.com/weaveworks/flux/pull/1017)
@@ -661,7 +1579,7 @@ registry.
 
 - Flux daemon can be configured to populate the git commit author with
   the name of the requesting user
-- When multiple flux daemons share the same configuration repository,
+- When multiple Flux daemons share the same configuration repository,
   each fluxd only sends Slack notifications for commits that affect
   its branch/path
 - When a resource is locked the invoking user is recorded, along with
@@ -676,7 +1594,7 @@ registry.
 
 ## 1.0.0 (2017-08-22)
 
-This release introduces significant changes to the way flux works:
+This release introduces significant changes to the way Flux works:
 
 - The git repository is now the system of record for your cluster
   state. Flux continually works to synchronise your cluster with the
@@ -723,7 +1641,7 @@ More informative and helpful UI.
 
 -   Slack notifications are tidier
 -   Support for releasing to >1 service at a time
--   Better behaviour when flux deploys itself
+-   Better behaviour when Flux deploys itself
 -   More help given for commonly encountered errors
 -   Filter out Kubernetes add-ons from consideration
 -   More consistent Prometheus metric labeling

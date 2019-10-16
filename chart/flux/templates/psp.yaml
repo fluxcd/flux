@@ -1,0 +1,66 @@
+{{- if .Values.rbac.pspEnabled }}
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: {{ template "flux.fullname" . }}
+  labels:
+    app: {{ include "flux.name" . }}
+    chart: {{ include "flux.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+  annotations:
+    seccomp.security.alpha.kubernetes.io/allowedProfileNames: '*'
+spec:
+  privileged: false
+  hostIPC: false
+  hostNetwork: false
+  hostPID: false
+  readOnlyRootFilesystem: false
+  allowPrivilegeEscalation: true
+  allowedCapabilities:
+    - '*'
+  fsGroup:
+    rule: RunAsAny
+  runAsUser:
+    rule: RunAsAny
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  volumes:
+    - '*'
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ template "flux.fullname" . }}-psp
+  labels:
+    app: {{ include "flux.name" . }}
+    chart: {{ include "flux.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+rules:
+    - apiGroups: ['policy']
+      resources: ['podsecuritypolicies']
+      verbs:     ['use']
+      resourceNames:
+        - {{ template "flux.fullname" . }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+    name: {{ template "flux.fullname" . }}-psp
+    labels:
+        app: {{ include "flux.name" . }}
+        chart: {{ include "flux.chart" . }}
+        release: {{ .Release.Name }}
+        heritage: {{ .Release.Service }}
+roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: {{ template "flux.fullname" . }}-psp
+subjects:
+    - kind: ServiceAccount
+      name: {{ template "flux.serviceAccountName" . }}
+      namespace: {{ .Release.Namespace }}
+{{- end }}

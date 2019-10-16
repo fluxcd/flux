@@ -3,13 +3,15 @@ package main
 import (
 	"bytes"
 	"fmt"
-        "io/ioutil"
+	"io/ioutil"
 	"os/exec"
-        "strings"
+	"strings"
+
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/spf13/cobra"
 
-	"github.com/weaveworks/flux/update"
+	"github.com/fluxcd/flux/pkg/update"
 )
 
 func AddCauseFlags(cmd *cobra.Command, opts *update.Cause) {
@@ -35,6 +37,7 @@ func getCommitAuthor() string {
 }
 
 var execCommand = exec.Command
+
 func getUserGitConfigValue(arg string) string {
 	var out bytes.Buffer
 	cmd := execCommand("git", "config", "--get", "--null", arg)
@@ -47,4 +50,21 @@ func getUserGitConfigValue(arg string) string {
 	}
 	res := out.String()
 	return strings.Trim(res, "\x00")
+}
+
+var getKubeConfigContextNamespace = func(defaultNamespace string) string {
+	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		clientcmd.NewDefaultClientConfigLoadingRules(),
+		&clientcmd.ConfigOverrides{},
+	).RawConfig()
+	if err != nil {
+		return defaultNamespace
+	}
+
+	cc := config.CurrentContext
+	if c, ok := config.Contexts[cc]; ok && c.Namespace != "" {
+		return c.Namespace
+	}
+
+	return defaultNamespace
 }

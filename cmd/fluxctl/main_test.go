@@ -9,12 +9,13 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/fluxcd/flux/pkg/http/client"
 	"github.com/gorilla/mux"
-	"github.com/weaveworks/flux/http/client"
 
-	transport "github.com/weaveworks/flux/http"
-	"github.com/weaveworks/flux/job"
+	transport "github.com/fluxcd/flux/pkg/http"
+	"github.com/fluxcd/flux/pkg/job"
 )
 
 func mockServiceOpts(trip *genericMockRoundTripper) *rootOpts {
@@ -23,7 +24,8 @@ func mockServiceOpts(trip *genericMockRoundTripper) *rootOpts {
 	}
 	mockAPI := client.New(&c, transport.NewAPIRouter(), "", "")
 	return &rootOpts{
-		API: mockAPI,
+		API:     mockAPI,
+		Timeout: 10 * time.Second,
 	}
 }
 
@@ -64,7 +66,8 @@ func (t *genericMockRoundTripper) calledURL(method string) (u *url.URL) {
 
 func testArgs(t *testing.T, args []string, shouldErr bool, errMsg string) *genericMockRoundTripper {
 	svc := newMockService()
-	releaseClient := newControllerRelease(mockServiceOpts(svc))
+	releaseClient := newWorkloadRelease(mockServiceOpts(svc))
+	getKubeConfigContextNamespace = func(s string) string { return s }
 
 	// Run fluxctl release
 	cmd := releaseClient.Command()
@@ -72,9 +75,9 @@ func testArgs(t *testing.T, args []string, shouldErr bool, errMsg string) *gener
 	cmd.SetArgs(args)
 	if err := cmd.Execute(); (err == nil) == shouldErr {
 		if errMsg != "" {
-			t.Fatal(errMsg)
+			t.Fatalf("%s: %s", args, errMsg)
 		} else {
-			t.Fatal(err)
+			t.Fatalf("%s: %v", args, err)
 		}
 	}
 	return svc

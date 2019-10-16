@@ -1,3 +1,4 @@
+{{- if .Values.memcached.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -41,6 +42,8 @@ spec:
           containerPort: 11211
         resources:
 {{ toYaml .Values.memcached.resources | indent 10 }}
+        securityContext:
+{{ toYaml .Values.memcached.securityContext | indent 10 }}
     {{- with .Values.memcached.nodeSelector }}
       nodeSelector:
 {{ toYaml . | indent 8 }}
@@ -51,10 +54,6 @@ spec:
     {{- end }}
     {{- with .Values.memcached.tolerations }}
       tolerations:
-{{ toYaml . | indent 8 }}
-    {{- end }}
-    {{- with .Values.memcached.securityContext }}
-      securityContext:
 {{ toYaml . | indent 8 }}
     {{- end }}
 ---
@@ -79,3 +78,4 @@ spec:
   selector:
     app: {{ template "flux.name" . }}-memcached
     release: {{ .Release.Name }}
+{{- end }}

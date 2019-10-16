@@ -3,55 +3,58 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/weaveworks/flux/update"
+	"github.com/fluxcd/flux/pkg/update"
 )
 
-type controllerLockOpts struct {
+type workloadLockOpts struct {
 	*rootOpts
-	namespace  string
-	controller string
+	namespace string
+	workload  string
 	outputOpts
 	cause update.Cause
 
 	// Deprecated
-	service string
+	controller string
 }
 
-func newControllerLock(parent *rootOpts) *controllerLockOpts {
-	return &controllerLockOpts{rootOpts: parent}
+func newWorkloadLock(parent *rootOpts) *workloadLockOpts {
+	return &workloadLockOpts{rootOpts: parent}
 }
 
-func (opts *controllerLockOpts) Command() *cobra.Command {
+func (opts *workloadLockOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "lock",
-		Short: "Lock a controller, so it cannot be deployed.",
+		Short: "Lock a workload, so it cannot be deployed.",
 		Example: makeExample(
-			"fluxctl lock --controller=default:deployment/helloworld",
+			"fluxctl lock --workload=default:deployment/helloworld",
 		),
 		RunE: opts.RunE,
 	}
 	AddOutputFlags(cmd, &opts.outputOpts)
 	AddCauseFlags(cmd, &opts.cause)
-	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "default", "Controller namespace")
-	cmd.Flags().StringVarP(&opts.controller, "controller", "c", "", "Controller to lock")
+	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", getKubeConfigContextNamespace("default"), "Controller namespace")
+	cmd.Flags().StringVarP(&opts.workload, "workload", "w", "", "Workload to lock")
 
 	// Deprecated
-	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "Service to lock")
-	cmd.Flags().MarkHidden("service")
+	cmd.Flags().StringVarP(&opts.workload, "controller", "c", "", "Controller to lock")
+	cmd.Flags().MarkDeprecated("controller", "changed to --workload, use that instead")
 
 	return cmd
 }
 
-func (opts *controllerLockOpts) RunE(cmd *cobra.Command, args []string) error {
-	if len(opts.service) > 0 {
-		return errorServiceFlagDeprecated
+func (opts *workloadLockOpts) RunE(cmd *cobra.Command, args []string) error {
+	// Backwards compatibility with --controller until we remove it
+	switch {
+	case opts.workload != "" && opts.controller != "":
+		return newUsageError("can't specify both a controller and workload")
+	case opts.controller != "":
+		opts.workload = opts.controller
 	}
-
-	policyOpts := &controllerPolicyOpts{
+	policyOpts := &workloadPolicyOpts{
 		rootOpts:   opts.rootOpts,
 		outputOpts: opts.outputOpts,
 		namespace:  opts.namespace,
-		controller: opts.controller,
+		workload:   opts.workload,
 		cause:      opts.cause,
 		lock:       true,
 	}

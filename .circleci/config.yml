@@ -1,50 +1,177 @@
 version: 2
 jobs:
-  build:
-    working_directory: /go/src/github.com/weaveworks/flux
+  helm:
     docker:
-      - image: circleci/golang:1.10
-      - image: memcached
+      - image: circleci/golang:1.12
     steps:
       - checkout
-      - setup_remote_docker
+      - run:
+          name: Install kubectl
+          command: sudo curl -L https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl -o /usr/local/bin/kubectl && sudo chmod +x /usr/local/bin/kubectl
+      - run:
+          name: Install helm
+          command: sudo curl -L https://storage.googleapis.com/kubernetes-helm/helm-v2.14.2-linux-amd64.tar.gz | tar xz && sudo mv linux-amd64/helm /bin/helm && sudo rm -rf linux-amd64
+      - run:
+          name: Initialize helm
+          command:  helm init --client-only --kubeconfig=$HOME/.kube/kubeconfig
+      - run:
+          name: Lint chart
+          command: |
+            helm lint ./chart/flux
+      - run:
+          name: Package chart
+          command: |
+            mkdir $HOME/chart
+            helm package ./chart/flux --destination $HOME/chart
+      - run:
+          name: Publish chart
+          command: |
+            git config --global user.email fluxcdbot@users.noreply.github.com
+            git config --global user.name fluxcdbot
 
-      - run: curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-      - run: dep ensure -vendor-only
-      - run: make check-generated
+            # Push to fluxcd/flux gh-pages branch
+            if echo "${CIRCLE_TAG}" | grep -Eq "chart-[0-9]+(\.[0-9]+)*(-[a-z]+)?$"; then
+              REPOSITORY="https://fluxcdbot:${GITHUB_TOKEN}@github.com/fluxcd/flux.git"
+              git remote set-url origin ${REPOSITORY}
+              git checkout gh-pages
+              cp $HOME/chart/*.tgz .
+              helm repo index . --url https://fluxcd.github.io/flux
+              git add .
+              git commit -m "Publish Helm chart"
+              git push origin gh-pages
+            else
+              echo "Not a chart release! Skip chart publish"
+            fi
+            # Push to fluxcd/charts gh-pages branch
+            if echo "${CIRCLE_TAG}" | grep -Eq "chart-[0-9]+(\.[0-9]+)*(-[a-z]+)?$"; then
+              REPOSITORY="https://fluxcdbot:${GITHUB_TOKEN}@github.com/fluxcd/charts.git"
+              mkdir $HOME/fluxcd-charts
+              cd $HOME/fluxcd-charts && git clone ${REPOSITORY}
+              cd $HOME/fluxcd-charts/charts
+              git checkout gh-pages
+              mv $HOME/chart/*.tgz .
+              helm repo index . --url https://charts.fluxcd.io
+              git add .
+              git commit -m "Publish chart to fluxcd/charts"
+              git push origin gh-pages
+            else
+              echo "Not a chart release! Skip chart publish"
+            fi
+  build:
+    working_directory: /home/circleci/go/src/github.com/fluxcd/flux
+    machine:
+      image: ubuntu-1604:201903-01
+    environment:
+      GO_VERSION: 1.13.1
+      # We don't need a GOPATH but CircleCI defines it, so we override it
+      GOPATH: /home/circleci/go
+      GO111MODULE: 'on'
+      PATH: /bin:/usr/bin:/usr/local/go/bin:/home/circleci/go/bin
+    steps:
+      - checkout
+      - run:
+          name: Install Golang
+          command: |
+            curl -OL https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz
+            tar -xf go${GO_VERSION}.linux-amd64.tar.gz
+            sudo rm -rf /usr/local/go
+            sudo mv go /usr/local
+            mkdir -p "$HOME/go/bin"
+            rm -rf go${GO_VERSION}.linux-amd64.tar.gz
+            go version
+      - run:
+          name: Update packages and start Memcached
+          no_output_timeout: 10m
+          command: |
+            # Kill any apt-get processes that may be hanging due to
+            # networking related issues, and thus holding on to
+            # `/var/lib/apt/lists/lock`.
+            # https://support.circleci.com/hc/en-us/articles/360021256633-Apt-Get-Update-Is-Slow-Or-Locked
+            sudo killall apt-get || true
+
+            sudo apt-get update
+            sudo apt-get install -y git rng-tools memcached
+            git version
+            docker version
+      - restore_cache:
+          keys:
+            - cache-{{ checksum "Makefile" }}
+            - cache-
+      - restore_cache:
+          keys:
+            - go-build-{{ .Branch }}-{{ .Revision }}
+            - go-build-{{ .Branch }}-
+            - go-build-
+      - restore_cache:
+          keys:
+            - go-mod-{{ checksum "go.mod" }}
+            - go-mod-
       - run: make test TEST_FLAGS="-race -tags integration -timeout 60s"
+      - run: make check-generated
       - run: make all
-
+      - run: make e2e
+      - run: make test-docs
+      - save_cache:
+          key: cache-{{ checksum "Makefile" }}
+          paths:
+            - "cache"
+      - save_cache:
+          key: go-build-{{ .Branch }}-{{ .Revision }}
+          paths:
+            - "~/.cache/go-build/"
+      - save_cache:
+          key: go-mod-{{ checksum "go.mod" }}
+          paths:
+            - "~/go/pkg/mod/"
       - deploy:
-          name: Maybe push master image
+          name: Maybe push prerelease images
           command: |
             if [ -z "${CIRCLE_TAG}" -a "${CIRCLE_BRANCH}" == "master" ]; then
-              docker login -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" quay.io
-              docker push "quay.io/weaveworks/flux:$(docker/image-tag)"
-              docker push "quay.io/weaveworks/helm-operator:$(docker/image-tag)"
+              # Re-tag image as prerelease and publish on DockerHub
+              echo "$DOCKER_FLUXCD_PASSWORD" | docker login --username "$DOCKER_FLUXCD_USER" --password-stdin
+              docker tag "docker.io/fluxcd/flux:$(docker/image-tag)" "docker.io/fluxcd/flux-prerelease:$(docker/image-tag)"
+              docker push "docker.io/fluxcd/flux-prerelease:$(docker/image-tag)"
             fi
-
       - deploy:
           name: Maybe push release image and upload binaries
           command: |
-            if echo "${CIRCLE_TAG}" | grep -Eq "^[0-9]+(\.[0-9]+)*(-[a-z]+)?$"; then
+            if echo "${CIRCLE_TAG}" | grep -Eq "^[0-9]+(\.[0-9]+)*(-[a-z0-9]+)?$"; then
+              # Publish binaries to GitHub
               go get github.com/weaveworks/github-release
               make release-bins
               bin/upload-binaries
-              docker login -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" quay.io
-              docker push "quay.io/weaveworks/flux:${CIRCLE_TAG}"
-            fi
-            if echo "${CIRCLE_TAG}" | grep -Eq "helm-[0-9]+(\.[0-9]+)*(-[a-z]+)?$"; then
-              docker login -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" quay.io
-              RELEASE_TAG=$(echo "$CIRCLE_TAG" | cut -c 6-)
-              docker push "quay.io/weaveworks/helm-operator:${RELEASE_TAG}"
+
+              # Publish image on DockerHub
+              echo "$DOCKER_FLUXCD_PASSWORD" | docker login --username "$DOCKER_FLUXCD_USER" --password-stdin
+              docker push "docker.io/fluxcd/flux:${CIRCLE_TAG}"
+
+              # Republish tag with v prefix so it is available to Go Mod
+              git config --global user.email fluxcdbot@users.noreply.github.com
+              git config --global user.name fluxcdbot
+
+              REPOSITORY="https://fluxcdbot:${GITHUB_TOKEN}@github.com/fluxcd/flux.git"
+              git remote set-url origin ${REPOSITORY}
+
+              V_TAG="v${CIRCLE_TAG}"
+              git tag ${V_TAG} $(git rev-list -n1 ${CIRCLE_TAG})
+              git push origin ${V_TAG}
             fi
 
 workflows:
   version: 2
   build-and-push:
     jobs:
+      - helm
       - build:
           filters:
             tags:
-              only: /(helm-)?[0-9]+(\.[0-9]+)*(-[a-z]+)?/
+              only: /[0-9]+(\.[0-9]+)*(-[a-z0-9]+)?/
+
+  release-helm:
+    jobs:
+      - helm:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^chart.*/

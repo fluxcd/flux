@@ -27,6 +27,14 @@ _testmain.go
 .ackrc
 .envrc
 
+### Package builds (e.g. snap of fluxctl)
+fluxctl_*_*.snap
+fluxctl_*_*.snap.xdelta3
+parts
+prime
+stage
+
+
 # Specific to this project
 vendor/*
 !vendor/manifest
@@ -39,4 +47,9 @@ testdata/sidecar/.sidecar
 docker/fluxy-dumbconf.priv
 test/profiles
 test/bin/kubectl
+test/bin/kustomize
 test/bin/helm
+test/bin/kind
+
+# Docs
+docs/_build

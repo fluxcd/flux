@@ -13,7 +13,7 @@ import (
 // Attempt to create PortForwards to fluxes that match the label selectors until a Flux
 // is found or an error is returned.
 func tryPortforwards(ns string, selectors ...metav1.LabelSelector) (p *portforward.PortForward, err error) {
-	message := fmt.Sprintf("Flux pod not found for labels in namespace %s:", ns)
+	message := fmt.Sprintf("No pod found in namespace %q using the following selectors:", ns)
 
 	for _, selector := range selectors {
 		p, err = tryPortforward(ns, selector)
@@ -21,13 +21,14 @@ func tryPortforwards(ns string, selectors ...metav1.LabelSelector) (p *portforwa
 			return
 		}
 
-		if ! strings.Contains(err.Error(), "Could not find pod for selector") {
+		if !strings.Contains(err.Error(), "Could not find running pod for selector") {
 			return
 		} else {
 			message = fmt.Sprintf("%s\n  %s", message, metav1.FormatLabelSelector(&selector))
 		}
 	}
-
+	message = fmt.Sprintf("%s\n\nMake sure Flux is running in namespace %q.\n"+
+		"If Flux is running in another different namespace, please supply it to --k8s-fwd-ns.", message, ns)
 	if err != nil {
 		err = errors.New(message)
 	}

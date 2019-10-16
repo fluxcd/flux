@@ -1,40 +1,40 @@
-FROM alpine:3.6
+FROM alpine:3.9
 
 WORKDIR /home/flux
 
-RUN apk add --no-cache openssh ca-certificates tini 'git>=2.3.0'
+RUN apk add --no-cache openssh-client ca-certificates tini 'git>=2.12.0' 'gnutls>=3.6.7' gnupg gawk socat
+RUN apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/testing git-secret
 
 # Add git hosts to known hosts file so we can use
 # StrickHostKeyChecking with git+ssh
-RUN ssh-keyscan github.com gitlab.com bitbucket.org ssh.dev.azure.com >> /etc/ssh/ssh_known_hosts
-
-# Verify newly added known_hosts (man-in-middle mitigation)
-ADD ./verify_known_hosts.sh /home/flux/verify_known_hosts.sh
-RUN sh /home/flux/verify_known_hosts.sh /etc/ssh/ssh_known_hosts && rm /home/flux/verify_known_hosts.sh
+ADD ./known_hosts.sh /home/flux/known_hosts.sh
+RUN sh /home/flux/known_hosts.sh /etc/ssh/ssh_known_hosts && \
+    rm /home/flux/known_hosts.sh
 
 # Add default SSH config, which points at the private key we'll mount
 COPY ./ssh_config /etc/ssh/ssh_config
 
 COPY ./kubectl /usr/local/bin/
+COPY ./kustomize /usr/local/bin
 
 # These are pretty static
-LABEL maintainer="Weaveworks <help@weave.works>" \
+LABEL maintainer="Flux CD <https://github.com/fluxcd/flux/issues>" \
       org.opencontainers.image.title="flux" \
-      org.opencontainers.image.description="The Flux daemon, for synchronising your cluster with a git repo, and deploying new images" \
-      org.opencontainers.image.url="https://github.com/weaveworks/flux" \
-      org.opencontainers.image.source="git@github.com:weaveworks/flux" \
-      org.opencontainers.image.vendor="Weaveworks" \
+      org.opencontainers.image.description="The GitOps operator for Kubernetes" \
+      org.opencontainers.image.url="https://github.com/fluxcd/flux" \
+      org.opencontainers.image.source="git@github.com:fluxcd/flux" \
+      org.opencontainers.image.vendor="Flux CD" \
       org.label-schema.schema-version="1.0" \
       org.label-schema.name="flux" \
-      org.label-schema.description="The Flux daemon, for synchronising your cluster with a git repo, and deploying new images" \
-      org.label-schema.url="https://github.com/weaveworks/flux" \
-      org.label-schema.vcs-url="git@github.com:weaveworks/flux" \
-      org.label-schema.vendor="Weaveworks"
+      org.label-schema.description="The GitOps operator for Kubernetes" \
+      org.label-schema.url="https://github.com/fluxcd/flux" \
+      org.label-schema.vcs-url="git@github.com:fluxcd/flux" \
+      org.label-schema.vendor="Flux CD"
 
 ENTRYPOINT [ "/sbin/tini", "--", "fluxd" ]
 
 # Get the kubeyaml binary (files) and put them on the path
-COPY --from=quay.io/squaremo/kubeyaml:0.5.1 /usr/lib/kubeyaml /usr/lib/kubeyaml/
+COPY --from=quay.io/squaremo/kubeyaml:0.7.0 /usr/lib/kubeyaml /usr/lib/kubeyaml/
 ENV PATH=/bin:/usr/bin:/usr/local/bin:/usr/lib/kubeyaml
 
 # Create minimal nsswitch.conf file to prioritize the usage of /etc/hosts over DNS queries.

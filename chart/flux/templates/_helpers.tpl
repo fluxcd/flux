@@ -41,3 +41,46 @@ Create the name of the service account to use
     {{ default "default" .Values.serviceAccount.name }}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Create the name of the cluster role to use
+*/}}
+{{- define "flux.clusterRoleName" -}}
+{{- if .Values.clusterRole.create -}}
+    {{ default (include "flux.fullname" .) .Values.clusterRole.name }}
+{{- else -}}
+    {{ default "default" .Values.clusterRole.name }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Create a custom repositories.yaml for Helm
+*/}}
+{{- define "flux.customRepositories" -}}
+apiVersion: v1
+generated: 0001-01-01T00:00:00Z
+repositories:
+{{- range .Values.helmOperator.configureRepositories.repositories }}
+- name: {{ required "Please specify a name for the Helm repo" .name }}
+  url: {{ required "Please specify a URL for the Helm repo" .url }}
+  cache: /var/fluxd/helm/repository/cache/{{ .name }}-index.yaml
+  caFile: ""
+  certFile: ""
+  keyFile: ""
+  password: "{{ .password | default "" }}"
+  username: "{{ .username | default "" }}"
+{{- end }}
+{{- end -}}
+
+{{/*
+Create the name of the Git config Secret.
+*/}}
+{{- define "git.config.secretName" -}}
+{{- if .Values.git.config.enabled }}
+    {{- if .Values.git.config.secretName -}}
+        {{ default "default" .Values.git.config.secretName }}
+    {{- else -}}
+        {{ default (printf "%s-git-config" (include "flux.fullname" .)) }}
+{{- end -}}
+{{- end }}
+{{- end }}

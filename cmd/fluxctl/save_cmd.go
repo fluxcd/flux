@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"fmt"
@@ -11,7 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 )
 
 type saveOpts struct {
@@ -26,7 +25,7 @@ func newSave(parent *rootOpts) *saveOpts {
 func (opts *saveOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "save --out config/",
-		Short: "save controller definitions to local files in cluster-native format",
+		Short: "save workload definitions to local files in cluster-native format",
 		Example: makeExample(
 			"fluxctl save",
 		),
@@ -63,9 +62,6 @@ func (opts *saveOpts) RunE(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "exporting config")
 	}
 
-	yamls := bufio.NewScanner(bytes.NewReader(config))
-	yamls.Split(splitYAMLDocument)
-
 	if opts.path != "-" {
 		// check supplied path is a directory
 		if info, err := os.Stat(opts.path); err != nil {
@@ -75,11 +71,14 @@ func (opts *saveOpts) RunE(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	for yamls.Scan() {
+	decoder := yaml.NewDecoder(bytes.NewReader(config))
+
+	var decoderErr error
+	for {
 		var object saveObject
 		// Most unwanted fields are ignored at this point
-		if err := yaml.Unmarshal(yamls.Bytes(), &object); err != nil {
-			return errors.Wrap(err, "unmarshalling exported yaml")
+		if decoderErr = decoder.Decode(&object); decoderErr != nil {
+			break
 		}
 
 		// Filter out remaining unwanted keys from unstructured fields
@@ -91,8 +90,8 @@ func (opts *saveOpts) RunE(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if yamls.Err() != nil {
-		return errors.Wrap(yamls.Err(), "splitting exported yaml")
+	if decoderErr != io.EOF {
+		return errors.Wrap(err, "unmarshalling exported yaml")
 	}
 
 	return nil
@@ -210,38 +209,4 @@ func abbreviateKind(kind string) string {
 	default:
 		return kind
 	}
-}
-
-// Copied from k8s.io/client-go/1.5/pkg/util/yaml/decoder.go
-
-const yamlSeparator = "\n---"
-
-// splitYAMLDocument is a bufio.SplitFunc for splitting YAML streams into individual documents.
-func splitYAMLDocument(data []byte, atEOF bool) (advance int, token []byte, err error) {
-	if atEOF && len(data) == 0 {
-		return 0, nil, nil
-	}
-	sep := len([]byte(yamlSeparator))
-	if i := bytes.Index(data, []byte(yamlSeparator)); i >= 0 {
-		// We have a potential document terminator
-		i += sep
-		after := data[i:]
-		if len(after) == 0 {
-			// we can't read any more characters
-			if atEOF {
-				return len(data), data[:len(data)-sep], nil
-			}
-			return 0, nil, nil
-		}
-		if j := bytes.IndexByte(after, '\n'); j >= 0 {
-			return i + j + 1, data[0 : i-sep], nil
-		}
-		return 0, nil, nil
-	}
-	// If we're at EOF, we have a final, non-terminated line. Return it.
-	if atEOF {
-		return len(data), data, nil
-	}
-	// Request more data.
-	return 0, nil, nil
 }

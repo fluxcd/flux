@@ -7,17 +7,17 @@ import (
 	"io"
 	"time"
 
-	"github.com/weaveworks/flux/api"
-	"github.com/weaveworks/flux/job"
-	"github.com/weaveworks/flux/update"
+	"github.com/fluxcd/flux/pkg/api"
+	"github.com/fluxcd/flux/pkg/job"
+	"github.com/fluxcd/flux/pkg/update"
 )
 
 var ErrTimeout = errors.New("timeout")
 
 // await polls for a job to complete, then for the resulting commit to
 // be applied
-func await(ctx context.Context, stdout, stderr io.Writer, client api.Server, jobID job.ID, apply bool, verbosity int) error {
-	result, err := awaitJob(ctx, client, jobID)
+func await(ctx context.Context, stdout, stderr io.Writer, client api.Server, jobID job.ID, apply bool, verbosity int, timeout time.Duration) error {
+	result, err := awaitJob(ctx, client, jobID, timeout)
 	if err != nil {
 		if err == ErrTimeout {
 			fmt.Fprintln(stderr, `
@@ -41,7 +41,7 @@ is safe to retry operations.`)
 	}
 
 	if apply && result.Revision != "" {
-		if err := awaitSync(ctx, client, result.Revision); err != nil {
+		if err := awaitSync(ctx, client, result.Revision, timeout); err != nil {
 			if err == ErrTimeout {
 				fmt.Fprintln(stderr, `
 The operation succeeded, but we timed out waiting for the commit to be
@@ -61,15 +61,16 @@ to run a sync interactively.`)
 }
 
 // await polls for a job to have been completed, with exponential backoff.
-func awaitJob(ctx context.Context, client api.Server, jobID job.ID) (job.Result, error) {
+func awaitJob(ctx context.Context, client api.Server, jobID job.ID, timeout time.Duration) (job.Result, error) {
 	var result job.Result
-	err := backoff(100*time.Millisecond, 2, 50, 1*time.Minute, func() (bool, error) {
+	err := backoff(100*time.Millisecond, 2, 50, timeout, func() (bool, error) {
 		j, err := client.JobStatus(ctx, jobID)
 		if err != nil {
 			return false, err
 		}
 		switch j.StatusString {
 		case job.StatusFailed:
+			result = j.Result
 			return false, j
 		case job.StatusSucceeded:
 			if j.Err != "" {
@@ -85,8 +86,8 @@ func awaitJob(ctx context.Context, client api.Server, jobID job.ID) (job.Result,
 }
 
 // await polls for a commit to have been applied, with exponential backoff.
-func awaitSync(ctx context.Context, client api.Server, revision string) error {
-	return backoff(1*time.Second, 2, 10, 1*time.Minute, func() (bool, error) {
+func awaitSync(ctx context.Context, client api.Server, revision string, timeout time.Duration) error {
+	return backoff(1*time.Second, 2, 10, timeout, func() (bool, error) {
 		refs, err := client.SyncStatus(ctx, revision)
 		return err == nil && len(refs) == 0, err
 	})

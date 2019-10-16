@@ -5,9 +5,11 @@ token: ""
 
 replicaCount: 1
 
+logFormat: fmt
+
 image:
-  repository: quay.io/weaveworks/flux
-  tag: 1.10.1
+  repository: docker.io/fluxcd/flux
+  tag: 1.15.0
   pullPolicy: IfNotPresent
   pullSecret:
 
@@ -18,9 +20,9 @@ service:
 helmOperator:
   replicaCount: 1
   create: false
-  createCRD: true
-  repository: quay.io/weaveworks/helm-operator
-  tag: 0.6.0
+  createCRD: false
+  repository: docker.io/fluxcd/helm-operator
+  tag: 0.10.1
   pullPolicy: IfNotPresent
   pullSecret:
   # Limit the operator scope to a single namespace
@@ -31,7 +33,17 @@ helmOperator:
   logReleaseDiffs: false
   # Interval at which to check for changed charts
   chartsSyncInterval: "3m"
+  # (Experimental) amount of workers processing releases
+  workers:
+
   # Tiller settings
+
+  # If a hostname or IP is given here, that will be combined with the
+  # tillerPort and used for connecting to Tiller. Otherwise, the
+  # cluster-ip of the `tiller-deploy` service in .tillerNamespace is
+  # looked up.
+  tillerHost:
+  tillerPort: 44134
   tillerNamespace: kube-system
   tls:
     secretName: "helm-client-certs"
@@ -47,6 +59,11 @@ helmOperator:
     volumeName: repositories-yaml
     secretName: flux-helm-repositories
     cacheVolumeName: repositories-cache
+    repositories:
+      # - name: bitnami
+      #   url: https://charts.bitnami.com
+      #   username:
+      #   password:
   # Override Flux git settings
   git:
     pollInterval: ""
@@ -74,12 +91,24 @@ helmOperator:
 rbac:
   # Specifies whether RBAC resources should be created
   create: true
+  # Specifies whether PSP resources should be created
+  pspEnabled: false
 
 serviceAccount:
   # Specifies whether a service account should be created
   create: true
   # The name of the service account to use.
   # If not set and create is true, a name is generated using the fullname template
+  name:
+
+# If create is `false` and no name is given, Flux and the Helm
+# Operator will be restricted to the namespace where they are
+# deployed, and the kubeconfig default context will be set to that
+# namespace.
+clusterRole:
+  create: true
+  # The name of a cluster role to bind to; if not set and create is
+  # true, a name based on fullname is generated
   name:
 
 resources:
@@ -95,17 +124,50 @@ tolerations: []
 
 affinity: {}
 
+extraVolumeMounts: []
+
+extraVolumes: []
+
+# Optional DNS settings, configuring the ndots option may resolve
+# nslookup issues on some Kubernetes setups.
+# dnsPolicy: "None"
+# dnsConfig:
+#   options:
+#     - name: ndots
+#       value: "1"
+
+gpgKeys:
+  # These keys will be imported into GPG in the Flux container.
+  secretName: ""
+  # These keys will be imported into GPG in the Flux container.
+  # NB: should only be used for public keys used to verify the
+  # signatures of commits.
+  configMapName: ""
+
+sync:
+  # use `.sync.state: secret` to store flux's state as an annotation on the secret (instead of a git tag)
+  state: git
+  # Duration after which sync operations time out (defaults to 1m)
+  timeout:
+
 git:
-  # URL of git repo with Kubernetes manifests; e.g. git.url=ssh://git@github.com/weaveworks/flux-get-started
+  # URL of git repo with Kubernetes manifests; e.g. git.url=ssh://git@github.com/fluxcd/flux-get-started
   url: ""
   # Branch of git repo to use for Kubernetes manifests
   branch: "master"
   # Path within git repo to locate Kubernetes manifests (relative path)
   path: ""
+  # Set to `true` if you intend for Flux to not be able to push changes to git.
+  # Also configure state.mode to `secret` since storing state in a git tag will no longer be possible.
+  readonly: false
   # Username to use as git committer
   user: "Weave Flux"
   # Email to use as git committer
   email: "support@weave.works"
+  # If set, commits will be signed with this GPG key.
+  signingKey: ""
+  # If set, the signatures of the sync tag and commits will be verified.
+  verifySignatures: false
   # If set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.
   setAuthor: false
   # Label to keep track of sync progress
@@ -116,12 +178,22 @@ git:
   pollInterval: "5m"
   # Duration after which git operations time out
   timeout: "20s"
-  # generate a SSH key named identity: ssh-keygen -q -N "" -f ./identity
-  # create a Kubernetes secret: kubectl -n flux create secret generic flux-ssh --from-file=./identity
-  # delete the private key: rm ./identity
-  # add ./identity.pub as a deployment key with write access in your Git repo
-  # set the secret name (flux-ssh) below
+  # The secret name can be used to supply your own SSH key, instead of
+  # relying on Flux to generate one for you:
+  # 1. Generate a SSH key named identity: ssh-keygen -q -N "" -f ./identity
+  # 2. Create a Kubernetes secret: kubectl -n flux create secret generic flux-ssh --from-file=./identity
+  # 3. Delete the private key: rm ./identity
+  # 4. Add ./identity.pub as a deployment key with write access in your Git repo
+  # 5. Set the secret name (flux-ssh) below
   secretName: ""
+  # Global Git configuration See https://git-scm.com/docs/git-config for more details.
+  config:
+    enabled: false
+    secretName: ""
+    data: ""
+    # data: |
+    #   [credential "https://github.com"]
+    #           username = foo
 
 registry:
   # Period at which to check for updated images
@@ -138,26 +210,38 @@ registry:
   cacheExpiry:
   # Do not scan images that match these glob expressions
   excludeImage:
+  # Allow usage of (RFC3339) timestamp labels from (canonical) image refs that match these glob expressions
+  useTimestampLabels:
   # AWS ECR settings
   ecr:
     region:
     includeId:
     excludeId:
+    require: false
   # Azure ACR settings
   acr:
     enabled: false
     hostPath: /etc/kubernetes/azure.json
+    secretName: ""
   dockercfg:
     enabled: false
     secretName: ""
+    configFileName: /dockercfg/config.json
+
 memcached:
+  enabled: true
+  hostnameOverride:
   repository: memcached
-  tag: 1.4.25
+  tag: 1.5.15
   pullSecret:
   createClusterIP: true
   verbose: false
-  maxItemSize: 1m
-  maxMemory: 64
+  maxItemSize: 5m
+  maxMemory: 512
+  securityContext:
+    runAsUser: 11211
+    runAsGroup: 11211
+    allowPrivilegeEscalation: false
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -166,10 +250,10 @@ memcached:
     # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
     # limits:
     #  cpu: 100m
-    #  memory: 70Mi
+    #  memory: 628Mi
     # requests:
     #  cpu: 50m
-    #  memory: 64Mi
+    #  memory: 512Mi
 
 ssh:
   # Overrides for git over SSH. If you use your own git server, you
@@ -191,9 +275,15 @@ kube:
     kind: Config
     preferences: {}
     users: []
-#for https://github.com/justinbarrick/fluxcloud/
-#additionalArgs:
+# For https://github.com/justinbarrick/fluxcloud/
+# additionalArgs:
 # - --connect=ws://fluxcloud
+
+# The contents of the secret will be defined as environment variables
+# in the Flux container. Once defined, you can use the variables in your
+# `git.url`: `https://$(GIT_AUTHUSER):$(GIT_AUTHKEY)@github.com/fluxcd/flux-get-started.git`
+env:
+  secretName: ""
 
 # Additional environment variables to set
 extraEnvs: []
@@ -203,3 +293,23 @@ extraEnvs: []
 
 prometheus:
   enabled: false
+
+syncGarbageCollection:
+  enabled: false
+  dry: false
+
+# Enables manifest generation
+manifestGeneration: false
+
+# Add your own init container or uncomment and modify the given example.
+initContainers: {}
+#   flux-init:  # <- will be used as container name
+#     image: "busybox:1.30.1"
+#     imagePullPolicy: "IfNotPresent"
+#     command: ['sh', '-c', 'counter=0; until [ "$counter" -ge 30 ]; do if [ -f /tmp/flux-deploy-key/identity ]; then exit 0; else echo waiting for flux deploy key && sleep 1 && counter=$((counter+1)); fi; done; exit 1;']
+#     volumeMounts:
+#       - mountPath: /tmp/flux-deploy-key
+#         name: flux-deploy-key
+
+# Additional containers to be added to the flux pod.
+extraContainers: []

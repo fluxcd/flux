@@ -36,7 +36,7 @@ spec:
   selector:
     name: memcached
 ---
-# Expose flux to fluxctl
+# Expose Flux to fluxctl
 apiVersion: v1
 kind: Service
 metadata:
@@ -76,7 +76,7 @@ spec:
       containers:
       - name: flux
         # Require locally built image
-        image: quay.io/weaveworks/flux:latest
+        image: docker.io/fluxcd/flux:latest
         imagePullPolicy: Never
         ports:
         - containerPort: 3030 # informational
@@ -94,5 +94,5 @@ spec:
         - --git-url=ssh://docker@MINIKUBE_IP:/home/docker/flux.git
         - --git-branch=master
         # Tune up to make tests run quicker
-        - --registry-poll-interval=60s
+        - --automation-interval=60s
         - --git-poll-interval=60s

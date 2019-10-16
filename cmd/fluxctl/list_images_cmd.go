@@ -8,49 +8,46 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/api/v10"
-	"github.com/weaveworks/flux/api/v6"
-	"github.com/weaveworks/flux/registry"
-	"github.com/weaveworks/flux/update"
+	"github.com/fluxcd/flux/pkg/api/v10"
+	"github.com/fluxcd/flux/pkg/api/v6"
+	"github.com/fluxcd/flux/pkg/registry"
+	"github.com/fluxcd/flux/pkg/resource"
+	"github.com/fluxcd/flux/pkg/update"
 )
 
-type controllerShowOpts struct {
+type imageListOpts struct {
 	*rootOpts
-	namespace  string
-	controller string
-	limit      int
+	namespace string
+	workload  string
+	limit     int
 
 	// Deprecated
-	service string
+	controller string
 }
 
-func newControllerShow(parent *rootOpts) *controllerShowOpts {
-	return &controllerShowOpts{rootOpts: parent}
+func newImageList(parent *rootOpts) *imageListOpts {
+	return &imageListOpts{rootOpts: parent}
 }
 
-func (opts *controllerShowOpts) Command() *cobra.Command {
+func (opts *imageListOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list-images",
-		Short:   "Show the deployed and available images for a controller.",
-		Example: makeExample("fluxctl list-images --namespace default --controller=deployment/foo"),
+		Short:   "Show deployed and available images.",
+		Example: makeExample("fluxctl list-images --namespace default --workload=deployment/foo"),
 		RunE:    opts.RunE,
 	}
-	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "", "Controller namespace")
-	cmd.Flags().StringVarP(&opts.controller, "controller", "c", "", "Show images for this controller")
+	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", getKubeConfigContextNamespace(""), "Namespace")
+	cmd.Flags().StringVarP(&opts.workload, "workload", "w", "", "Show images for this workload")
 	cmd.Flags().IntVarP(&opts.limit, "limit", "l", 10, "Number of images to show (0 for all)")
 
 	// Deprecated
-	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "Show images for this service")
-	cmd.Flags().MarkHidden("service")
+	cmd.Flags().StringVarP(&opts.controller, "controller", "c", "", "Show images for this controller")
+	cmd.Flags().MarkDeprecated("controller", "changed to --workload, use that instead")
 
 	return cmd
 }
 
-func (opts *controllerShowOpts) RunE(cmd *cobra.Command, args []string) error {
-	if len(opts.service) > 0 {
-		return errorServiceFlagDeprecated
-	}
+func (opts *imageListOpts) RunE(cmd *cobra.Command, args []string) error {
 	if len(args) != 0 {
 		return errorWantedNoArgs
 	}
@@ -59,8 +56,15 @@ func (opts *controllerShowOpts) RunE(cmd *cobra.Command, args []string) error {
 		Spec:      update.ResourceSpecAll,
 		Namespace: opts.namespace,
 	}
-	if len(opts.controller) > 0 {
-		id, err := flux.ParseResourceIDOptionalNamespace(opts.namespace, opts.controller)
+	// Backwards compatibility with --controller until we remove it
+	switch {
+	case opts.workload != "" && opts.controller != "":
+		return newUsageError("can't specify both the controller and workload")
+	case opts.controller != "":
+		opts.workload = opts.controller
+	}
+	if len(opts.workload) > 0 {
+		id, err := resource.ParseIDOptionalNamespace(opts.namespace, opts.workload)
 		if err != nil {
 			return err
 		}
@@ -70,24 +74,24 @@ func (opts *controllerShowOpts) RunE(cmd *cobra.Command, args []string) error {
 
 	ctx := context.Background()
 
-	controllers, err := opts.API.ListImagesWithOptions(ctx, imageOpts)
+	workloads, err := opts.API.ListImagesWithOptions(ctx, imageOpts)
 	if err != nil {
 		return err
 	}
 
-	sort.Sort(imageStatusByName(controllers))
+	sort.Sort(imageStatusByName(workloads))
 
 	out := newTabwriter()
 
-	fmt.Fprintln(out, "CONTROLLER\tCONTAINER\tIMAGE\tCREATED")
-	for _, controller := range controllers {
-		if len(controller.Containers) == 0 {
-			fmt.Fprintf(out, "%s\t\t\t\n", controller.ID)
+	fmt.Fprintln(out, "WORKLOAD\tCONTAINER\tIMAGE\tCREATED")
+	for _, workload := range workloads {
+		if len(workload.Containers) == 0 {
+			fmt.Fprintf(out, "%s\t\t\t\n", workload.ID)
 			continue
 		}
 
-		controllerName := controller.ID.String()
-		for _, container := range controller.Containers {
+		workloadName := workload.ID.String()
+		for _, container := range workload.Containers {
 			var lineCount int
 			containerName := container.Name
 			reg, repo, currentTag := container.Current.ID.Components()
@@ -99,9 +103,9 @@ func (opts *controllerShowOpts) RunE(cmd *cobra.Command, args []string) error {
 				if availableErr == "" {
 					availableErr = registry.ErrNoImageData.Error()
 				}
-				fmt.Fprintf(out, "%s\t%s\t%s%s\t%s\n", controllerName, containerName, reg, repo, availableErr)
+				fmt.Fprintf(out, "%s\t%s\t%s%s\t%s\n", workloadName, containerName, reg, repo, availableErr)
 			} else {
-				fmt.Fprintf(out, "%s\t%s\t%s%s\t\n", controllerName, containerName, reg, repo)
+				fmt.Fprintf(out, "%s\t%s\t%s%s\t\n", workloadName, containerName, reg, repo)
 			}
 			foundRunning := false
 			for _, available := range container.Available {
@@ -126,13 +130,21 @@ func (opts *controllerShowOpts) RunE(cmd *cobra.Command, args []string) error {
 				}
 				if printLine {
 					createdAt := ""
-					if !available.CreatedAt.IsZero() {
-						createdAt = available.CreatedAt.Format(time.RFC822)
+					if !available.CreatedTS().IsZero() {
+						createdAt = available.CreatedTS().Format(time.RFC822)
 					}
 					fmt.Fprintf(out, "\t\t%s %s\t%s\n", running, tag, createdAt)
 				}
 			}
-			controllerName = ""
+			if !foundRunning {
+				running := "'->"
+				if currentTag == "" {
+					currentTag = "(untagged)"
+				}
+				fmt.Fprintf(out, "\t\t%s %s\t%s\n", running, currentTag, "?")
+
+			}
+			workloadName = ""
 		}
 	}
 	out.Flush()

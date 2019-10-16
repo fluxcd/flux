@@ -1,44 +1,56 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 
+	helmopclient "github.com/fluxcd/helm-operator/pkg/client/clientset/versioned"
 	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
-	integrations "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	k8sruntime "k8s.io/apimachinery/pkg/util/runtime"
 	k8sclientdynamic "k8s.io/client-go/dynamic"
 	k8sclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog"
 
-	"github.com/weaveworks/flux/checkpoint"
-	"github.com/weaveworks/flux/cluster"
-	"github.com/weaveworks/flux/cluster/kubernetes"
-	"github.com/weaveworks/flux/daemon"
-	"github.com/weaveworks/flux/git"
-	transport "github.com/weaveworks/flux/http"
-	"github.com/weaveworks/flux/http/client"
-	daemonhttp "github.com/weaveworks/flux/http/daemon"
-	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/job"
-	"github.com/weaveworks/flux/registry"
-	"github.com/weaveworks/flux/registry/cache"
-	registryMemcache "github.com/weaveworks/flux/registry/cache/memcached"
-	registryMiddleware "github.com/weaveworks/flux/registry/middleware"
-	"github.com/weaveworks/flux/remote"
-	"github.com/weaveworks/flux/ssh"
+	hrclient "github.com/fluxcd/flux/integrations/client/clientset/versioned"
+	"github.com/fluxcd/flux/pkg/checkpoint"
+	"github.com/fluxcd/flux/pkg/cluster"
+	"github.com/fluxcd/flux/pkg/cluster/kubernetes"
+	"github.com/fluxcd/flux/pkg/daemon"
+	"github.com/fluxcd/flux/pkg/git"
+	"github.com/fluxcd/flux/pkg/gpg"
+	transport "github.com/fluxcd/flux/pkg/http"
+	"github.com/fluxcd/flux/pkg/http/client"
+	daemonhttp "github.com/fluxcd/flux/pkg/http/daemon"
+	"github.com/fluxcd/flux/pkg/image"
+	"github.com/fluxcd/flux/pkg/job"
+	"github.com/fluxcd/flux/pkg/manifests"
+	"github.com/fluxcd/flux/pkg/registry"
+	"github.com/fluxcd/flux/pkg/registry/cache"
+	registryMemcache "github.com/fluxcd/flux/pkg/registry/cache/memcached"
+	registryMiddleware "github.com/fluxcd/flux/pkg/registry/middleware"
+	"github.com/fluxcd/flux/pkg/remote"
+	"github.com/fluxcd/flux/pkg/ssh"
+	fluxsync "github.com/fluxcd/flux/pkg/sync"
 )
 
 var version = "unversioned"
@@ -57,11 +69,28 @@ const (
 	defaultGitSyncTag     = "flux-sync"
 	defaultGitNotesRef    = "flux"
 	defaultGitSkipMessage = "\n\n[ci skip]"
+
+	RequireECR = "ecr"
+)
+
+var (
+	RequireValues = []string{RequireECR}
 )
 
 func optionalVar(fs *pflag.FlagSet, value ssh.OptionalValue, name, usage string) ssh.OptionalValue {
 	fs.Var(value, name, usage)
 	return value
+}
+
+type stringset []string
+
+func (set stringset) has(possible string) bool {
+	for _, s := range set {
+		if s == possible {
+			return true
+		}
+	}
+	return false
 }
 
 func main() {
@@ -76,20 +105,23 @@ func main() {
 	}
 	// This mirrors how kubectl extracts information from the environment.
 	var (
+		logFormat         = fs.String("log-format", "fmt", "change the log format.")
 		listenAddr        = fs.StringP("listen", "l", ":3030", "listen address where /metrics and API will be served")
 		listenMetricsAddr = fs.String("listen-metrics", "", "listen address for /metrics endpoint")
 		kubernetesKubectl = fs.String("kubernetes-kubectl", "", "optional, explicit path to kubectl tool")
 		versionFlag       = fs.Bool("version", false, "get version number")
 		// Git repo & key etc.
-		gitURL       = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:weaveworks/flux-get-started")
+		gitURL       = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:fluxcd/flux-get-started")
 		gitBranch    = fs.String("git-branch", "master", "branch of git repo to use for Kubernetes manifests")
 		gitPath      = fs.StringSlice("git-path", []string{}, "relative paths within the git repo to locate Kubernetes manifests")
+		gitReadonly  = fs.Bool("git-readonly", false, fmt.Sprintf("use to prevent Flux from pushing changes to git; implies --sync-state=%s", fluxsync.NativeStateMode))
 		gitUser      = fs.String("git-user", "Weave Flux", "username to use as git committer")
 		gitEmail     = fs.String("git-email", "support@weave.works", "email to use as git committer")
 		gitSetAuthor = fs.Bool("git-set-author", false, "if set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.")
 		gitLabel     = fs.String("git-label", "", "label to keep track of sync progress; overrides both --git-sync-tag and --git-notes-ref")
+		gitSecret    = fs.Bool("git-secret", false, `if set, git-secret will be run on every git checkout. A gpg key must be imported using  --git-gpg-key-import or by mounting a keyring containing it directly`)
 		// Old git config; still used if --git-label is not supplied, but --git-label is preferred.
-		gitSyncTag     = fs.String("git-sync-tag", defaultGitSyncTag, "tag to use to mark sync progress for this cluster")
+		gitSyncTag     = fs.String("git-sync-tag", defaultGitSyncTag, fmt.Sprintf("tag to use to mark sync progress for this cluster (only relevant when --sync-state=%s)", fluxsync.GitTagStateMode))
 		gitNotesRef    = fs.String("git-notes-ref", defaultGitNotesRef, "ref to use for keeping commit annotations in git notes")
 		gitSkip        = fs.Bool("git-ci-skip", false, `append "[ci skip]" to commit messages so that CI will skip builds`)
 		gitSkipMessage = fs.String("git-ci-skip-message", "", "additional text for commit messages, useful for skipping builds in CI. Use this to supply specific text, or set --git-ci-skip")
@@ -97,45 +129,87 @@ func main() {
 		gitPollInterval = fs.Duration("git-poll-interval", 5*time.Minute, "period at which to poll git repo for new commits")
 		gitTimeout      = fs.Duration("git-timeout", 20*time.Second, "duration after which git operations time out")
 
+		// GPG commit signing
+		gitImportGPG        = fs.StringSlice("git-gpg-key-import", []string{}, "keys at the paths given will be imported for use of signing and verifying commits")
+		gitSigningKey       = fs.String("git-signing-key", "", "if set, commits Flux makes will be signed with this GPG key")
+		gitVerifySignatures = fs.Bool("git-verify-signatures", false, "if set, the signature of commits will be verified before Flux applies them")
+
 		// syncing
 		syncInterval = fs.Duration("sync-interval", 5*time.Minute, "apply config in git to cluster at least this often, even if there are no new commits")
-		syncGC       = fs.Bool("sync-garbage-collection", false, "experimental; delete resources that were created by fluxd, but are no longer in the git repo")
+		syncTimeout  = fs.Duration("sync-timeout", 1*time.Minute, "duration after which sync operations time out")
+		syncGC       = fs.Bool("sync-garbage-collection", false, "delete resources that were created by fluxd, but are no longer in the git repo")
+		dryGC        = fs.Bool("sync-garbage-collection-dry", false, "only log what would be garbage collected, rather than deleting. Implies --sync-garbage-collection")
+		syncState    = fs.String("sync-state", fluxsync.GitTagStateMode, fmt.Sprintf("method used by flux for storing state (one of {%s})", strings.Join([]string{fluxsync.GitTagStateMode, fluxsync.NativeStateMode}, ",")))
 
 		// registry
 		memcachedHostname = fs.String("memcached-hostname", "memcached", "hostname for memcached service.")
+		memcachedPort     = fs.Int("memcached-port", 11211, "memcached service port.")
 		memcachedTimeout  = fs.Duration("memcached-timeout", time.Second, "maximum time to wait before giving up on memcached requests.")
 		memcachedService  = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
 
+		automationInterval   = fs.Duration("automation-interval", 5*time.Minute, "period at which to check for image updates for automated workloads")
 		registryPollInterval = fs.Duration("registry-poll-interval", 5*time.Minute, "period at which to check for updated images")
 		registryRPS          = fs.Float64("registry-rps", 50, "maximum registry requests per second per host")
 		registryBurst        = fs.Int("registry-burst", defaultRemoteConnections, "maximum number of warmer connections to remote and memcache")
 		registryTrace        = fs.Bool("registry-trace", false, "output trace of image registry requests to log")
 		registryInsecure     = fs.StringSlice("registry-insecure-host", []string{}, "let these registry hosts skip TLS host verification and fall back to using HTTP instead of HTTPS; this allows man-in-the-middle attacks, so use with extreme caution")
 		registryExcludeImage = fs.StringSlice("registry-exclude-image", []string{"k8s.gcr.io/*"}, "do not scan images that match these glob expressions; the default is to exclude the 'k8s.gcr.io/*' images")
+		registryUseLabels    = fs.StringSlice("registry-use-labels", []string{"index.docker.io/weaveworks/*", "index.docker.io/fluxcd/*"}, "use the timestamp (RFC3339) from labels for (canonical) image refs that match these glob expression")
 
 		// AWS authentication
-		registryAWSRegions         = fs.StringSlice("registry-ecr-region", nil, "restrict ECR scanning to these AWS regions; if empty, only the cluster's region will be scanned")
-		registryAWSAccountIDs      = fs.StringSlice("registry-ecr-include-id", nil, "restrict ECR scanning to these AWS account IDs; if empty, all account IDs that aren't excluded may be scanned")
+		registryAWSRegions         = fs.StringSlice("registry-ecr-region", nil, "include just these AWS regions when scanning images in ECR; when not supplied, the cluster's region will included if it can be detected through the AWS API")
+		registryAWSAccountIDs      = fs.StringSlice("registry-ecr-include-id", nil, "restrict ECR scanning to these AWS account IDs; if not supplied, all account IDs that aren't excluded may be scanned")
 		registryAWSBlockAccountIDs = fs.StringSlice("registry-ecr-exclude-id", []string{registry.EKS_SYSTEM_ACCOUNT}, "do not scan ECR for images in these AWS account IDs; the default is to exclude the EKS system account")
 
+		registryRequire = fs.StringSlice("registry-require", nil, fmt.Sprintf(`exit with an error if auto-authentication with any of the given registries is not possible (possible values: {%s})`, strings.Join(RequireValues, ",")))
+
 		// k8s-secret backed ssh keyring configuration
+		k8sInCluster             = fs.Bool("k8s-in-cluster", true, "set this to true if fluxd is deployed as a container inside Kubernetes")
 		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "name of the k8s secret used to store the private SSH key")
 		k8sSecretVolumeMountPath = fs.String("k8s-secret-volume-mount-path", "/etc/fluxd/ssh", "mount location of the k8s secret storing the private SSH key")
 		k8sSecretDataKey         = fs.String("k8s-secret-data-key", "identity", "data key holding the private SSH key within the k8s secret")
-		k8sNamespaceWhitelist    = fs.StringSlice("k8s-namespace-whitelist", []string{}, "experimental, optional: restrict the view of the cluster to the namespaces listed. All namespaces are included if this is not set.")
+
+		// k8s-scope settings
+		k8sNamespaceWhitelist    = fs.StringSlice("k8s-namespace-whitelist", []string{}, "restrict the view of the cluster to the namespaces listed. All namespaces are included if this is not set")
+		k8sAllowNamespace        = fs.StringSlice("k8s-allow-namespace", []string{}, "restrict all operations to the provided namespaces")
+
+		k8sVerbosity             = fs.Int("k8s-verbosity", 0, "klog verbosity level")
+
 		// SSH key generation
 		sshKeyBits   = optionalVar(fs, &ssh.KeyBitsValue{}, "ssh-keygen-bits", "-b argument to ssh-keygen (default unspecified)")
 		sshKeyType   = optionalVar(fs, &ssh.KeyTypeValue{}, "ssh-keygen-type", "-t argument to ssh-keygen (default unspecified)")
 		sshKeygenDir = fs.String("ssh-keygen-dir", "", "directory, ideally on a tmpfs volume, in which to generate new SSH keys when necessary")
 
+		// manifest generation
+		manifestGeneration = fs.Bool("manifest-generation", false, "search for .flux.yaml files to generate manifests")
+
+		// upstream connection settings
 		upstreamURL = fs.String("connect", "", "connect to an upstream service e.g., Weave Cloud, at this base address")
 		token       = fs.String("token", "", "authentication token for upstream service")
+		rpcTimeout  = fs.Duration("rpc-timeout", 10*time.Second, "maximum time an operation requested by the upstream may take")
 
 		dockerConfig = fs.String("docker-config", "", "path to a docker config to use for image registry credentials")
 
 		_ = fs.Duration("registry-cache-expiry", 0, "")
 	)
 	fs.MarkDeprecated("registry-cache-expiry", "no longer used; cache entries are expired adaptively according to how often they change")
+	fs.MarkDeprecated("k8s-namespace-whitelist", "changed to --k8s-allow-namespace, use that instead")
+	fs.MarkDeprecated("registry-poll-interval", "changed to --automation-interval, use that instead")
+
+	var kubeConfig *string
+	{
+		// Set the default kube config
+		if home := homeDir(); home != "" {
+			kubeConfig = fs.String("kube-config", filepath.Join(home, ".kube", "config"), "the absolute path of the k8s config file.")
+		} else {
+			kubeConfig = fs.String("kube-config", "", "the absolute path of the k8s config file.")
+		}
+	}
+
+	// Explicitly initialize klog to enable stderr logging,
+	// and parse our own flags.
+	klogFlags := flag.NewFlagSet("klog", flag.ExitOnError)
+	klog.InitFlags(klogFlags)
 
 	err := fs.Parse(os.Args[1:])
 	switch {
@@ -150,16 +224,81 @@ func main() {
 		os.Exit(0)
 	}
 
+	// set klog verbosity level
+	if *k8sVerbosity > 0 {
+		verbosity := klogFlags.Lookup("v")
+		verbosity.Value.Set(strconv.Itoa(*k8sVerbosity))
+		klog.V(4).Infof("Kubernetes client verbosity level set to %v", klogFlags.Lookup("v").Value)
+	}
+
 	// Logger component.
 	var logger log.Logger
 	{
-		logger = log.NewLogfmtLogger(os.Stderr)
+		switch *logFormat {
+		case "json":
+			logger = log.NewJSONLogger(log.NewSyncWriter(os.Stderr))
+		case "fmt":
+			logger = log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr))
+		default:
+			logger = log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr))
+		}
 		logger = log.With(logger, "ts", log.DefaultTimestampUTC)
 		logger = log.With(logger, "caller", log.DefaultCaller)
 	}
 	logger.Log("version", version)
 
+	// Silence access errors logged internally by client-go
+	k8slog := log.With(logger,
+		"type", "internal kubernetes error",
+		"kubernetes_caller", log.Valuer(func() interface{} {
+			_, file, line, _ := runtime.Caller(5) // we want to log one level deeper than k8sruntime.HandleError
+			idx := strings.Index(file, "/k8s.io/")
+			return file[idx+1:] + ":" + strconv.Itoa(line)
+		}))
+	logErrorUnlessAccessRelated := func(err error) {
+		errLower := strings.ToLower(err.Error())
+		if k8serrors.IsForbidden(err) || k8serrors.IsNotFound(err) ||
+			strings.Contains(errLower, "forbidden") ||
+			strings.Contains(errLower, "not found") {
+			return
+		}
+		k8slog.Log("err", err)
+	}
+	k8sruntime.ErrorHandlers = []func(error){logErrorUnlessAccessRelated}
+
 	// Argument validation
+
+	if *gitReadonly {
+		if *syncState == fluxsync.GitTagStateMode {
+			logger.Log("warning", fmt.Sprintf("--git-readonly prevents use of --sync-state=%s. Forcing to --sync-state=%s", fluxsync.GitTagStateMode, fluxsync.NativeStateMode))
+			*syncState = fluxsync.NativeStateMode
+		}
+
+		gitRelatedFlags := []string{
+			"git-user",
+			"git-email",
+			"git-sync-tag",
+			"git-set-author",
+			"git-ci-skip",
+			"git-ci-skip-message",
+		}
+		var changedGitRelatedFlags []string
+		for _, gitRelatedFlag := range gitRelatedFlags {
+			if fs.Changed(gitRelatedFlag) {
+				changedGitRelatedFlags = append(changedGitRelatedFlags, gitRelatedFlag)
+			}
+		}
+		if len(changedGitRelatedFlags) > 0 {
+			logger.Log("warning", fmt.Sprintf("configuring any of {%s} has no effect when --git-readonly is set", strings.Join(changedGitRelatedFlags, ", ")))
+		}
+	}
+
+	// Maintain backwards compatibility with the --registry-poll-interval
+	// flag, but only if the --automation-interval is not set to a custom
+	// (non default) value.
+	if fs.Changed("registry-poll-interval") && !fs.Changed("automation-interval") {
+		*automationInterval = *registryPollInterval
+	}
 
 	// Sort out values for the git tag and notes ref. There are
 	// running deployments that assume the defaults as given, so don't
@@ -185,9 +324,39 @@ func main() {
 		}
 	}
 
-	if *sshKeygenDir == "" {
+	// Used to determine if we need to generate a SSH key and setup a keyring
+	var httpGitURL bool
+	if pURL, err := url.Parse(*gitURL); err == nil {
+		httpGitURL = pURL.Scheme == "http" || pURL.Scheme == "https"
+	}
+
+	if *sshKeygenDir == "" && !httpGitURL {
 		logger.Log("info", fmt.Sprintf("SSH keygen dir (--ssh-keygen-dir) not provided, so using the deploy key volume (--k8s-secret-volume-mount-path=%s); this may cause problems if the deploy key volume is mounted read-only", *k8sSecretVolumeMountPath))
 		*sshKeygenDir = *k8sSecretVolumeMountPath
+	}
+
+	// Import GPG keys, if we've been told where to look for them
+	for _, p := range *gitImportGPG {
+		keyfiles, err := gpg.ImportKeys(p, *gitVerifySignatures)
+		if err != nil {
+			logger.Log("error", fmt.Sprintf("failed to import GPG key(s) from %s", p), "err", err.Error())
+		}
+		if keyfiles != nil {
+			logger.Log("info", fmt.Sprintf("imported GPG key(s) from %s", p), "files", fmt.Sprintf("%v", keyfiles))
+		}
+	}
+
+	possiblyRequired := stringset(RequireValues)
+	for _, r := range *registryRequire {
+		if !possiblyRequired.has(r) {
+			logger.Log("err", fmt.Sprintf("--registry-require value %q is not in possible values {%s}", r, strings.Join(RequireValues, ",")))
+			os.Exit(1)
+		}
+	}
+	mandatoryRegistry := stringset(*registryRequire)
+
+	if *gitSecret && len(*gitImportGPG) == 0 {
+		logger.Log("warning", fmt.Sprintf("--git-secret is enabled but there is no GPG key(s) provided using --git-gpg-key-import, we assume you mounted the keyring directly and continue"))
 	}
 
 	// Mechanical components.
@@ -206,31 +375,35 @@ func main() {
 		errc <- fmt.Errorf("%s", <-c)
 	}()
 
-	// This means we can return, and it will use the shutdown
-	// protocol.
-	defer func() {
-		// wait here until stopping.
-		logger.Log("exiting", <-errc)
-		close(shutdown)
-		shutdownWg.Wait()
-	}()
-
 	// Cluster component.
+
+	var restClientConfig *rest.Config
+	{
+		if *k8sInCluster {
+			logger.Log("msg", "using in cluster config to connect to the cluster")
+			restClientConfig, err = rest.InClusterConfig()
+			if err != nil {
+				logger.Log("err", err)
+				os.Exit(1)
+			}
+		} else {
+			logger.Log("msg", fmt.Sprintf("using kube config: %q to connect to the cluster", *kubeConfig))
+			restClientConfig, err = clientcmd.BuildConfigFromFlags("", *kubeConfig)
+			if err != nil {
+				logger.Log("err", err)
+				os.Exit(1)
+			}
+		}
+		restClientConfig.QPS = 50.0
+		restClientConfig.Burst = 100
+	}
+
 	var clusterVersion string
 	var sshKeyRing ssh.KeyRing
 	var k8s cluster.Cluster
-	var k8sManifests *kubernetes.Manifests
+	var k8sManifests manifests.Manifests
 	var imageCreds func() registry.ImageCreds
 	{
-		restClientConfig, err := rest.InClusterConfig()
-		if err != nil {
-			logger.Log("err", err)
-			os.Exit(1)
-		}
-
-		restClientConfig.QPS = 50.0
-		restClientConfig.Burst = 100
-
 		clientset, err := k8sclient.NewForConfig(restClientConfig)
 		if err != nil {
 			logger.Log("err", err)
@@ -242,9 +415,15 @@ func main() {
 			os.Exit(1)
 		}
 
-		integrationsClientset, err := integrations.NewForConfig(restClientConfig)
+		fhrClientset, err := hrclient.NewForConfig(restClientConfig)
 		if err != nil {
-			logger.Log("error", fmt.Sprintf("Error building integrations clientset: %v", err))
+			logger.Log("error", fmt.Sprintf("Error building hrclient clientset: %v", err))
+			os.Exit(1)
+		}
+
+		hrClientset, err := helmopclient.NewForConfig(restClientConfig)
+		if err != nil {
+			logger.Log("error", fmt.Sprintf("Error building helm operator clientset: %v", err))
 			os.Exit(1)
 		}
 
@@ -262,31 +441,36 @@ func main() {
 		}
 		clusterVersion = "kubernetes-" + serverVersion.GitVersion
 
-		namespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
-		if err != nil {
-			logger.Log("err", err)
-			os.Exit(1)
+		if *k8sInCluster && !httpGitURL {
+			namespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+			if err != nil {
+				logger.Log("err", err)
+				os.Exit(1)
+			}
+
+			sshKeyRing, err = kubernetes.NewSSHKeyRing(kubernetes.SSHKeyRingConfig{
+				SecretAPI:             clientset.CoreV1().Secrets(string(namespace)),
+				SecretName:            *k8sSecretName,
+				SecretVolumeMountPath: *k8sSecretVolumeMountPath,
+				SecretDataKey:         *k8sSecretDataKey,
+				KeyBits:               sshKeyBits,
+				KeyType:               sshKeyType,
+				KeyGenDir:             *sshKeygenDir,
+			})
+			if err != nil {
+				logger.Log("err", err)
+				os.Exit(1)
+			}
+
+			publicKey, privateKeyPath := sshKeyRing.KeyPair()
+
+			logger := log.With(logger, "component", "cluster")
+			logger.Log("identity", privateKeyPath)
+			logger.Log("identity.pub", strings.TrimSpace(publicKey.Key))
+		} else {
+			sshKeyRing = ssh.NewNopSSHKeyRing()
 		}
 
-		sshKeyRing, err = kubernetes.NewSSHKeyRing(kubernetes.SSHKeyRingConfig{
-			SecretAPI:             clientset.Core().Secrets(string(namespace)),
-			SecretName:            *k8sSecretName,
-			SecretVolumeMountPath: *k8sSecretVolumeMountPath,
-			SecretDataKey:         *k8sSecretDataKey,
-			KeyBits:               sshKeyBits,
-			KeyType:               sshKeyType,
-			KeyGenDir:             *sshKeygenDir,
-		})
-		if err != nil {
-			logger.Log("err", err)
-			os.Exit(1)
-		}
-
-		publicKey, privateKeyPath := sshKeyRing.KeyPair()
-
-		logger := log.With(logger, "component", "cluster")
-		logger.Log("identity", privateKeyPath)
-		logger.Log("identity.pub", strings.TrimSpace(publicKey.Key))
 		logger.Log("host", restClientConfig.Host, "version", clusterVersion)
 
 		kubectl := *kubernetesKubectl
@@ -301,10 +485,12 @@ func main() {
 		}
 		logger.Log("kubectl", kubectl)
 
+		client := kubernetes.MakeClusterClientset(clientset, dynamicClientset, fhrClientset, hrClientset, discoClientset)
 		kubectlApplier := kubernetes.NewKubectl(kubectl, restClientConfig)
-		client := kubernetes.MakeClusterClientset(clientset, dynamicClientset, integrationsClientset, discoClientset)
-		k8sInst := kubernetes.NewCluster(client, kubectlApplier, sshKeyRing, logger, *k8sNamespaceWhitelist, *registryExcludeImage)
+		allowedNamespaces := append(*k8sNamespaceWhitelist, *k8sAllowNamespace...)
+		k8sInst := kubernetes.NewCluster(client, kubectlApplier, sshKeyRing, logger, allowedNamespaces, *registryExcludeImage)
 		k8sInst.GC = *syncGC
+		k8sInst.DryGC = *dryGC
 
 		if err := k8sInst.Ping(); err != nil {
 			logger.Log("ping", err)
@@ -316,13 +502,12 @@ func main() {
 		imageCreds = k8sInst.ImagesToFetch
 		// There is only one way we currently interpret a repo of
 		// files as manifests, and that's as Kubernetes yamels.
-		k8sManifests = &kubernetes.Manifests{}
-		k8sManifests.Namespacer, err = kubernetes.NewNamespacer(discoClientset)
-
+		namespacer, err := kubernetes.NewNamespacer(discoClientset)
 		if err != nil {
 			logger.Log("err", err)
 			os.Exit(1)
 		}
+		k8sManifests = kubernetes.NewManifests(namespacer, logger)
 	}
 
 	// Wrap the procedure for collecting images to scan
@@ -332,12 +517,16 @@ func main() {
 			AccountIDs: *registryAWSAccountIDs,
 			BlockIDs:   *registryAWSBlockAccountIDs,
 		}
-		credsWithAWSAuth, err := registry.ImageCredsWithAWSAuth(imageCreds, log.With(logger, "component", "aws"), awsConf)
-		if err != nil {
-			logger.Log("warning", "AWS authorization not used; pre-flight check failed")
-		} else {
-			imageCreds = credsWithAWSAuth
+
+		awsPreflight, credsWithAWSAuth := registry.ImageCredsWithAWSAuth(imageCreds, log.With(logger, "component", "aws"), awsConf)
+		if mandatoryRegistry.has(RequireECR) {
+			if err := awsPreflight(); err != nil {
+				logger.Log("error", "AWS API required (due to --registry-require=ecr), but not available", "err", err)
+				os.Exit(1)
+			}
 		}
+		imageCreds = credsWithAWSAuth
+
 		if *dockerConfig != "" {
 			credsWithDefaults, err := registry.ImageCredsWithDefaults(imageCreds, *dockerConfig)
 			if err != nil {
@@ -367,7 +556,7 @@ func main() {
 		// if no memcached service is specified use the ClusterIP name instead of SRV records
 		if *memcachedService == "" {
 			memcacheClient = registryMemcache.NewFixedServerMemcacheClient(memcacheConfig,
-				fmt.Sprintf("%s:11211", *memcachedHostname))
+				fmt.Sprintf("%s:%d", *memcachedHostname, *memcachedPort))
 		} else {
 			memcacheClient = registryMemcache.NewMemcacheClient(memcacheConfig)
 		}
@@ -377,6 +566,9 @@ func main() {
 
 		cacheRegistry = &cache.Cache{
 			Reader: cacheClient,
+			Decorators: []cache.Decorator{
+				cache.TimestampLabelWhitelist(*registryUseLabels),
+			},
 		}
 		cacheRegistry = registry.NewInstrumentedRegistry(cacheRegistry)
 
@@ -419,15 +611,15 @@ func main() {
 	gitConfig := git.Config{
 		Paths:       *gitPath,
 		Branch:      *gitBranch,
-		SyncTag:     *gitSyncTag,
 		NotesRef:    *gitNotesRef,
 		UserName:    *gitUser,
 		UserEmail:   *gitEmail,
+		SigningKey:  *gitSigningKey,
 		SetAuthor:   *gitSetAuthor,
 		SkipMessage: *gitSkipMessage,
 	}
 
-	repo := git.NewRepo(gitRemote, git.PollInterval(*gitPollInterval), git.Timeout(*gitTimeout))
+	repo := git.NewRepo(gitRemote, git.PollInterval(*gitPollInterval), git.Timeout(*gitTimeout), git.Branch(*gitBranch), git.IsReadOnly(*gitReadonly))
 	{
 		shutdownWg.Add(1)
 		go func() {
@@ -439,12 +631,17 @@ func main() {
 	}
 
 	logger.Log(
-		"url", *gitURL,
+		"url", gitRemote.SafeURL(),
 		"user", *gitUser,
 		"email", *gitEmail,
+		"signing-key", *gitSigningKey,
+		"verify-signatures", *gitVerifySignatures,
 		"sync-tag", *gitSyncTag,
+		"state", *syncState,
+		"readonly", *gitReadonly,
 		"notes-ref", *gitNotesRef,
 		"set-author", *gitSetAuthor,
+		"git-secret", *gitSecret,
 	)
 
 	var jobs *job.Queue
@@ -452,21 +649,62 @@ func main() {
 		jobs = job.NewQueue(shutdown, shutdownWg)
 	}
 
+	var syncProvider fluxsync.State
+	switch *syncState {
+	case fluxsync.NativeStateMode:
+		namespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+		if err != nil {
+			logger.Log("err", err)
+			os.Exit(1)
+		}
+
+		syncProvider, err = fluxsync.NewNativeSyncProvider(
+			string(namespace),
+			*k8sSecretName,
+		)
+		if err != nil {
+			logger.Log("err", err)
+			os.Exit(1)
+		}
+
+	case fluxsync.GitTagStateMode:
+		syncProvider, err = fluxsync.NewGitTagSyncProvider(
+			repo,
+			*gitSyncTag,
+			*gitSigningKey,
+			*gitVerifySignatures,
+			gitConfig,
+		)
+		if err != nil {
+			logger.Log("err", err)
+			os.Exit(1)
+		}
+
+	default:
+		logger.Log("error", "unknown sync state mode", "mode", *syncState)
+		os.Exit(1)
+	}
+
 	daemon := &daemon.Daemon{
-		V:              version,
-		Cluster:        k8s,
-		Manifests:      k8sManifests,
-		Registry:       cacheRegistry,
-		ImageRefresh:   make(chan image.Name, 100), // size chosen by fair dice roll
-		Repo:           repo,
-		GitConfig:      gitConfig,
-		Jobs:           jobs,
-		JobStatusCache: &job.StatusCache{Size: 100},
-		Logger:         log.With(logger, "component", "daemon"),
+		V:                         version,
+		Cluster:                   k8s,
+		Manifests:                 k8sManifests,
+		Registry:                  cacheRegistry,
+		ImageRefresh:              make(chan image.Name, 100), // size chosen by fair dice roll
+		Repo:                      repo,
+		GitConfig:                 gitConfig,
+		Jobs:                      jobs,
+		JobStatusCache:            &job.StatusCache{Size: 100},
+		Logger:                    log.With(logger, "component", "daemon"),
+		ManifestGenerationEnabled: *manifestGeneration,
+		GitSecretEnabled:          *gitSecret,
 		LoopVars: &daemon.LoopVars{
-			SyncInterval:         *syncInterval,
-			RegistryPollInterval: *registryPollInterval,
-			GitOpTimeout:         *gitTimeout,
+			SyncInterval:        *syncInterval,
+			SyncTimeout:         *syncTimeout,
+			SyncState:           syncProvider,
+			AutomationInterval:  *automationInterval,
+			GitTimeout:          *gitTimeout,
+			GitVerifySignatures: *gitVerifySignatures,
 		},
 	}
 
@@ -481,7 +719,8 @@ func main() {
 				client.Token(*token),
 				transport.NewUpstreamRouter(),
 				*upstreamURL,
-				remote.NewErrorLoggingUpstreamServer(daemon, upstreamLogger),
+				remote.NewErrorLoggingServer(daemon, upstreamLogger),
+				*rpcTimeout,
 				upstreamLogger,
 			)
 			if err != nil {
@@ -501,7 +740,7 @@ func main() {
 	shutdownWg.Add(1)
 	go daemon.Loop(shutdown, shutdownWg, log.With(logger, "component", "sync-loop"))
 
-	cacheWarmer.Notify = daemon.AskForImagePoll
+	cacheWarmer.Notify = daemon.AskForAutomatedWorkloadImageUpdates
 	cacheWarmer.Priority = daemon.ImageRefresh
 	cacheWarmer.Trace = *registryTrace
 	shutdownWg.Add(1)
@@ -528,5 +767,20 @@ func main() {
 		}()
 	}
 
-	// Fall off the end, into the waiting procedure.
+	// wait here until stopping.
+	logger.Log("exiting", <-errc)
+	close(shutdown)
+	shutdownWg.Wait()
+}
+
+func homeDir() string {
+	// nix
+	if h := os.Getenv("HOME"); h != "" {
+		return h
+	}
+	// windows
+	if h := os.Getenv("USERPROFILE"); h != "" {
+		return h
+	}
+	return ""
 }
