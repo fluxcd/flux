@@ -298,7 +298,7 @@ func (c *Cluster) listAllowedResources(
 	}
 	var result []unstructured.Unstructured
 	for _, ns := range namespaces {
-		data, err := c.client.dynamicClient.Resource(gvr).Namespace(ns.Name).List(options)
+		data, err := c.client.dynamicClient.Resource(gvr).Namespace(ns).List(options)
 		if err != nil {
 			return result, err
 		}

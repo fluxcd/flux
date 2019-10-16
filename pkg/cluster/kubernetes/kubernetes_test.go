@@ -36,7 +36,7 @@ func testGetAllowedNamespaces(t *testing.T, namespace []string, expected []strin
 
 	result := []string{}
 	for _, namespace := range namespaces {
-		result = append(result, namespace.ObjectMeta.Name)
+		result = append(result, namespace)
 	}
 
 	if reflect.DeepEqual(result, expected) != true {
@@ -45,11 +45,11 @@ func testGetAllowedNamespaces(t *testing.T, namespace []string, expected []strin
 }
 
 func TestGetAllowedNamespacesDefault(t *testing.T) {
-	testGetAllowedNamespaces(t, []string{}, []string{"default", "kube-system"})
+	testGetAllowedNamespaces(t, []string{}, []string{""}) // this will be empty string which means all namespaces
 }
 
 func TestGetAllowedNamespacesNamespacesIsNil(t *testing.T) {
-	testGetAllowedNamespaces(t, nil, []string{"default", "kube-system"})
+	testGetAllowedNamespaces(t, nil, []string{""}) // this will be empty string which means all namespaces
 }
 
 func TestGetAllowedNamespacesNamespacesSet(t *testing.T) {
