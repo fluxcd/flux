@@ -36,7 +36,7 @@ func testGetAllowedNamespaces(t *testing.T, namespace []string, expected []strin
 
 	result := []string{}
 	for _, namespace := range namespaces {
-		result = append(result, namespace.ObjectMeta.Name)
+		result = append(result, namespace)
 	}
 
 	if reflect.DeepEqual(result, expected) != true {
