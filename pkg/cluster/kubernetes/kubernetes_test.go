@@ -45,11 +45,11 @@ func testGetAllowedNamespaces(t *testing.T, namespace []string, expected []strin
 }
 
 func TestGetAllowedNamespacesDefault(t *testing.T) {
-	testGetAllowedNamespaces(t, []string{}, []string{"default", "kube-system"})
+	testGetAllowedNamespaces(t, []string{}, []string{}) // this will be empty which means all namespaces
 }
 
 func TestGetAllowedNamespacesNamespacesIsNil(t *testing.T) {
-	testGetAllowedNamespaces(t, nil, []string{"default", "kube-system"})
+	testGetAllowedNamespaces(t, nil, []string{}) // this will be empty which means all namespaces
 }
 
 func TestGetAllowedNamespacesNamespacesSet(t *testing.T) {
