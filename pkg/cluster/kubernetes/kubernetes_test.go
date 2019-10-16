@@ -34,7 +34,7 @@ func testGetAllowedNamespaces(t *testing.T, namespace []string, expected []strin
 		t.Errorf("The error should be nil, not: %s", err)
 	}
 
-	result := []string{}
+	result := make([]string, 0)
 	for _, namespace := range namespaces {
 		result = append(result, namespace)
 	}
