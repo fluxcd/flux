@@ -11,7 +11,6 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
-	apiv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/discovery"
@@ -176,12 +175,12 @@ func (c *Cluster) AllWorkloads(ctx context.Context, namespace string) (res []clu
 
 	var allworkloads []cluster.Workload
 	for _, ns := range namespaces {
-		if namespace != "" && ns.Name != namespace {
+		if namespace != "" && ns != namespace {
 			continue
 		}
 
 		for kind, resourceKind := range resourceKinds {
-			workloads, err := resourceKind.getWorkloads(ctx, c, ns.Name)
+			workloads, err := resourceKind.getWorkloads(ctx, c, ns)
 			if err != nil {
 				switch {
 				case apierrors.IsNotFound(err):
@@ -198,7 +197,7 @@ func (c *Cluster) AllWorkloads(ctx context.Context, namespace string) (res []clu
 
 			for _, workload := range workloads {
 				if !isAddon(workload) {
-					id := resource.MakeID(ns.Name, kind, workload.GetName())
+					id := resource.MakeID(ns, kind, workload.GetName())
 					c.muSyncErrors.RLock()
 					workload.syncError = c.syncErrors[id]
 					c.muSyncErrors.RUnlock()
@@ -238,16 +237,22 @@ func (c *Cluster) Export(ctx context.Context) ([]byte, error) {
 	defer encoder.Close()
 
 	for _, ns := range namespaces {
+		namespace, err := c.client.CoreV1().Namespaces().Get(ns, meta_v1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+
 		// kind & apiVersion must be set, since TypeMeta is not populated
-		ns.Kind = "Namespace"
-		ns.APIVersion = "v1"
-		err := encoder.Encode(yamlThroughJSON{ns})
+		namespace.Kind = "Namespace"
+		namespace.APIVersion = "v1"
+
+		err = encoder.Encode(yamlThroughJSON{namespace})
 		if err != nil {
 			return nil, errors.Wrap(err, "marshalling namespace to YAML")
 		}
 
 		for _, resourceKind := range resourceKinds {
-			workloads, err := resourceKind.getWorkloads(ctx, c, ns.Name)
+			workloads, err := resourceKind.getWorkloads(ctx, c, ns)
 			if err != nil {
 				switch {
 				case apierrors.IsNotFound(err):
@@ -288,9 +293,9 @@ func (c *Cluster) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
 // the Flux instance is expected to have access to and can look for resources inside of.
 // It returns a list of all namespaces unless an explicit list of allowed namespaces
 // has been set on the Cluster instance.
-func (c *Cluster) getAllowedAndExistingNamespaces(ctx context.Context) ([]apiv1.Namespace, error) {
+func (c *Cluster) getAllowedAndExistingNamespaces(ctx context.Context) ([]string, error) {
 	if len(c.allowedNamespaces) > 0 {
-		nsList := []apiv1.Namespace{}
+		nsList := []string{}
 		for _, name := range c.allowedNamespaces {
 			if err := ctx.Err(); err != nil {
 				return nil, err
@@ -299,7 +304,7 @@ func (c *Cluster) getAllowedAndExistingNamespaces(ctx context.Context) ([]apiv1.
 			switch {
 			case err == nil:
 				c.loggedAllowedNS[name] = false // reset, so if the namespace goes away we'll log it again
-				nsList = append(nsList, *ns)
+				nsList = append(nsList, ns.Name)
 			case apierrors.IsUnauthorized(err) || apierrors.IsForbidden(err) || apierrors.IsNotFound(err):
 				if !c.loggedAllowedNS[name] {
 					c.logger.Log("warning", "cannot access allowed namespace",
@@ -316,11 +321,7 @@ func (c *Cluster) getAllowedAndExistingNamespaces(ctx context.Context) ([]apiv1.
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	namespaces, err := c.client.CoreV1().Namespaces().List(meta_v1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return namespaces.Items, nil
+	return []string{meta_v1.NamespaceAll}, nil
 }
 
 func (c *Cluster) IsAllowedResource(id resource.ID) bool {
