@@ -469,7 +469,7 @@ func findErrorMessage(output io.Reader) string {
 		case strings.HasPrefix(sc.Text(), "ERROR fatal: "): // Saw this error on ubuntu systems
 			return sc.Text()
 		case strings.HasPrefix(sc.Text(), "error:"):
-			return strings.Trim(sc.Text(), "error: ")
+			return strings.TrimPrefix(sc.Text(), "error: ")
 		}
 	}
 	return ""
