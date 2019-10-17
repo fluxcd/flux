@@ -134,19 +134,19 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 	for _, ns := range namespaces {
 		seenCreds := make(map[string]registry.Credentials)
 		for kind, resourceKind := range resourceKinds {
-			workloads, err := resourceKind.getWorkloads(ctx, c, ns.Name)
+			workloads, err := resourceKind.getWorkloads(ctx, c, ns)
 			if err != nil {
 				if apierrors.IsNotFound(err) || apierrors.IsForbidden(err) {
 					// Skip unsupported or forbidden resource kinds
 					continue
 				}
-				c.logger.Log("err", errors.Wrapf(err, "getting kind %s for namespace %s", kind, ns.Name))
+				c.logger.Log("err", errors.Wrapf(err, "getting kind %s for namespace %s", kind, ns))
 			}
 
 			imageCreds := make(registry.ImageCreds)
 			for _, workload := range workloads {
-				logger := log.With(c.logger, "resource", resource.MakeID(ns.Name, kind, workload.GetName()))
-				mergeCredentials(logger.Log, c.includeImage, c.client, ns.Name, workload.podTemplate, imageCreds, seenCreds)
+				logger := log.With(c.logger, "resource", resource.MakeID(ns, kind, workload.GetName()))
+				mergeCredentials(logger.Log, c.includeImage, c.client, ns, workload.podTemplate, imageCreds, seenCreds)
 			}
 
 			// Merge creds
