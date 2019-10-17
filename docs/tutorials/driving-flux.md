@@ -95,7 +95,7 @@ interact with the deployments. (It enables you to drive all of Flux, so have a l
 at the resulting annotation changes and make the changes in Git. This is
 GitOps after all. :-)
 
-Tell fluxctl in which namespace is Flux installed
+Tell fluxctl in which namespace is Flux installed:
 
 ```sh
 export FLUX_FORWARD_NAMESPACE=flux
@@ -104,7 +104,7 @@ export FLUX_FORWARD_NAMESPACE=flux
 To enable Flux to sync your config, you need to add the deployment key
 to your fork.
 
-Get your Flux deployment key by running
+Get your Flux deployment key by running:
 
 ```sh
 fluxctl identity
@@ -114,7 +114,7 @@ Copy/paste the key and add it to
 `https://github.com/YOUR-USER-ID/flux-get-started/settings/keys/new` and
 enable write access for it.
 
-Wait for sync to happen or run
+Wait for sync to happen or run:
 
 ```sh
 fluxctl sync
@@ -124,7 +124,7 @@ fluxctl sync
 
 After syncing, Flux will find out which workloads there are, which
 images are available and what needs doing. To find out which workloads are
-managed by Flux, run
+managed by Flux, run:
 
 ```sh
 fluxctl list-workloads -a 
@@ -132,7 +132,7 @@ fluxctl list-workloads -a
 
 Notice that `podinfo` is on `v1.3.2` and in state `automated`.
 
-To check which images are avaible for podinfo run
+To check which images are avaible for podinfo run:
 
 ```sh
 fluxctl list-images -w demo:deployment/podinfo
@@ -185,7 +185,7 @@ Again, wait for the sync to happen or run
 fluxctl sync
 ```
 
-To check which image is current, run
+To check which image is current, run:
 
 ```sh
 fluxctl list-images -w demo:deployment/podinfo
@@ -201,7 +201,7 @@ Lock deployment with a message describing why:
 fluxctl lock -w demo:deployment/podinfo -m "1.4.2 does not work for us"
 ```
 
-The resulting diff should look like this
+The resulting diff should look like this:
 
 ```diff
 --- a/workloads/podinfo-dep.yaml
@@ -224,7 +224,7 @@ Rollback to `1.4.1`. Flag `--force` is needed because the workload is locked:
 fluxctl release --force --workload demo:deployment/podinfo -i stefanprodan/podinfo:1.4.1
 ```
 
-The response should be
+The response should be:
 
 ```sh
 Submitting release ...
@@ -254,10 +254,10 @@ And that's it. At the end of this tutorial, you have automated, locked and
 annotated deployments with Flux.
 
 Another tip, if you should get stuck anywhere: check what Flux is doing. You
-can do that by simply running
+can do that by simply running:
 
 ```sh
-kubectl logs -n default deploy/flux -f
+kubectl logs -n flux deploy/flux -f
 ```
 
 If you should have any questions, find us on Slack in the [#flux
