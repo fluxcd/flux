@@ -147,6 +147,7 @@ func main() {
 		memcachedTimeout  = fs.Duration("memcached-timeout", time.Second, "maximum time to wait before giving up on memcached requests.")
 		memcachedService  = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
 
+		disableImageScan     = fs.Bool("disable-image-scan", false, "disables image scanning and automation completely")
 		automationInterval   = fs.Duration("automation-interval", 5*time.Minute, "period at which to check for image updates for automated workloads")
 		registryPollInterval = fs.Duration("registry-poll-interval", 5*time.Minute, "period at which to check for updated images")
 		registryRPS          = fs.Float64("registry-rps", 50, "maximum registry requests per second per host")
@@ -170,10 +171,9 @@ func main() {
 		k8sSecretDataKey         = fs.String("k8s-secret-data-key", "identity", "data key holding the private SSH key within the k8s secret")
 
 		// k8s-scope settings
-		k8sNamespaceWhitelist    = fs.StringSlice("k8s-namespace-whitelist", []string{}, "restrict the view of the cluster to the namespaces listed. All namespaces are included if this is not set")
-		k8sAllowNamespace        = fs.StringSlice("k8s-allow-namespace", []string{}, "restrict all operations to the provided namespaces")
-
-		k8sVerbosity             = fs.Int("k8s-verbosity", 0, "klog verbosity level")
+		k8sNamespaceWhitelist = fs.StringSlice("k8s-namespace-whitelist", []string{}, "restrict the view of the cluster to the namespaces listed. All namespaces are included if this is not set")
+		k8sAllowNamespace     = fs.StringSlice("k8s-allow-namespace", []string{}, "restrict all operations to the provided namespaces")
+		k8sVerbosity          = fs.Int("k8s-verbosity", 0, "klog verbosity level")
 
 		// SSH key generation
 		sshKeyBits   = optionalVar(fs, &ssh.KeyBitsValue{}, "ssh-keygen-bits", "-b argument to ssh-keygen (default unspecified)")
@@ -705,6 +705,7 @@ func main() {
 			AutomationInterval:  *automationInterval,
 			GitTimeout:          *gitTimeout,
 			GitVerifySignatures: *gitVerifySignatures,
+			ImageScanEnabled:    !*disableImageScan,
 		},
 	}
 
@@ -744,7 +745,9 @@ func main() {
 	cacheWarmer.Priority = daemon.ImageRefresh
 	cacheWarmer.Trace = *registryTrace
 	shutdownWg.Add(1)
-	go cacheWarmer.Loop(log.With(logger, "component", "warmer"), shutdown, shutdownWg, imageCreds)
+	if !*disableImageScan {
+		go cacheWarmer.Loop(log.With(logger, "component", "warmer"), shutdown, shutdownWg, imageCreds)
+	}
 
 	go func() {
 		mux := http.DefaultServeMux

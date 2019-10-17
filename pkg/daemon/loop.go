@@ -20,6 +20,7 @@ type LoopVars struct {
 	GitTimeout          time.Duration
 	GitVerifySignatures bool
 	SyncState           fluxsync.State
+	ImageScanEnabled    bool
 
 	initOnce               sync.Once
 	syncSoon               chan struct{}
@@ -76,7 +77,7 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 				default:
 				}
 			}
-			if d.Repo.Readonly() {
+			if d.Repo.Readonly() || !d.ImageScanEnabled {
 				// don't bother trying to update images, and don't
 				// bother setting the timer again
 				continue
