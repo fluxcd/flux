@@ -29,9 +29,11 @@ BUILD_DATE:=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 
 DOCS_PORT:=8000
 
+GENERATED_TEMPLATES_FILE=pkg/install/generated_templates.gogen.go
+
 all: $(GOBIN)/fluxctl $(GOBIN)/fluxd build/.flux.done
 
-release-bins:
+release-bins: $(GENERATED_TEMPLATES_FILE)
 	for arch in amd64; do \
 		for os in linux darwin windows; do \
 			CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch go build -o "build/fluxctl_"$$os"_$$arch" $(LDFLAGS) -ldflags "-X main.version=$(shell ./docker/image-tag)" ./cmd/fluxctl/; \
@@ -51,7 +53,7 @@ clean:
 realclean: clean
 	rm -rf ./cache
 
-test: test/bin/helm test/bin/kubectl test/bin/kustomize
+test: test/bin/helm test/bin/kubectl test/bin/kustomize $(GENERATED_TEMPLATES_FILE)
 	PATH="${PWD}/bin:${PWD}/test/bin:${PATH}" go test ${TEST_FLAGS} $(shell go list ./... | grep -v "^github.com/fluxcd/flux/vendor" | sort -u)
 
 e2e: test/bin/helm test/bin/kubectl build/.flux.done
@@ -104,7 +106,7 @@ cache/%/helm-$(HELM_VERSION): docker/helm.version
 	tar -m -C ./cache -xzf cache/$*/helm-$(HELM_VERSION).tar.gz $*/helm
 	mv cache/$*/helm $@
 
-$(GOBIN)/fluxctl: $(FLUXCTL_DEPS)
+$(GOBIN)/fluxctl: $(FLUXCTL_DEPS) $(GENERATED_TEMPLATES_FILE)
 	go install ./cmd/fluxctl
 
 $(GOBIN)/fluxd: $(FLUXD_DEPS)
@@ -113,14 +115,19 @@ $(GOBIN)/fluxd: $(FLUXD_DEPS)
 integration-test: all
 	test/bin/test-flux
 
-generate-deploy: pkg/install/generated_templates.gogen.go
-	cd deploy && go run ../pkg/install/generate.go deploy
+generate-deploy: $(GOBIN)/fluxctl
+	$(GOBIN)/fluxctl install -o ./deploy \
+		--git-url git@github.com:fluxcd/flux-get-started \
+		--git-email flux@example.com \
+		--git-user 'Flux automation' \
+		--git-label flux-sync \
+		--namespace flux
 
-pkg/install/generated_templates.gogen.go: pkg/install/templates/*
-	cd pkg/install && go run generate.go embedded-templates
+$(GENERATED_TEMPLATES_FILE): pkg/install/templates/*.tmpl pkg/install/generate.go
+	go generate ./pkg/install
 
-check-generated: generate-deploy pkg/install/generated_templates.gogen.go
-	git diff --exit-code -- integrations/apis integrations/client pkg/install/generated_templates.gogen.go
+check-generated: generate-deploy
+	git diff --exit-code -- deploy/
 
 build-docs:
 	@cd docs && docker build -t flux-docs .

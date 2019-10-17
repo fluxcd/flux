@@ -145,6 +145,9 @@ spec:
         # Include this if you want to restrict the manifests considered by flux
         # to those under the following relative paths in the git repository
         # - --git-path=subdir1,subdir2
+        - --git-label=flux-sync
+        - --git-user=Flux automation
+        - --git-email=flux@example.com
 
         # Include these two to enable git commit signing
         # - --git-gpg-key-import=/root/gpg-import
