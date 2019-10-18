@@ -224,6 +224,6 @@ earlier.
 version: 1
 patchUpdated:
   generators:
-    - command: helm template ../charts/mychart -f overrides.yaml
+    - command: kustomize build .
   patchFile: flux-patch.yaml
 ```
