@@ -42,6 +42,8 @@ fluxctl install --git-url 'git@github.com:<your username>/flux-get-started' | ku
 		"Username to use as git committer")
 	cmd.Flags().StringVar(&opts.GitEmail, "git-email", "",
 		"Email to use as git committer")
+	cmd.Flags().BoolVar(&opts.GitReadOnly, "git-readonly", false,
+		"Tell flux it has readonly access to the repo")
 	cmd.Flags().StringVar(&opts.Namespace, "namespace", getKubeConfigContextNamespace("default"),
 		"Cluster namespace where to install flux")
 	cmd.Flags().StringVarP(&opts.outputDir, "output-dir", "o", "", "a directory in which to write individual manifests, rather than printing to stdout")
