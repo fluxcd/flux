@@ -81,19 +81,19 @@ to securely provide the HTTPS credentials which then can be used in the
    - [GitHub](https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line)
    - [GitLab](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html#creating-a-personal-access-token)
    - [BitBucket](https://confluence.atlassian.com/bitbucketserver/personal-access-tokens-939515499.html)
-   
+
 1. Create a secret with your `GIT_AUTHUSER` (the username the token belongs
    to) and the `GIT_AUTHKEY` you created in the first step:
 
    ```sh
-   kubectl create secret generic flux-git-auth --from-literal=GIT_AUTHUSER=<username> --from-literal=GIT_AUTHKEY=<token>
+   kubectl create secret generic flux-git-auth --namespace flux --from-literal=GIT_AUTHUSER=<username> --from-literal=GIT_AUTHKEY=<token>
    ```
 
 1. Install Flux:
 
    ```sh
    helm install --name flux \
-   --set git.url='https://$(GIT_AUTHUSER):$(GIT_AUTHKEY)@github.com:fluxcd/flux-get-started.git' \
+   --set git.url='https://$(GIT_AUTHUSER):$(GIT_AUTHKEY)@github.com/fluxcd/flux-get-started.git' \
    --set env.secretName=flux-git-auth \
    --namespace flux \
    fluxcd/flux
@@ -153,7 +153,7 @@ called `flux-ssh-config` which in turn will be mounted into a volume named
      --namespace flux \
      fluxcd/flux
      ```
-     
+
 #### Connect Flux to a Weave Cloud instance
 
 ```sh
