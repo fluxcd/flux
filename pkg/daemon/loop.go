@@ -97,8 +97,15 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 			syncDuration.With(
 				fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 			).Observe(time.Since(started).Seconds())
+			// Mark this as the time a git-to-cluster synchronisation was last attempted.
+			lastSyncTimestamp.Set(float64(started.UnixNano()))
 			if err != nil {
 				logger.Log("err", err)
+				// Increment the git-to-cluster synchronisation error counter.
+				syncErrorCount.Add(1)
+			} else {
+				// Mark this as the time a git-to-cluster synchronisation was last attempted successfully.
+				lastSuccessfulSyncTimestamp.Set(float64(started.UnixNano()))
 			}
 			syncTimer.Reset(d.SyncInterval)
 		case <-syncTimer.C:

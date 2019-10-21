@@ -18,6 +18,33 @@ var (
 		Buckets:   []float64{0.5, 5, 10, 20, 30, 40, 50, 60, 75, 90, 120, 240},
 	}, []string{fluxmetrics.LabelSuccess})
 
+	// syncErrorCount provides a way for observing git-to-cluster
+	// synchronisation errors without needing to inspect the pod's logs.
+	syncErrorCount = prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		Namespace: "flux",
+		Subsystem: "daemon",
+		Name:      "sync_error_count",
+		Help:      "Count of git-to-cluster synchronisation errors.",
+	}, []string{})
+
+	// lastSyncTimestamp will contain the timestamp at which the git-to-cluster
+	// synchronisation was last attempted.
+	lastSyncTimestamp = prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+		Namespace: "flux",
+		Subsystem: "daemon",
+		Name:      "last_sync_timestamp",
+		Help:      "The timestamp at which git-to-cluster synchronisation was last attempted.",
+	}, []string{})
+
+	// lastSuccessfulSyncTimestamp will contain the timestamp at which the
+	// git-to-cluster synchronisation was last attempted successfully.
+	lastSuccessfulSyncTimestamp = prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+		Namespace: "flux",
+		Subsystem: "daemon",
+		Name:      "last_successful_sync_timestamp",
+		Help:      "The timestamp at which git-to-cluster synchronisation was last successfully attempted.",
+	}, []string{})
+
 	// For most jobs, the majority of the time will be spent pushing
 	// changes (git objects and refs) upstream.
 	jobDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
