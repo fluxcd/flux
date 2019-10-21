@@ -12,6 +12,8 @@ import (
 	"github.com/shurcooL/httpfs/vfsutil"
 )
 
+//go:generate go run generate.go
+
 type TemplateParameters struct {
 	GitURL             string
 	GitBranch          string
