@@ -143,8 +143,6 @@ type Config struct {
 	Connect                  string        `mapstructure:"connect"`
 	Token                    string        `mapstructure:"token"`
 	RPCTimeout               time.Duration `mapstructure:"rpc-timeout"`
-	Version                  bool          `mapstructure:"version"`
-	RegistryCacheExpiry      string        `mapstructure:"registry-cache-expiry"`
 	DockerConfig             string        `mapstructure:"docker-config"`
 }
 
@@ -165,7 +163,15 @@ func (set stringset) has(possible string) bool {
 }
 
 func main() {
-	// Flag domain.
+	// --- Flags ---
+
+	// Generally we want to allow configuration to be supplied in a
+	// config file OR in the environment OR via command-line
+	// flags. For some things this does not make sense (e.g.,
+	// --version), and for other things we need to manipulate the flag
+	// definitions before subjecting to parsing. So initialising and
+	// parsing flags takes a few phases.
+
 	fs := pflag.NewFlagSet("default", pflag.ContinueOnError)
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, "DESCRIPTION\n")
@@ -175,10 +181,15 @@ func main() {
 		fs.PrintDefaults()
 	}
 
+	// All these flags can come from the config file or
+	// environment. They don't get assigned to vars because we'll be
+	// putting them all into a Config struct, and consulting that.
+
 	_ = fs.String("log-format", "fmt", "change the log format.")
 	_ = fs.StringP("listen", "l", ":3030", "listen address where /metrics and API will be served")
 
 	_ = fs.String("listen-metrics", "", "listen address for /metrics endpoint")
+
 	// Git repo & key etc.
 	_ = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:weaveworks/flux-get-started")
 	_ = fs.String("git-branch", "master", "branch of git repo to use for Kubernetes manifests")
@@ -193,9 +204,9 @@ func main() {
 	// Old git config; still used if --git-label is not supplied, but --git-label is preferred.
 	_ = fs.String("git-sync-tag", defaultGitSyncTag, fmt.Sprintf("tag to use to mark sync progress for this cluster (only relevant when --sync-state=%s)", fluxsync.GitTagStateMode))
 	_ = fs.String("git-notes-ref", defaultGitNotesRef, "ref to use for keeping commit annotations in git notes")
+
 	_ = fs.Bool("git-ci-skip", false, `append "[ci skip]" to commit messages so that CI will skip builds`)
 	_ = fs.String("git-ci-skip-message", "", "additional text for commit messages, useful for skipping builds in CI. Use this to supply specific text, or set --git-ci-skip")
-
 	_ = fs.Duration("git-poll-interval", 5*time.Minute, "period at which to poll git repo for new commits")
 	_ = fs.Duration("git-timeout", 20*time.Second, "duration after which git operations time out")
 
@@ -255,7 +266,7 @@ func main() {
 
 	_ = fs.String("docker-config", "", "path to a docker config to use for image registry credentials")
 
-	// This mirrors how kubectl extracts information from the environment.
+	// --- These _don't_ come from a config file or get put in the Config struct
 	var (
 		versionFlag = fs.Bool("version", false, "get version number")
 
@@ -266,7 +277,7 @@ func main() {
 		sshKeyType = optionalVar(fs, &ssh.KeyTypeValue{}, "ssh-keygen-type", "-t argument to ssh-keygen (default unspecified)")
 
 		// not present in the config struct, and ignored, but accepted for backward-compatibility
-		_ = fs.Bool("k8s-in-cluster", true, "set this to true if fluxd is deployed as a container inside Kubernetes")
+		_ = fs.Bool("k8s-in-cluster", true, "set this to false if fluxd is NOT deployed as a container inside Kubernetes")
 		_ = fs.Duration("registry-cache-expiry", 0, "")
 
 		// not present in the config struct, but accepted and taken into account, for backward-compatibility
@@ -279,10 +290,10 @@ func main() {
 
 	// Support --kube-config for backward compatibility, but otherwise
 	// let the K8s client code / kubectl pick up KUBECONFIG from the
-	// environment
+	// environment.
 	var kubeConfig *string
 	{
-		// Set the default kube config
+		// The default for kubeconfig depends on whether $HOME (or the equivalent) is set
 		if home := homeDir(); home != "" {
 			kubeConfig = fs.String("kube-config", filepath.Join(home, ".kube", "config"), "the absolute path of the k8s config file.")
 		} else {
@@ -291,34 +302,10 @@ func main() {
 	}
 	fs.MarkDeprecated("kube-config", "please use the KUBECONFIG environment variable instead")
 
-	// Explicitly initialize klog to enable stderr logging,
-	// and parse our own flags.
-	klogFlags := flag.NewFlagSet("klog", flag.ExitOnError)
-	klog.InitFlags(klogFlags)
+	// Parse so we can check if any arguments that were passed on the
+	// command-line are valid, and exit early.
 
 	err := fs.Parse(os.Args[1:])
-
-	// Configure viper to check for a environment variables or a config file
-	// environment variables will override config file variables
-	viper.SetEnvPrefix("FLUXCD")
-	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
-	viper.AutomaticEnv()
-	viper.SetConfigName("flux-config")
-	viper.AddConfigPath("/etc/fluxd/")
-	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			fmt.Printf("config file not found: %s\n", err.Error())
-		} else {
-			fmt.Printf("error loading config file: %s\n", err.Error())
-		}
-	} else {
-		fmt.Printf("using configuration from /etc/fluxd/flux-config.yaml with command-line overrides\n")
-	}
-	// Bind Viper to the pflags defined above
-	viper.BindPFlags(fs)
-	var config Config
-	viper.Unmarshal(&config)
-
 	switch {
 	case err == pflag.ErrHelp:
 		os.Exit(0)
@@ -330,6 +317,38 @@ func main() {
 		fmt.Println(version)
 		os.Exit(0)
 	}
+
+	// Configure viper to check for a environment variables or a config file;
+	// environment variables will override config file variables
+	viper.SetEnvPrefix("FLUXD")
+	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+	viper.AutomaticEnv()
+	viper.SetConfigName("flux-config")
+	viper.AddConfigPath("/etc/fluxd/")
+
+	// If there's no config file, fine. If there IS a config file, but it's garbage, we need to exit(>0).
+	if err := viper.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			fmt.Fprintf(os.Stderr, "Info: config file not found: %s\n", err.Error())
+		} else {
+			fmt.Fprintf(os.Stderr, "Error: found config file at %s but failed to load it: %s\n", viper.ConfigFileUsed(), err.Error())
+			os.Exit(2)
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "using configuration at %s, with command-line overrides\n", viper.ConfigFileUsed())
+	}
+	// Bind Viper to the pflags defined above
+	viper.BindPFlags(fs)
+
+	var config Config
+	viper.Unmarshal(&config)
+
+	// --- From this point, we can just consult the config struct for values ---
+
+	// Explicitly initialize klog to enable stderr logging,
+	// and parse our own flags.
+	klogFlags := flag.NewFlagSet("klog", flag.ExitOnError)
+	klog.InitFlags(klogFlags)
 
 	// set klog verbosity level
 	if config.K8sVerbosity > 0 {
@@ -391,7 +410,7 @@ func main() {
 		}
 		var changedGitRelatedFlags []string
 		for _, gitRelatedFlag := range gitRelatedFlags {
-			if fs.Changed(gitRelatedFlag) {
+			if viper.IsSet(gitRelatedFlag) {
 				changedGitRelatedFlags = append(changedGitRelatedFlags, gitRelatedFlag)
 			}
 		}
@@ -401,20 +420,20 @@ func main() {
 	}
 
 	// Maintain backwards compatibility with the --registry-poll-interval
-	// flag, but only if the --automation-interval is not set to a custom
-	// (non default) value.
-	if fs.Changed("registry-poll-interval") && !fs.Changed("automation-interval") {
+	// _flag_, but only if the --automation-interval is not set to a custom
+	// (non default) value anywhere.
+	if fs.Changed("registry-poll-interval") && !viper.IsSet("automation-interval") {
 		config.AutomationInterval = config.RegistryPollInterval
 	}
 
 	// Sort out values for the git tag and notes ref. There are
 	// running deployments that assume the defaults as given, so don't
 	// mess with those unless explicitly told.
-	if fs.Changed("git-label") {
+	if viper.IsSet("git-label") {
 		config.GitSyncTag = config.GitLabel
 		config.GitNotesRef = config.GitLabel
 		for _, f := range []string{"git-sync-tag", "git-notes-ref"} {
-			if fs.Changed(f) {
+			if viper.IsSet(f) {
 				logger.Log("overridden", f, "value", config.GitLabel)
 			}
 		}
@@ -440,7 +459,6 @@ func main() {
 	if config.SSHKeygenDir == "" && !httpGitURL {
 		logger.Log("info", fmt.Sprintf("SSH keygen dir (--ssh-keygen-dir) not provided, so using the deploy key volume (--k8s-secret-volume-mount-path=%s); this may cause problems if the deploy key volume is mounted read-only", config.K8sSecretVolumeMountPath))
 		config.SSHKeygenDir = config.K8sSecretVolumeMountPath
-
 	}
 
 	// Import GPG keys, if we've been told where to look for them
@@ -466,6 +484,7 @@ func main() {
 	if config.GitSecret && len(config.GitGPGKeyImport) == 0 {
 		logger.Log("warning", fmt.Sprintf("--git-secret is enabled but there is no GPG key(s) provided using --git-gpg-key-import, we assume you mounted the keyring directly and continue"))
 	}
+	// --- Here ends all the flag parsing and validation ---
 
 	if config.SopsEnabled && len(config.GitGPGKeyImport) == 0 {
 		logger.Log("warning", fmt.Sprintf("--sops is enabled but there is no GPG key(s) provided using --git-gpg-key-import, we assume that the means of decryption has been provided in another way"))
