@@ -1,0 +1,15 @@
+{{ if .ConfigFileContent -}}
+---
+# The following is used to provide a configuration for fluxd.
+# If .ConfigAsConfigMap is set to true, the configuration is created
+# as a ConfigMap, otherwise it is created as a Secret.
+apiVersion: v1
+kind: {{ if .ConfigAsConfigMap }}ConfigMap{{ else }}Secret{{ end }}
+metadata:
+  name: flux-config
+  {{ if .Namespace -}}
+  namespace: {{ .Namespace }}
+  {{- end }}
+data:
+{{ printf "%s" .ConfigFileContent | indent 2 }}
+{{- end }}

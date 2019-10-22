@@ -10,6 +10,7 @@ import (
 	"text/template"
 
 	"github.com/shurcooL/httpfs/vfsutil"
+	"k8s.io/helm/pkg/chartutil"
 )
 
 //go:generate go run generate.go
@@ -23,14 +24,22 @@ type TemplateParameters struct {
 	GitEmail                string
 	GitReadOnly             bool
 	RegistryDisableScanning bool
+	AddSecurityContext      bool
 	Namespace               string
 	ManifestGeneration      bool
 	AdditionalFluxArgs      []string
-	AddSecurityContext      bool
+	ConfigFileContent       string
+	ConfigAsConfigMap       bool
+}
+
+func indent(spaces int, v string) string {
+	pad := strings.Repeat(" ", spaces)
+	return pad + strings.Replace(v, "\n", "\n"+pad, -1)
 }
 
 func FillInTemplates(params TemplateParameters) (map[string][]byte, error) {
 	result := map[string][]byte{}
+
 	err := vfsutil.WalkFiles(templates, "/", func(path string, info os.FileInfo, rs io.ReadSeeker, err error) error {
 		if err != nil {
 			return fmt.Errorf("cannot walk embedded files: %s", err)
@@ -47,7 +56,7 @@ func FillInTemplates(params TemplateParameters) (map[string][]byte, error) {
 			return fmt.Errorf("cannot read embedded file %q: %s", info.Name(), err)
 		}
 		manifestTemplate, err := template.New(info.Name()).
-			Funcs(template.FuncMap{"StringsJoin": strings.Join}).
+			Funcs(template.FuncMap{"StringsJoin": strings.Join, "indent": indent}).
 			Parse(string(manifestTemplateBytes))
 		if err != nil {
 			return fmt.Errorf("cannot parse embedded file %q: %s", info.Name(), err)
@@ -65,4 +74,19 @@ func FillInTemplates(params TemplateParameters) (map[string][]byte, error) {
 		return nil, fmt.Errorf("internal error filling embedded installation templates: %s", err)
 	}
 	return result, nil
+}
+
+func ConfigContent(configFile io.Reader, configAsConfigMap bool) (string, error) {
+	tmp, err := ioutil.ReadAll(configFile)
+	if err != nil {
+		return "", fmt.Errorf("unable to read config file: %s", err)
+	}
+	var f chartutil.Files
+	f = make(map[string][]byte)
+	f["flux-config.yaml"] = tmp
+	if configAsConfigMap {
+		return f.AsConfig(), nil
+	} else {
+		return f.AsSecrets(), nil
+	}
 }

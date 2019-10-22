@@ -117,6 +117,8 @@ spec:
         #   mountPath: /root/gpg-import
         #   readOnly: true
 
+        
+
         # Include this if you want to supply HTTP basic auth credentials for git
         # via the `GIT_AUTHUSER` and `GIT_AUTHKEY` environment variables using a
         # secret.
@@ -154,7 +156,7 @@ spec:
         # Include these two to enable git commit signing
         # - --git-gpg-key-import=/root/gpg-import
         # - --git-signing-key=<key id>
-        
+
         # Include this to enable git signature verification
         # - --git-verify-signatures
 

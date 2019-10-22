@@ -61,6 +61,24 @@ spec:
       #     secretName: flux-gpg-keys
       #     defaultMode: 0400
 
+      {{- if .ConfigFileContent }}
+      # The following volume is used to provide a configuration for fluxd
+      # The volume is created if the --config-file command line
+      # option is provided. If .ConfigAsConfigMap is set to true, the
+      # configuration is assumed to be a ConfigMap, otherwise it is assumed
+      # to be a Secret.
+      {{- if .ConfigAsConfigMap }}
+      - name: flux-config-volume
+        configMap:
+          name: flux-config
+      {{- end -}}
+      {{- if (not .ConfigAsConfigMap) }}
+      - name: flux-config-volume
+        secret:
+          secretName: flux-config
+      {{- end -}}
+      {{- end }}
+
       containers:
       - name: flux
         # There are no ":latest" images for flux. Find the most recent
@@ -117,6 +135,11 @@ spec:
         #   mountPath: /root/gpg-import
         #   readOnly: true
 
+        {{ if .ConfigFileContent -}}
+        - name: flux-config-volume
+          mountPath: /etc/fluxd
+        {{- end }}
+
         # Include this if you want to supply HTTP basic auth credentials for git
         # via the `GIT_AUTHUSER` and `GIT_AUTHKEY` environment variables using a
         # secret.
@@ -155,7 +178,7 @@ spec:
         # Include these two to enable git commit signing
         # - --git-gpg-key-import=/root/gpg-import
         # - --git-signing-key=<key id>
-        
+
         # Include this to enable git signature verification
         # - --git-verify-signatures
 
@@ -188,8 +211,10 @@ spec:
         - --registry-disable-scanning
 {{- end }}
 {{ if .AdditionalFluxArgs }}
-        # Additional arguments{{ range .AdditionalFluxArgs }}
-        - {{ . }}{{ end }}
+        # Additional arguments
+        {{- range .AdditionalFluxArgs }}
+        - {{ . }}
+        {{- end }}
 {{ end }}
       # Optional DNS settings, configuring the ndots option may resolve
       # nslookup issues on some Kubernetes setups.
