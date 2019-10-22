@@ -8,14 +8,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/pkg"
+
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
 	"github.com/fluxcd/flux/pkg/api"
-	"github.com/fluxcd/flux/pkg/api/v10"
-	"github.com/fluxcd/flux/pkg/api/v11"
-	"github.com/fluxcd/flux/pkg/api/v6"
-	"github.com/fluxcd/flux/pkg/api/v9"
+	v10 "github.com/fluxcd/flux/pkg/api/v10"
+	v11 "github.com/fluxcd/flux/pkg/api/v11"
+	v6 "github.com/fluxcd/flux/pkg/api/v6"
+	v9 "github.com/fluxcd/flux/pkg/api/v9"
 	"github.com/fluxcd/flux/pkg/cluster"
 	"github.com/fluxcd/flux/pkg/event"
 	"github.com/fluxcd/flux/pkg/git"
@@ -34,6 +36,7 @@ import (
 // Daemon is the fully-functional state of a daemon (compare to
 // `NotReadyDaemon`).
 type Daemon struct {
+	Engine                    pkg.Engine
 	V                         string
 	Cluster                   cluster.Cluster
 	Manifests                 manifests.Manifests

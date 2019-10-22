@@ -18,6 +18,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/common"
+
 	helmopclient "github.com/fluxcd/helm-operator/pkg/client/clientset/versioned"
 	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -170,10 +172,10 @@ func main() {
 		k8sSecretDataKey         = fs.String("k8s-secret-data-key", "identity", "data key holding the private SSH key within the k8s secret")
 
 		// k8s-scope settings
-		k8sNamespaceWhitelist    = fs.StringSlice("k8s-namespace-whitelist", []string{}, "restrict the view of the cluster to the namespaces listed. All namespaces are included if this is not set")
-		k8sAllowNamespace        = fs.StringSlice("k8s-allow-namespace", []string{}, "restrict all operations to the provided namespaces")
+		k8sNamespaceWhitelist = fs.StringSlice("k8s-namespace-whitelist", []string{}, "restrict the view of the cluster to the namespaces listed. All namespaces are included if this is not set")
+		k8sAllowNamespace     = fs.StringSlice("k8s-allow-namespace", []string{}, "restrict all operations to the provided namespaces")
 
-		k8sVerbosity             = fs.Int("k8s-verbosity", 0, "klog verbosity level")
+		k8sVerbosity = fs.Int("k8s-verbosity", 0, "klog verbosity level")
 
 		// SSH key generation
 		sshKeyBits   = optionalVar(fs, &ssh.KeyBitsValue{}, "ssh-keygen-bits", "-b argument to ssh-keygen (default unspecified)")
@@ -377,6 +379,7 @@ func main() {
 
 	// Cluster component.
 
+	var namespace string
 	var restClientConfig *rest.Config
 	{
 		if *k8sInCluster {
@@ -386,9 +389,25 @@ func main() {
 				logger.Log("err", err)
 				os.Exit(1)
 			}
+			namespaceData, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+			if err != nil {
+				logger.Log("err", err)
+				os.Exit(1)
+			}
+			namespace = string(namespaceData)
 		} else {
+			// hacky way to tell to the engine that we are outside of cluster. for PoC only
+			_ = os.Setenv(common.EnvVarFakeInClusterConfig, "true")
 			logger.Log("msg", fmt.Sprintf("using kube config: %q to connect to the cluster", *kubeConfig))
-			restClientConfig, err = clientcmd.BuildConfigFromFlags("", *kubeConfig)
+			clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+				&clientcmd.ClientConfigLoadingRules{ExplicitPath: *kubeConfig},
+				&clientcmd.ConfigOverrides{})
+			restClientConfig, err = clientConfig.ClientConfig()
+			if err != nil {
+				logger.Log("err", err)
+				os.Exit(1)
+			}
+			namespace, _, err = clientConfig.Namespace()
 			if err != nil {
 				logger.Log("err", err)
 				os.Exit(1)
@@ -440,16 +459,9 @@ func main() {
 			os.Exit(1)
 		}
 		clusterVersion = "kubernetes-" + serverVersion.GitVersion
-
 		if *k8sInCluster && !httpGitURL {
-			namespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
-			if err != nil {
-				logger.Log("err", err)
-				os.Exit(1)
-			}
-
 			sshKeyRing, err = kubernetes.NewSSHKeyRing(kubernetes.SSHKeyRingConfig{
-				SecretAPI:             clientset.CoreV1().Secrets(string(namespace)),
+				SecretAPI:             clientset.CoreV1().Secrets(namespace),
 				SecretName:            *k8sSecretName,
 				SecretVolumeMountPath: *k8sSecretVolumeMountPath,
 				SecretDataKey:         *k8sSecretDataKey,
@@ -685,7 +697,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	engine, err := daemon.NewEngine(namespace, *gitURL, repo, *gitTimeout, *gitSecret, gitConfig, *manifestGeneration, k8sManifests, *syncInterval, *syncGC && !*dryGC)
+	if err != nil {
+		logger.Log("err", err)
+		os.Exit(1)
+	}
+
 	daemon := &daemon.Daemon{
+		Engine:                    engine,
 		V:                         version,
 		Cluster:                   k8s,
 		Manifests:                 k8sManifests,

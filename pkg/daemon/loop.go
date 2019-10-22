@@ -35,6 +35,9 @@ func (loop *LoopVars) ensureInit() {
 
 func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger) {
 	defer wg.Done()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go d.Engine.Run(ctx, 1, 1)
 
 	// We want to sync at least every `SyncInterval`. Being told to
 	// sync, or completing a job, may intervene (in which case,
@@ -51,7 +54,7 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 	syncHead := ""
 
 	// In-memory sync tag state
-	ratchet := &lastKnownSyncState{logger: logger, state: d.SyncState}
+	//ratchet := &lastKnownSyncState{logger: logger, state: d.SyncState}
 
 	// If the git repo is read-only, the image update will fail; to
 	// avoid repeated failures in the log, mention it here and
@@ -86,21 +89,7 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 		case <-automatedWorkloadTimer.C:
 			d.AskForAutomatedWorkloadImageUpdates()
 		case <-d.syncSoon:
-			if !syncTimer.Stop() {
-				select {
-				case <-syncTimer.C:
-				default:
-				}
-			}
-			started := time.Now().UTC()
-			err := d.Sync(context.Background(), started, syncHead, ratchet)
-			syncDuration.With(
-				fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
-			).Observe(time.Since(started).Seconds())
-			if err != nil {
-				logger.Log("err", err)
-			}
-			syncTimer.Reset(d.SyncInterval)
+			_ = d.Engine.RefreshApps()
 		case <-syncTimer.C:
 			d.AskForSync()
 		case <-d.Repo.C:
