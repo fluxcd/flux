@@ -167,18 +167,26 @@ func (c *Cluster) SomeWorkloads(ctx context.Context, ids []resource.ID) (res []c
 
 // AllWorkloads returns all workloads in allowed namespaces matching the criteria; that is, in
 // the namespace (or any namespace if that argument is empty)
-func (c *Cluster) AllWorkloads(ctx context.Context, namespace string) (res []cluster.Workload, err error) {
-	namespaces, err := c.getAllowedAndExistingNamespaces(ctx)
+func (c *Cluster) AllWorkloads(ctx context.Context, restrictToNamespace string) (res []cluster.Workload, err error) {
+	allowedNamespaces, err := c.getAllowedAndExistingNamespaces(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting namespaces")
+	}
+	// Those are the allowed namespaces (possibly just [<all of them>];
+	// now intersect with the restriction requested, if any.
+	namespaces := allowedNamespaces
+	if restrictToNamespace != "" {
+		namespaces = nil
+		for _, ns := range allowedNamespaces {
+			if ns == meta_v1.NamespaceAll || ns == restrictToNamespace {
+				namespaces = []string{restrictToNamespace}
+				break
+			}
+		}
 	}
 
 	var allworkloads []cluster.Workload
 	for _, ns := range namespaces {
-		if namespace != "" && ns != namespace {
-			continue
-		}
-
 		for kind, resourceKind := range resourceKinds {
 			workloads, err := resourceKind.getWorkloads(ctx, c, ns)
 			if err != nil {
@@ -197,7 +205,7 @@ func (c *Cluster) AllWorkloads(ctx context.Context, namespace string) (res []clu
 
 			for _, workload := range workloads {
 				if !isAddon(workload) {
-					id := resource.MakeID(ns, kind, workload.GetName())
+					id := resource.MakeID(workload.GetNamespace(), kind, workload.GetName())
 					c.muSyncErrors.RLock()
 					workload.syncError = c.syncErrors[id]
 					c.muSyncErrors.RUnlock()
