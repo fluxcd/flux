@@ -26,6 +26,9 @@ spec:
       imagePullSecrets:
         - name: {{ .Values.memcached.pullSecret }}
       {{- end }}
+      {{- if .Values.rbac.pspEnabled }}
+      serviceAccountName: {{ template "flux.serviceAccountName" . }}
+      {{- end }}
       containers:
       - name: memcached
         image: {{ .Values.memcached.repository }}:{{ .Values.memcached.tag }}
