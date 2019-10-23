@@ -178,6 +178,9 @@ spec:
         # make sure to set prometheus' annotation to scrape the port value.
         - --listen-metrics=:3031
 
+        # Disable scanning of registries (and the image database)
+        # --registry-disable-scanning
+
       # Optional DNS settings, configuring the ndots option may resolve
       # nslookup issues on some Kubernetes setups.
       # dnsPolicy: "None"

@@ -136,6 +136,7 @@ spec:
         #   readOnly: true
 
         {{ if .ConfigFileContent -}}
+        # mounts the config volume from above into the container
         - name: flux-config-volume
           mountPath: /etc/fluxd
         {{- end }}
@@ -165,15 +166,28 @@ spec:
         # Replace the following URL to change the Git repository used by Flux.
         # HTTP basic auth credentials can be supplied using environment variables:
         # https://$(GIT_AUTHUSER):$(GIT_AUTHKEY)@github.com/user/repository.git
+        {{- if .GitURL }}
         - --git-url={{ .GitURL }}
-        - --git-branch={{ .GitBranch }}{{ if .GitPaths }}
-        - --git-path={{ StringsJoin .GitPaths "," }}{{ else }}
+        {{- else }}
+        # - --git-url=git@github.com:fluxcd/flux-get-started
+        {{- end }}
+        - --git-branch={{ .GitBranch }}
+        {{- if .GitPaths }}
+        - --git-path={{ StringsJoin .GitPaths "," }}
+        {{- else }}
         # Include this if you want to restrict the manifests considered by flux
         # to those under the following relative paths in the git repository
-        # - --git-path=subdir1,subdir2{{ end }}{{ if .GitLabel }}
-        - --git-label={{ .GitLabel }}{{ end }}{{ if .GitUser }}
-        - --git-user={{ .GitUser   }}{{ end }}{{ if .GitEmail }}
-        - --git-email={{ .GitEmail }}{{ end }}
+        # - --git-path=subdir1,subdir2
+        {{- end }}
+        {{- if .GitLabel }}
+        - --git-label={{ .GitLabel }}
+        {{- end }}
+        {{- if .GitUser }}
+        - --git-user={{ .GitUser }}
+        {{- end }}
+        {{- if .GitEmail }}
+        - --git-email={{ .GitEmail }}
+        {{- end }}
 
         # Include these two to enable git commit signing
         # - --git-gpg-key-import=/root/gpg-import
@@ -207,8 +221,12 @@ spec:
         # Serve /metrics endpoint at different port;
         # make sure to set prometheus' annotation to scrape the port value.
         - --listen-metrics=:3031
+
+        # Disable scanning of registries (and the image database)
 {{- if .RegistryDisableScanning }}
         - --registry-disable-scanning
+{{- else }}
+        # --registry-disable-scanning
 {{- end }}
 {{ if .AdditionalFluxArgs }}
         # Additional arguments
