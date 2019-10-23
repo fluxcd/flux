@@ -2,8 +2,13 @@ package daemon
 
 import (
 	"context"
-	"fmt"
 	"time"
+
+	"github.com/go-kit/kit/log"
+
+	"github.com/fluxcd/flux/pkg/event"
+
+	"github.com/fluxcd/flux/pkg/resource"
 
 	"github.com/argoproj/argo-cd/engine"
 	"github.com/argoproj/argo-cd/engine/pkg"
@@ -13,9 +18,6 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/fluxcd/flux/pkg/git"
-	"github.com/fluxcd/flux/pkg/manifests"
 )
 
 const (
@@ -25,25 +27,15 @@ const (
 func NewEngine(
 	namespace string,
 	repoURL string,
-	repo *git.Repo,
-	gitTimeout time.Duration,
-	gitSecretEnabled bool,
-	gitConfig git.Config,
-	manifestGenerationEnabled bool,
-	manifests manifests.Manifests,
+	daemon *Daemon,
 	syncInterval time.Duration,
 	prune bool,
+	logger log.Logger,
 ) (pkg.Engine, error) {
-	manifestGenerator := &manifestGenerator{
-		manifests:                 manifests,
-		repo:                      repo,
-		gitTimeout:                gitTimeout,
-		gitConfig:                 gitConfig,
-		manifestGenerationEnabled: manifestGenerationEnabled,
-		gitSecretEnabled:          gitSecretEnabled,
-		namespace:                 namespace,
-	}
+	// In-memory sync tag state
+	ratchet := &lastKnownSyncState{logger: logger, state: daemon.SyncState}
 
+	a := &engineAdaptor{namespace: namespace, daemon: daemon, ratchet: ratchet}
 	reconciliationSettings := &settingsutil.StaticReconciliationSettings{
 		AppInstanceLabelKey: "fluxcd.io/application",
 	}
@@ -64,7 +56,7 @@ func NewEngine(
 			Source: v1alpha1.ApplicationSource{
 				RepoURL:        repoURL,
 				Path:           ".",
-				TargetRevision: gitConfig.Branch,
+				TargetRevision: daemon.GitConfig.Branch,
 			},
 			Destination: v1alpha1.ApplicationDestination{
 				Server:    clusterURL,
@@ -79,63 +71,30 @@ func NewEngine(
 			Project: "default",
 		},
 	})
-	return engine.NewEngine(namespace, reconciliationSettings, creds, &stub{}, appclient, manifestGenerator, &stub{}, syncInterval, syncInterval, 9999, 20, func() error {
+	return engine.NewEngine(namespace, reconciliationSettings, creds, a, appclient, a, a, syncInterval, syncInterval, 9999, 20, func() error {
 		return nil
 	}, func(overrides map[string]v1alpha1.ResourceOverride) *lua.VM {
 		return &lua.VM{
 			ResourceOverrides: overrides,
 		}
-	})
+	}, a)
 }
 
-type manifestGenerator struct {
-	repo                      *git.Repo
-	gitTimeout                time.Duration
-	gitSecretEnabled          bool
-	gitConfig                 git.Config
-	namespace                 string
-	manifestGenerationEnabled bool
-	manifests                 manifests.Manifests
+type engineAdaptor struct {
+	namespace string
+	daemon    *Daemon
+	ratchet   *lastKnownSyncState
 }
 
-func (a *manifestGenerator) getManifestStore(r repo) (manifests.Store, error) {
-	absPaths := git.MakeAbsolutePaths(r, a.gitConfig.Paths)
-	if a.manifestGenerationEnabled {
-		return manifests.NewConfigAware(r.Dir(), absPaths, a.manifests)
-	}
-	return manifests.NewRawFiles(r.Dir(), absPaths, a.manifests), nil
-}
-
-func (a *manifestGenerator) Generate(ctx context.Context, repo *v1alpha1.Repository, revision string, source *v1alpha1.ApplicationSource, setting *pkg.ManifestGenerationSettings) (*pkg.ManifestResponse, error) {
-	// Make a read-only clone used for this sync
-	ctxt, cancel := context.WithTimeout(ctx, a.gitTimeout)
-	working, err := a.repo.Export(ctxt, revision)
+func (a *engineAdaptor) Generate(ctx context.Context, repo *v1alpha1.Repository, revision string, source *v1alpha1.ApplicationSource, setting *pkg.ManifestGenerationSettings) (*pkg.ManifestResponse, error) {
+	resolvedRevision, err := a.daemon.Repo.Revision(ctx, revision)
 	if err != nil {
 		return nil, err
 	}
-	cancel()
-	defer working.Clean()
-
-	// Unseal any secrets if enabled
-	if a.gitSecretEnabled {
-		ctxt, cancel := context.WithTimeout(ctx, a.gitTimeout)
-		if err := working.SecretUnseal(ctxt); err != nil {
-			return nil, err
-		}
-		cancel()
-	}
-	resourceStore, err := a.getManifestStore(working)
-	if err != nil {
-		return nil, fmt.Errorf("reading the repository checkout: %v", err)
-	}
-	ctxt, cancel = context.WithTimeout(ctx, a.gitTimeout)
-	defer cancel()
-	revision, err = a.repo.Revision(ctxt, revision)
+	resources, err := a.daemon.GetManifests(ctx, revision)
 	if err != nil {
 		return nil, err
 	}
-
-	resources, err := resourceStore.GetAllResourcesByID(ctx)
 
 	mfst := make([]string, 0)
 	for i := range resources {
@@ -145,23 +104,37 @@ func (a *manifestGenerator) Generate(ctx context.Context, repo *v1alpha1.Reposit
 		}
 		mfst = append(mfst, string(data))
 	}
-	return &pkg.ManifestResponse{Namespace: a.namespace, Revision: revision, Manifests: mfst}, nil
+	return &pkg.ManifestResponse{Namespace: a.namespace, Revision: resolvedRevision, Manifests: mfst}, nil
 }
 
-type stub struct {
+func (a *engineAdaptor) OnSyncCompleted(appName string, op v1alpha1.OperationState) error {
+	resourceIDs := resource.IDSet{}
+	resourceErrors := make([]event.ResourceError, 0)
+	for _, res := range op.SyncResult.Resources {
+		id := resource.MakeID(res.Namespace, res.Kind, res.Name)
+		switch res.Status {
+		case v1alpha1.ResultCodeSynced:
+			resourceIDs.Add([]resource.ID{id})
+		case v1alpha1.ResultCodeSyncFailed:
+			// TODO: Argo CD does not preserve resource source path. We need to support it
+			resourceErrors = append(resourceErrors, event.ResourceError{ID: id, Error: res.Message})
+		}
+	}
+
+	return a.daemon.PostSync(context.Background(), op.StartedAt.Time, op.SyncResult.Revision, resourceIDs, resourceErrors, a.ratchet)
 }
 
-func (s *stub) LogAppEvent(app *v1alpha1.Application, info pkg.EventInfo, message string) {
+func (a *engineAdaptor) LogAppEvent(app *v1alpha1.Application, info pkg.EventInfo, message string) {
 }
 
-func (s *stub) SetAppResourcesTree(appName string, resourcesTree *v1alpha1.ApplicationTree) error {
+func (a *engineAdaptor) SetAppResourcesTree(appName string, resourcesTree *v1alpha1.ApplicationTree) error {
 	return nil
 }
 
-func (s *stub) SetAppManagedResources(appName string, managedResources []*v1alpha1.ResourceDiff) error {
+func (a *engineAdaptor) SetAppManagedResources(appName string, managedResources []*v1alpha1.ResourceDiff) error {
 	return nil
 }
 
-func (s *stub) GetAppManagedResources(appName string, res *[]*v1alpha1.ResourceDiff) error {
+func (a *engineAdaptor) GetAppManagedResources(appName string, res *[]*v1alpha1.ResourceDiff) error {
 	return errors.New("not supported")
 }

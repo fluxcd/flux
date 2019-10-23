@@ -697,14 +697,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	engine, err := daemon.NewEngine(namespace, *gitURL, repo, *gitTimeout, *gitSecret, gitConfig, *manifestGeneration, k8sManifests, *syncInterval, *syncGC && !*dryGC)
-	if err != nil {
-		logger.Log("err", err)
-		os.Exit(1)
-	}
-
-	daemon := &daemon.Daemon{
-		Engine:                    engine,
+	dmn := &daemon.Daemon{
 		V:                         version,
 		Cluster:                   k8s,
 		Manifests:                 k8sManifests,
@@ -726,6 +719,11 @@ func main() {
 			GitVerifySignatures: *gitVerifySignatures,
 		},
 	}
+	engine, err := daemon.NewEngine(namespace, *gitURL, dmn, *syncInterval, *syncGC && !*dryGC, logger)
+	if err != nil {
+		logger.Log("err", err)
+		os.Exit(1)
+	}
 
 	{
 		// Connect to fluxsvc if given an upstream address
@@ -738,7 +736,7 @@ func main() {
 				client.Token(*token),
 				transport.NewUpstreamRouter(),
 				*upstreamURL,
-				remote.NewErrorLoggingServer(daemon, upstreamLogger),
+				remote.NewErrorLoggingServer(dmn, upstreamLogger),
 				*rpcTimeout,
 				upstreamLogger,
 			)
@@ -746,7 +744,7 @@ func main() {
 				logger.Log("err", err)
 				os.Exit(1)
 			}
-			daemon.EventWriter = upstream
+			dmn.EventWriter = upstream
 			go func() {
 				<-shutdown
 				upstream.Close()
@@ -757,10 +755,10 @@ func main() {
 	}
 
 	shutdownWg.Add(1)
-	go daemon.Loop(shutdown, shutdownWg, log.With(logger, "component", "sync-loop"))
+	go dmn.Loop(shutdown, shutdownWg, log.With(logger, "component", "sync-loop"), engine)
 
-	cacheWarmer.Notify = daemon.AskForAutomatedWorkloadImageUpdates
-	cacheWarmer.Priority = daemon.ImageRefresh
+	cacheWarmer.Notify = dmn.AskForAutomatedWorkloadImageUpdates
+	cacheWarmer.Priority = dmn.ImageRefresh
 	cacheWarmer.Trace = *registryTrace
 	shutdownWg.Add(1)
 	go cacheWarmer.Loop(log.With(logger, "component", "warmer"), shutdown, shutdownWg, imageCreds)
@@ -771,7 +769,7 @@ func main() {
 		if *listenMetricsAddr == "" {
 			mux.Handle("/metrics", promhttp.Handler())
 		}
-		handler := daemonhttp.NewHandler(daemon, daemonhttp.NewRouter())
+		handler := daemonhttp.NewHandler(dmn, daemonhttp.NewRouter())
 		mux.Handle("/api/flux/", http.StripPrefix("/api/flux", handler))
 		logger.Log("addr", *listenAddr)
 		errc <- http.ListenAndServe(*listenAddr, mux)

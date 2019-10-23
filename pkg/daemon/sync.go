@@ -4,16 +4,17 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
-	"github.com/fluxcd/flux/pkg/metrics"
-	"github.com/go-kit/kit/log"
-	"github.com/pkg/errors"
 	"path/filepath"
 	"time"
+
+	"github.com/go-kit/kit/log"
+	"github.com/pkg/errors"
 
 	"github.com/fluxcd/flux/pkg/cluster"
 	"github.com/fluxcd/flux/pkg/event"
 	"github.com/fluxcd/flux/pkg/git"
 	"github.com/fluxcd/flux/pkg/manifests"
+	"github.com/fluxcd/flux/pkg/metrics"
 	"github.com/fluxcd/flux/pkg/resource"
 	fluxsync "github.com/fluxcd/flux/pkg/sync"
 	"github.com/fluxcd/flux/pkg/update"
@@ -39,13 +40,12 @@ type changeSet struct {
 	initialSync bool
 }
 
-// Sync starts the synchronization of the cluster with git.
-func (d *Daemon) Sync(ctx context.Context, started time.Time, newRevision string, ratchet revisionRatchet) error {
+func (d *Daemon) GetManifests(ctx context.Context, newRevision string) (map[string]resource.Resource, error) {
 	// Make a read-only clone used for this sync
 	ctxt, cancel := context.WithTimeout(ctx, d.GitTimeout)
 	working, err := d.Repo.Export(ctxt, newRevision)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	cancel()
 	defer working.Clean()
@@ -54,33 +54,24 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, newRevision string
 	if d.GitSecretEnabled {
 		ctxt, cancel := context.WithTimeout(ctx, d.GitTimeout)
 		if err := working.SecretUnseal(ctxt); err != nil {
-			return err
+			return nil, err
 		}
 		cancel()
 	}
 
+	resourceStore, err := d.getManifestStore(working)
+	if err != nil {
+		return nil, errors.Wrap(err, "reading the repository checkout")
+	}
+	return resourceStore.GetAllResourcesByID(ctx)
+}
+
+// Sync starts the synchronization of the cluster with git.
+func (d *Daemon) PostSync(ctx context.Context, started time.Time, newRevision string, serviceIDs resource.IDSet, resourceErrors []event.ResourceError, ratchet revisionRatchet) error {
 	// Retrieve change set of commits we need to sync
 	c, err := getChangeSet(ctx, ratchet, newRevision, d.Repo, d.GitTimeout, d.GitConfig.Paths)
 	if err != nil {
 		return err
-	}
-
-	// Run actual sync of resources on cluster
-	syncSetName := makeGitConfigHash(d.Repo.Origin(), d.GitConfig)
-	resourceStore, err := d.getManifestStore(working)
-	if err != nil {
-		return errors.Wrap(err, "reading the repository checkout")
-	}
-	resources, resourceErrors, err := doSync(ctx, resourceStore, d.Cluster, syncSetName, d.Logger)
-	if err != nil {
-		return err
-	}
-
-	// Determine what resources changed during the sync
-	changedResources, err := d.getChangedResources(ctx, c, d.GitTimeout, working, resourceStore, resources)
-	serviceIDs := resource.IDSet{}
-	for _, r := range changedResources {
-		serviceIDs.Add([]resource.ID{r.ResourceID()})
 	}
 
 	// Retrieve git notes and collect events from them

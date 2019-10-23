@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/pkg"
+
 	"github.com/go-kit/kit/log"
 
 	"github.com/fluxcd/flux/pkg/git"
@@ -33,11 +35,11 @@ func (loop *LoopVars) ensureInit() {
 	})
 }
 
-func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger) {
+func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger, engine pkg.Engine) {
 	defer wg.Done()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go d.Engine.Run(ctx, 1, 1)
+	go engine.Run(ctx, 1, 1)
 
 	// We want to sync at least every `SyncInterval`. Being told to
 	// sync, or completing a job, may intervene (in which case,
@@ -89,7 +91,7 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 		case <-automatedWorkloadTimer.C:
 			d.AskForAutomatedWorkloadImageUpdates()
 		case <-d.syncSoon:
-			_ = d.Engine.RefreshApps()
+			_ = engine.RefreshApps()
 		case <-syncTimer.C:
 			d.AskForSync()
 		case <-d.Repo.C:

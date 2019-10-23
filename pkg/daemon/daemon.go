@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/engine/pkg"
-
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
@@ -36,7 +34,6 @@ import (
 // Daemon is the fully-functional state of a daemon (compare to
 // `NotReadyDaemon`).
 type Daemon struct {
-	Engine                    pkg.Engine
 	V                         string
 	Cluster                   cluster.Cluster
 	Manifests                 manifests.Manifests
