@@ -1,38 +1,26 @@
 package daemon
 
 import (
-	"encoding/json"
+	"context"
+	"fmt"
 	"time"
-
-	"k8s.io/apimachinery/pkg/util/strategicpatch"
-
-	"github.com/fluxcd/flux/pkg/manifests"
-
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/testing"
 
 	"github.com/argoproj/argo-cd/engine"
 	"github.com/argoproj/argo-cd/engine/pkg"
 	"github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/engine/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/engine/util/lua"
+	settingsutil "github.com/argoproj/argo-cd/engine/util/settings"
+	"github.com/ghodss/yaml"
+	"github.com/pkg/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/fluxcd/flux/pkg/git"
+	"github.com/fluxcd/flux/pkg/manifests"
 )
 
 const (
 	clusterURL = "https://kubernetes.default.svc"
 )
-
-type engineSettings struct {
-	repo                      *git.Repo
-	gitTimeout                time.Duration
-	gitSecretEnabled          bool
-	gitConfig                 git.Config
-	namespace                 string
-	manifestGenerationEnabled bool
-	manifests                 manifests.Manifests
-}
 
 func NewEngine(
 	namespace string,
@@ -46,8 +34,7 @@ func NewEngine(
 	syncInterval time.Duration,
 	prune bool,
 ) (pkg.Engine, error) {
-
-	settings := &engineSettings{
+	manifestGenerator := &manifestGenerator{
 		manifests:                 manifests,
 		repo:                      repo,
 		gitTimeout:                gitTimeout,
@@ -57,12 +44,22 @@ func NewEngine(
 		namespace:                 namespace,
 	}
 
-	// TODO: stop using fake client set and provider proper implementation
-	clientset := appclientset.NewSimpleClientset(&v1alpha1.Application{
-		ObjectMeta: v1.ObjectMeta{
-			Name:      "flux",
-			Namespace: namespace,
+	reconciliationSettings := &settingsutil.StaticReconciliationSettings{
+		AppInstanceLabelKey: "fluxcd.io/application",
+	}
+	creds := &settingsutil.StaticCredsStore{
+		Clusters: map[string]v1alpha1.Cluster{clusterURL: {Server: clusterURL}},
+		Repos:    map[string]v1alpha1.Repository{repoURL: {Repo: repoURL}},
+	}
+	appclient := settingsutil.NewStaticAppClientSet(v1alpha1.AppProject{
+		ObjectMeta: v1.ObjectMeta{Name: "default", Namespace: namespace},
+		Spec: v1alpha1.AppProjectSpec{
+			ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
+			Destinations:             []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			SourceRepos:              []string{"*"},
 		},
+	}, v1alpha1.Application{
+		ObjectMeta: v1.ObjectMeta{Name: "flux", Namespace: namespace},
 		Spec: v1alpha1.ApplicationSpec{
 			Source: v1alpha1.ApplicationSource{
 				RepoURL:        repoURL,
@@ -81,56 +78,90 @@ func NewEngine(
 			},
 			Project: "default",
 		},
-	}, &v1alpha1.AppProject{
-		ObjectMeta: v1.ObjectMeta{
-			Name:      "default",
-			Namespace: namespace,
-		},
-		Spec: v1alpha1.AppProjectSpec{
-			ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
-			Destinations:             []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
-			SourceRepos:              []string{"*"},
-		},
 	})
-
-	clientset.PrependReactor("patch", "applications", func(action testing.Action) (handled bool, ret runtime.Object, err error) {
-		patchAction, ok := action.(testing.PatchActionImpl)
-		if !ok {
-			return false, nil, nil
-		}
-		clientset.Unlock()
-		defer clientset.Lock()
-		app, err := clientset.ArgoprojV1alpha1().Applications(patchAction.Namespace).Get(patchAction.Name, v1.GetOptions{})
-		if err != nil {
-			return false, nil, err
-		}
-
-		origBytes, err := json.Marshal(app)
-		if err != nil {
-			return false, nil, err
-		}
-		newAppData, err := strategicpatch.StrategicMergePatch(origBytes, patchAction.Patch, app)
-		if err != nil {
-			return false, nil, err
-		}
-		updatedApp := &v1alpha1.Application{}
-		err = json.Unmarshal(newAppData, updatedApp)
-		if err != nil {
-			return false, nil, err
-		}
-		updatedApp, err = clientset.ArgoprojV1alpha1().Applications(patchAction.Namespace).Update(updatedApp)
-		if err != nil {
-			return false, nil, err
-		}
-
-		return true, updatedApp, nil
-	})
-
-	return engine.NewEngine(namespace, settings, settings, settings, clientset, settings, settings, syncInterval, syncInterval, 9999, 20, func() error {
+	return engine.NewEngine(namespace, reconciliationSettings, creds, &stub{}, appclient, manifestGenerator, &stub{}, syncInterval, syncInterval, 9999, 20, func() error {
 		return nil
 	}, func(overrides map[string]v1alpha1.ResourceOverride) *lua.VM {
 		return &lua.VM{
 			ResourceOverrides: overrides,
 		}
 	})
+}
+
+type manifestGenerator struct {
+	repo                      *git.Repo
+	gitTimeout                time.Duration
+	gitSecretEnabled          bool
+	gitConfig                 git.Config
+	namespace                 string
+	manifestGenerationEnabled bool
+	manifests                 manifests.Manifests
+}
+
+func (a *manifestGenerator) getManifestStore(r repo) (manifests.Store, error) {
+	absPaths := git.MakeAbsolutePaths(r, a.gitConfig.Paths)
+	if a.manifestGenerationEnabled {
+		return manifests.NewConfigAware(r.Dir(), absPaths, a.manifests)
+	}
+	return manifests.NewRawFiles(r.Dir(), absPaths, a.manifests), nil
+}
+
+func (a *manifestGenerator) Generate(ctx context.Context, repo *v1alpha1.Repository, revision string, source *v1alpha1.ApplicationSource, setting *pkg.ManifestGenerationSettings) (*pkg.ManifestResponse, error) {
+	// Make a read-only clone used for this sync
+	ctxt, cancel := context.WithTimeout(ctx, a.gitTimeout)
+	working, err := a.repo.Export(ctxt, revision)
+	if err != nil {
+		return nil, err
+	}
+	cancel()
+	defer working.Clean()
+
+	// Unseal any secrets if enabled
+	if a.gitSecretEnabled {
+		ctxt, cancel := context.WithTimeout(ctx, a.gitTimeout)
+		if err := working.SecretUnseal(ctxt); err != nil {
+			return nil, err
+		}
+		cancel()
+	}
+	resourceStore, err := a.getManifestStore(working)
+	if err != nil {
+		return nil, fmt.Errorf("reading the repository checkout: %v", err)
+	}
+	ctxt, cancel = context.WithTimeout(ctx, a.gitTimeout)
+	defer cancel()
+	revision, err = a.repo.Revision(ctxt, revision)
+	if err != nil {
+		return nil, err
+	}
+
+	resources, err := resourceStore.GetAllResourcesByID(ctx)
+
+	mfst := make([]string, 0)
+	for i := range resources {
+		data, err := yaml.YAMLToJSON(resources[i].Bytes())
+		if err != nil {
+			return nil, err
+		}
+		mfst = append(mfst, string(data))
+	}
+	return &pkg.ManifestResponse{Namespace: a.namespace, Revision: revision, Manifests: mfst}, nil
+}
+
+type stub struct {
+}
+
+func (s *stub) LogAppEvent(app *v1alpha1.Application, info pkg.EventInfo, message string) {
+}
+
+func (s *stub) SetAppResourcesTree(appName string, resourcesTree *v1alpha1.ApplicationTree) error {
+	return nil
+}
+
+func (s *stub) SetAppManagedResources(appName string, managedResources []*v1alpha1.ResourceDiff) error {
+	return nil
+}
+
+func (s *stub) GetAppManagedResources(appName string, res *[]*v1alpha1.ResourceDiff) error {
+	return errors.New("not supported")
 }
