@@ -281,6 +281,18 @@ func main() {
 
 	// --- From this point, we can just consult the config struct for values ---
 
+	// viper.IsSet, which we could otherwise use for determining
+	// whether a flag has been supplied, is broken:
+	// https://github.com/spf13/viper/pull/331. So we have to proceed
+	// by other means.
+	envOnly := viper.New()
+	envOnly.SetEnvPrefix("FLUXD")
+	envOnly.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+	envOnly.AutomaticEnv()
+	isSet := func(flag string) bool {
+		return fs.Changed(flag) || viper.InConfig(flag) || envOnly.IsSet(flag)
+	}
+
 	// Explicitly initialize klog to enable stderr logging,
 	// and parse our own flags.
 	klogFlags := flag.NewFlagSet("klog", flag.ExitOnError)
@@ -346,7 +358,7 @@ func main() {
 		}
 		var changedGitRelatedFlags []string
 		for _, gitRelatedFlag := range gitRelatedFlags {
-			if viper.IsSet(gitRelatedFlag) {
+			if isSet(gitRelatedFlag) {
 				changedGitRelatedFlags = append(changedGitRelatedFlags, gitRelatedFlag)
 			}
 		}
@@ -358,18 +370,18 @@ func main() {
 	// Maintain backwards compatibility with the --registry-poll-interval
 	// _flag_, but only if the --automation-interval is not set to a custom
 	// (non default) value anywhere.
-	if fs.Changed("registry-poll-interval") && !viper.IsSet("automation-interval") {
+	if fs.Changed("registry-poll-interval") && !isSet("automation-interval") {
 		config.AutomationInterval = config.RegistryPollInterval
 	}
 
 	// Sort out values for the git tag and notes ref. There are
 	// running deployments that assume the defaults as given, so don't
 	// mess with those unless explicitly told.
-	if viper.IsSet("git-label") {
+	if isSet("git-label") {
 		config.GitSyncTag = config.GitLabel
 		config.GitNotesRef = config.GitLabel
 		for _, f := range []string{"git-sync-tag", "git-notes-ref"} {
-			if viper.IsSet(f) {
+			if isSet(f) {
 				logger.Log("overridden", f, "value", config.GitLabel)
 			}
 		}
