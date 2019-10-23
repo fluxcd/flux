@@ -32,12 +32,11 @@ function install_flux_with_helm() {
 --set git.config.secretName=gitconfig \
 --set git.config.enabled=true \
 --set-string git.config.data="${GITCONFIG}" \
---set helmOperator.create=true \
---set helmOperator.createCRD=true \
+--set helmOperator.create=true `# just needed to add the HelmRelease CRD`\
 --set helmOperator.git.secretName=ssh-git \
+--set helmOperator.createCRD="${create_crds}" \
 --set registry.excludeImage=* \
 --set-string ssh.known_hosts="${KNOWN_HOSTS}" \
---set helmOperator.createCRD="${create_crds}" \
 "${FLUX_ROOT_DIR}/chart/flux"
 
 }

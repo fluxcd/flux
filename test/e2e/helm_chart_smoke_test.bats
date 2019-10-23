@@ -66,12 +66,12 @@ function setup() {
   done
   echo ' done' >&3
 
-  echo -n '>>> Waiting for Helm release mongodb ' >&3
+  echo -n '>>> Waiting for mongodb HelmRelease ' >&3
   retries=24
   count=0
   ok=false
   until ${ok}; do
-    kubectl -n $DEMO_NAMESPACE describe deployment/mongodb && ok=true || ok=false
+    kubectl -n $DEMO_NAMESPACE describe helmrelease/mongodb && ok=true || ok=false
     echo -n '.' >&3
     sleep 5
     count=$(($count + 1))
@@ -88,8 +88,6 @@ function setup() {
   echo '>>> Check workload' >&3
   kubectl -n "${DEMO_NAMESPACE}" rollout status deployment/podinfo
 
-  echo '>>> Check Helm release' >&3
-  kubectl -n "${DEMO_NAMESPACE}" rollout status deployment/mongodb
 }
 
 function teardown() {
