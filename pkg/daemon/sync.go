@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"github.com/fluxcd/flux/pkg/metrics"
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 	"path/filepath"
@@ -157,6 +158,7 @@ func doSync(ctx context.Context, manifestsStore manifests.Store, clus cluster.Cl
 		switch syncerr := err.(type) {
 		case cluster.SyncError:
 			logger.Log("err", err)
+			updateSyncManifestsMetric(len(resources)-len(syncerr), len(syncerr))
 			for _, e := range syncerr {
 				resourceErrors = append(resourceErrors, event.ResourceError{
 					ID:    e.ResourceID,
@@ -167,8 +169,15 @@ func doSync(ctx context.Context, manifestsStore manifests.Store, clus cluster.Cl
 		default:
 			return nil, nil, err
 		}
+	} else {
+		updateSyncManifestsMetric(len(resources), 0)
 	}
 	return resources, resourceErrors, nil
+}
+
+func updateSyncManifestsMetric(success, failure int) {
+	syncManifestsMetric.With(metrics.LabelSuccess, "true").Set(float64(success))
+	syncManifestsMetric.With(metrics.LabelSuccess, "false").Set(float64(failure))
 }
 
 // getChangedResources calculates what resources are modified during
