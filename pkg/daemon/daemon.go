@@ -629,7 +629,7 @@ func (d *Daemon) GitRepoConfig(ctx context.Context, regenerate bool) (v6.GitConf
 	}
 	return v6.GitConfig{
 		Remote: v6.GitRemoteConfig{
-			URL:    origin.URL,
+			Remote: origin,
 			Branch: d.GitConfig.Branch,
 			Path:   path,
 		},
