@@ -49,7 +49,7 @@ type ControllerStatus struct {
 // --- config types
 
 type GitRemoteConfig struct {
-	URL    string `json:"url"`
+	git.Remote
 	Branch string `json:"branch"`
 	Path   string `json:"path"`
 }
