@@ -31,11 +31,11 @@ spec:
         - mountPath: /git-server/repos
           name: git-server-data
         - mountPath: /git-server/keys
-          name: ssh-git
+          name: flux-git-deploy
       volumes:
-      - name: ssh-git
+      - name: flux-git-deploy
         secret:
-          secretName: ssh-git
+          secretName: flux-git-deploy
       - name: git-server-data
         emptyDir: {}
 ---

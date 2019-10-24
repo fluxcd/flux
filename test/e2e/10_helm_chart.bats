@@ -13,11 +13,10 @@ function setup() {
   # The gitconfig secret must exist and have the right value
   poll_until_equals "gitconfig secret" "${GITCONFIG}" "kubectl get secrets -n "${FLUX_NAMESPACE}" gitconfig -ojsonpath={..data.gitconfig} | base64 --decode"
 
-  # Check that all the resources in the demo namespace are created by Flux
-  poll_until_true "namespace ${DEMO_NAMESPACE}" "kubectl describe ns/${DEMO_NAMESPACE}"
-  poll_until_true 'workload podinfo' "kubectl -n "${DEMO_NAMESPACE}" describe deployment/podinfo"
-  poll_until_true 'mongodb HelmRelease' "kubectl -n ${DEMO_NAMESPACE} describe helmrelease/mongodb"
-
+  # Test that the resources from https://github.com/fluxcd/flux-get-started are deployed
+  poll_until_true 'namespace demo' 'kubectl describe ns/demo'
+  poll_until_true 'workload podinfo' 'kubectl -n demo describe deployment/podinfo'
+  poll_until_true 'mongodb HelmRelease' 'kubectl -n demo describe helmrelease/mongodb'
 }
 
 function teardown() {
