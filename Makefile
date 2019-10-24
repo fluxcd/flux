@@ -5,6 +5,8 @@ SUDO := $(shell docker info > /dev/null 2> /dev/null || echo "sudo")
 
 TEST_FLAGS?=
 
+BATS_VERSION := 1.1.0
+
 include docker/kubectl.version
 include docker/kustomize.version
 include docker/helm.version
@@ -56,8 +58,8 @@ realclean: clean
 test: test/bin/helm test/bin/kubectl test/bin/kustomize $(GENERATED_TEMPLATES_FILE)
 	PATH="${PWD}/bin:${PWD}/test/bin:${PATH}" go test ${TEST_FLAGS} $(shell go list ./... | grep -v "^github.com/fluxcd/flux/vendor" | sort -u)
 
-e2e: test/bin/helm test/bin/kubectl build/.flux.done
-	PATH="${PWD}/test/bin:${PATH}" CURRENT_OS_ARCH=$(CURRENT_OS_ARCH) test/e2e/run.sh
+e2e: test/bin/helm test/bin/kubectl test/e2e/bats build/.flux.done
+	PATH="${PWD}/test/bin:${PATH}" CURRENT_OS_ARCH=$(CURRENT_OS_ARCH) test/e2e/run.bash
 
 build/.%.done: docker/Dockerfile.%
 	mkdir -p ./build/docker/$*
@@ -105,6 +107,14 @@ cache/%/helm-$(HELM_VERSION): docker/helm.version
 	[ $* != "linux-$(ARCH)" ] || echo "$(HELM_CHECKSUM_$(ARCH))  cache/$*/helm-$(HELM_VERSION).tar.gz" | shasum -a 256 -c
 	tar -m -C ./cache -xzf cache/$*/helm-$(HELM_VERSION).tar.gz $*/helm
 	mv cache/$*/helm $@
+
+test/e2e/bats: cache/bats_v$(BATS_VERSION).tar.gz
+	mkdir -p $@
+	tar -C $@ --strip-components 1 -xzf $< 
+
+cache/bats_v$(BATS_VERSION).tar.gz:
+	curl --fail -L -o $@ https://github.com/bats-core/bats-core/archive/v$(BATS_VERSION).tar.gz
+
 
 $(GOBIN)/fluxctl: $(FLUXCTL_DEPS) $(GENERATED_TEMPLATES_FILE)
 	go install ./cmd/fluxctl

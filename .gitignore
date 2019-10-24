@@ -50,6 +50,7 @@ test/bin/kubectl
 test/bin/kustomize
 test/bin/helm
 test/bin/kind
+test/e2e/bats
 
 # Docs
 docs/_build
