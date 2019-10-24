@@ -28,7 +28,7 @@ function install_flux_with_helm() {
 --set image.tag=latest \
 --set git.url=ssh://git@gitsrv/git-server/repos/cluster.git \
 --set git.secretName=flux-git-deploy \
---set git.pollInterval=30s \
+--set git.pollInterval=10s \
 --set git.config.secretName=gitconfig \
 --set git.config.enabled=true \
 --set-string git.config.data="${GITCONFIG}" \
@@ -50,12 +50,12 @@ fluxctl_install_cmd="fluxctl install --namespace "${FLUX_NAMESPACE}" --git-url=s
 
 function install_flux_with_fluxctl() {
   local eol=$'\n'
-  # use the local Flux image instead of the latest release, use a poll interval of 30s
-  # and disable registry polling
+  # Use the local Flux image instead of the latest release, use a poll interval of 10s
+  # (to make tests quicker) and disable registry polling (to avoid overloading kind)
   $fluxctl_install_cmd | \
     sed 's%docker\.io/fluxcd/flux:.*%fluxcd/flux:latest%' | \
-    sed "s%--git-email=foo%--git-email=foo\\$eol        - --git-poll-interval=30s%" | \
-    sed "s%--git-email=foo%--git-email=foo\\$eol        - --sync-interval=30s%" | \
+    sed "s%--git-email=foo%--git-email=foo\\$eol        - --git-poll-interval=10s%" | \
+    sed "s%--git-email=foo%--git-email=foo\\$eol        - --sync-interval=10s%" | \
     sed "s%--git-email=foo%--git-email=foo\\$eol        - --registry-exclude-image=\*%" | \
     kubectl apply -f -
   kubectl -n "${FLUX_NAMESPACE}" rollout status deployment/flux
