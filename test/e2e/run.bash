@@ -12,6 +12,7 @@ export E2E_DIR="${FLUX_ROOT_DIR}/test/e2e"
 export FIXTURES_DIR="${E2E_DIR}/fixtures"
 export KNOWN_HOSTS=$(cat "${FIXTURES_DIR}/known_hosts")
 export GITCONFIG=$(cat "${FIXTURES_DIR}/gitconfig")
+export DEMO_NAMESPACE=demo
 
 KIND_VERSION="v0.5.1"
 CACHE_DIR="${FLUX_ROOT_DIR}/cache/$CURRENT_OS_ARCH"
