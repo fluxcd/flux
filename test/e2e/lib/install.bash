@@ -15,30 +15,29 @@ function uninstall_tiller() {
 }
 
 function install_flux_with_helm() {
- local create_crds='true' 
- if kubectl get crd fluxhelmreleases.helm.integrations.flux.weave.works helmreleases.flux.weave.works > /dev/null 2>&1; then
-   # CRDs existed, don't try to create them
-   echo 'CRDs existed, setting helmOperator.createCRD=false'
-   create_crds='false'
- fi
+  local create_crds='true'
+  if kubectl get crd fluxhelmreleases.helm.integrations.flux.weave.works helmreleases.flux.weave.works > /dev/null 2>&1; then
+    # CRDs existed, don't try to create them
+    echo 'CRDs existed, setting helmOperator.createCRD=false'
+    create_crds='false'
+  fi
 
   helm install --name flux --wait \
---namespace "${FLUX_NAMESPACE}" \
---set image.repository=docker.io/fluxcd/flux \
---set image.tag=latest \
---set git.url=ssh://git@gitsrv/git-server/repos/cluster.git \
---set git.secretName=flux-git-deploy \
---set git.pollInterval=10s \
---set git.config.secretName=gitconfig \
---set git.config.enabled=true \
---set-string git.config.data="${GITCONFIG}" \
---set helmOperator.create=true `# just needed to add the HelmRelease CRD`\
---set helmOperator.git.secretName=flux-git-deploy \
---set helmOperator.createCRD="${create_crds}" \
---set registry.excludeImage=* \
---set-string ssh.known_hosts="${KNOWN_HOSTS}" \
-"${FLUX_ROOT_DIR}/chart/flux"
-
+    --namespace "${FLUX_NAMESPACE}" \
+    --set image.repository=docker.io/fluxcd/flux \
+    --set image.tag=latest \
+    --set git.url=ssh://git@gitsrv/git-server/repos/cluster.git \
+    --set git.secretName=flux-git-deploy \
+    --set git.pollInterval=10s \
+    --set git.config.secretName=gitconfig \
+    --set git.config.enabled=true \
+    --set-string git.config.data="${GITCONFIG}" \
+    --set helmOperator.create=true \
+    --set helmOperator.git.secretName=flux-git-deploy \
+    --set helmOperator.createCRD="${create_crds}" \
+    --set registry.excludeImage=* \
+    --set-string ssh.known_hosts="${KNOWN_HOSTS}" \
+    "${FLUX_ROOT_DIR}/chart/flux"
 }
 
 function uninstall_flux_with_helm() {
@@ -46,22 +45,23 @@ function uninstall_flux_with_helm() {
   kubectl delete crd helmreleases.flux.weave.works > /dev/null 2>&1
 }
 
-fluxctl_install_cmd="fluxctl install --namespace "${FLUX_NAMESPACE}" --git-url=ssh://git@gitsrv/git-server/repos/cluster.git --git-email=foo"
+fluxctl_install_cmd="fluxctl install --namespace ${FLUX_NAMESPACE} --git-url=ssh://git@gitsrv/git-server/repos/cluster.git --git-email=foo"
 
 function install_flux_with_fluxctl() {
   local eol=$'\n'
   # Use the local Flux image instead of the latest release, use a poll interval of 10s
   # (to make tests quicker) and disable registry polling (to avoid overloading kind)
-  $fluxctl_install_cmd | \
-    sed 's%docker\.io/fluxcd/flux:.*%fluxcd/flux:latest%' | \
-    sed "s%--git-email=foo%--git-email=foo\\$eol        - --git-poll-interval=10s%" | \
-    sed "s%--git-email=foo%--git-email=foo\\$eol        - --sync-interval=10s%" | \
-    sed "s%--git-email=foo%--git-email=foo\\$eol        - --registry-exclude-image=\*%" | \
+  $fluxctl_install_cmd |
+    sed 's%docker\.io/fluxcd/flux:.*%fluxcd/flux:latest%' |
+    sed "s%--git-email=foo%--git-email=foo\\$eol        - --git-poll-interval=10s%" |
+    sed "s%--git-email=foo%--git-email=foo\\$eol        - --sync-interval=10s%" |
+    sed "s%--git-email=foo%--git-email=foo\\$eol        - --registry-exclude-image=\*%" |
     kubectl apply -f -
   kubectl -n "${FLUX_NAMESPACE}" rollout status deployment/flux
   # Add the known hosts file manually (it's much easier than editing the manifests to add a volume)
-  local flux_podname=$(kubectl get pod -n flux-e2e -l name=flux -o jsonpath="{['items'][0].metadata.name}")
-  kubectl exec -n "${FLUX_NAMESPACE}" "${flux_podname}" -- sh -c "echo '$(cat ${FIXTURES_DIR}/known_hosts)' > /root/.ssh/known_hosts"
+  local flux_podname
+  flux_podname=$(kubectl get pod -n flux-e2e -l name=flux -o jsonpath="{['items'][0].metadata.name}")
+  kubectl exec -n "${FLUX_NAMESPACE}" "${flux_podname}" -- sh -c "echo '${KNOWN_HOSTS}' > /root/.ssh/known_hosts"
 }
 
 function uninstall_flux_with_fluxctl() {

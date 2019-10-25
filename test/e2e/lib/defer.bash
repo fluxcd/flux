@@ -7,8 +7,8 @@ function on_exit() {
     echo -e '\nRunning deferred items, please do not interrupt until they are done:'
   fi
   for I in "${on_exit_items[@]}"; do
-      echo "deferred: ${I}"
-      eval "${I}"
+    echo "deferred: ${I}"
+    eval "${I}"
   done
 }
 
