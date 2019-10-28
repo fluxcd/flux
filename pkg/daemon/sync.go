@@ -10,13 +10,11 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
-	"github.com/fluxcd/flux/pkg/cluster"
 	"github.com/fluxcd/flux/pkg/event"
 	"github.com/fluxcd/flux/pkg/git"
 	"github.com/fluxcd/flux/pkg/manifests"
 	"github.com/fluxcd/flux/pkg/metrics"
 	"github.com/fluxcd/flux/pkg/resource"
-	fluxsync "github.com/fluxcd/flux/pkg/sync"
 	"github.com/fluxcd/flux/pkg/update"
 )
 
@@ -59,6 +57,7 @@ func (d *Daemon) GetManifests(ctx context.Context, newRevision string) (map[stri
 		cancel()
 	}
 
+	// Run actual sync of resources on cluster
 	resourceStore, err := d.getManifestStore(working)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading the repository checkout")
@@ -68,6 +67,10 @@ func (d *Daemon) GetManifests(ctx context.Context, newRevision string) (map[stri
 
 // Sync starts the synchronization of the cluster with git.
 func (d *Daemon) PostSync(ctx context.Context, started time.Time, newRevision string, serviceIDs resource.IDSet, resourceErrors []event.ResourceError, ratchet revisionRatchet) error {
+
+	// Bump sync metrics
+	updateSyncManifestsMetric(len(serviceIDs)-len(resourceErrors), len(resourceErrors))
+
 	// Retrieve change set of commits we need to sync
 	c, err := getChangeSet(ctx, ratchet, newRevision, d.Repo, d.GitTimeout, d.GitConfig.Paths)
 	if err != nil {
@@ -133,37 +136,6 @@ func getChangeSet(ctx context.Context, state revisionRatchet, headRev string, re
 	cancel()
 
 	return c, err
-}
-
-// doSync runs the actual sync of workloads on the cluster. It returns
-// a map with all resources it applied and sync errors it encountered.
-func doSync(ctx context.Context, manifestsStore manifests.Store, clus cluster.Cluster, syncSetName string,
-	logger log.Logger) (map[string]resource.Resource, []event.ResourceError, error) {
-	resources, err := manifestsStore.GetAllResourcesByID(ctx)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "loading resources from repo")
-	}
-
-	var resourceErrors []event.ResourceError
-	if err := fluxsync.Sync(syncSetName, resources, clus); err != nil {
-		switch syncerr := err.(type) {
-		case cluster.SyncError:
-			logger.Log("err", err)
-			updateSyncManifestsMetric(len(resources)-len(syncerr), len(syncerr))
-			for _, e := range syncerr {
-				resourceErrors = append(resourceErrors, event.ResourceError{
-					ID:    e.ResourceID,
-					Path:  e.Source,
-					Error: e.Error.Error(),
-				})
-			}
-		default:
-			return nil, nil, err
-		}
-	} else {
-		updateSyncManifestsMetric(len(resources), 0)
-	}
-	return resources, resourceErrors, nil
 }
 
 func updateSyncManifestsMetric(success, failure int) {

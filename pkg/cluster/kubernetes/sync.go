@@ -86,7 +86,7 @@ func (c *Cluster) Sync(syncSet cluster.SyncSet) error {
 			logger.Log("info", "not applying resource; ignore annotation in cluster resource", "resource", cres.ResourceID())
 			continue
 		}
-		resBytes, err := applyMetadata(res, syncSet.Name, checkHex)
+		resBytes, err := ApplyMetadata(res, syncSet.Name, checkHex, nil)
 		if err == nil {
 			cs.stage("apply", res.ResourceID(), res.Source(), resBytes)
 		} else {
@@ -323,7 +323,7 @@ func (c *Cluster) getAllowedGCMarkedResourcesInSyncSet(syncSetName string) (map[
 	return allowedSyncSetGCMarkedResources, nil
 }
 
-func applyMetadata(res resource.Resource, syncSetName, checksum string) ([]byte, error) {
+func ApplyMetadata(res resource.Resource, syncSetName, checksum string, mixinLabels map[string]string) ([]byte, error) {
 	definition := map[interface{}]interface{}{}
 	if err := yaml.Unmarshal(res.Bytes(), &definition); err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("failed to parse yaml from %s", res.Source()))
@@ -332,7 +332,9 @@ func applyMetadata(res resource.Resource, syncSetName, checksum string) ([]byte,
 	mixin := map[string]interface{}{}
 
 	if syncSetName != "" {
-		mixinLabels := map[string]string{}
+		if mixinLabels == nil {
+			mixinLabels = map[string]string{}
+		}
 		mixinLabels[gcMarkLabel] = makeGCMark(syncSetName, res.ResourceID().String())
 		mixin["labels"] = mixinLabels
 	}
@@ -352,6 +354,11 @@ func applyMetadata(res resource.Resource, syncSetName, checksum string) ([]byte,
 		return nil, errors.Wrap(err, "failed to serialize yaml after applying metadata")
 	}
 	return bytes, nil
+}
+
+func AllowedForGC(obj *unstructured.Unstructured, syncSetName string) bool {
+	res := kuberesource{obj: obj, namespaced: obj.GetNamespace() != ""}
+	return res.GetGCMark() == makeGCMark(syncSetName, res.ResourceID().String())
 }
 
 func makeGCMark(syncSetName, resourceID string) string {

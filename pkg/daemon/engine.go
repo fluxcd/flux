@@ -2,7 +2,11 @@ package daemon
 
 import (
 	"context"
+	"crypto/sha1"
+	"encoding/hex"
 	"time"
+
+	"github.com/fluxcd/flux/pkg/cluster/kubernetes"
 
 	"github.com/go-kit/kit/log"
 
@@ -22,6 +26,7 @@ import (
 
 const (
 	clusterURL = "https://kubernetes.default.svc"
+	appLabel   = "fluxcd.io/application"
 )
 
 func NewEngine(
@@ -37,7 +42,7 @@ func NewEngine(
 
 	a := &engineAdaptor{namespace: namespace, daemon: daemon, ratchet: ratchet}
 	reconciliationSettings := &settingsutil.StaticReconciliationSettings{
-		AppInstanceLabelKey: "fluxcd.io/application",
+		AppInstanceLabelKey: appLabel,
 	}
 	creds := &settingsutil.StaticCredsStore{
 		Clusters: map[string]v1alpha1.Cluster{clusterURL: {Server: clusterURL}},
@@ -96,15 +101,36 @@ func (a *engineAdaptor) Generate(ctx context.Context, repo *v1alpha1.Repository,
 		return nil, err
 	}
 
+	syncSetName := makeGitConfigHash(a.daemon.Repo.Origin(), a.daemon.GitConfig)
 	mfst := make([]string, 0)
-	for i := range resources {
-		data, err := yaml.YAMLToJSON(resources[i].Bytes())
+	for _, res := range resources {
+		csum := sha1.Sum(res.Bytes())
+		checkHex := hex.EncodeToString(csum[:])
+		data, err := kubernetes.ApplyMetadata(res, syncSetName, checkHex, map[string]string{appLabel: "flux"})
+		if err != nil {
+			return nil, err
+		}
+
+		data, err = yaml.YAMLToJSON(data)
 		if err != nil {
 			return nil, err
 		}
 		mfst = append(mfst, string(data))
 	}
 	return &pkg.ManifestResponse{Namespace: a.namespace, Revision: resolvedRevision, Manifests: mfst}, nil
+}
+
+func (a *engineAdaptor) OnBeforeSync(appName string, tasks []pkg.SyncTaskInfo) ([]pkg.SyncTaskInfo, error) {
+	syncSetName := makeGitConfigHash(a.daemon.Repo.Origin(), a.daemon.GitConfig)
+	res := make([]pkg.SyncTaskInfo, 0)
+	for _, task := range tasks {
+		gc := task.TargetObj == nil && task.LiveObj != nil
+		unsafeGC := gc && !kubernetes.AllowedForGC(task.LiveObj, syncSetName)
+		if !unsafeGC {
+			res = append(res, task)
+		}
+	}
+	return res, nil
 }
 
 func (a *engineAdaptor) OnSyncCompleted(appName string, op v1alpha1.OperationState) error {
