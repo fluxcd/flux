@@ -44,7 +44,13 @@ fluxctl install --git-url 'git@github.com:<your username>/flux-get-started' | ku
 		"Email to use as git committer")
 	cmd.Flags().StringVar(&opts.Namespace, "namespace", getKubeConfigContextNamespace("default"),
 		"Cluster namespace where to install flux")
+	cmd.Flags().StringSliceVar(&opts.AdditionalFluxArgs, "extra-flux-arguments", []string{},
+		"Additional arguments for the Flux daemon container as key=value pairs, e.g. \"--git-readonly=true,--sync-state=secret\"")
 	cmd.Flags().StringVarP(&opts.outputDir, "output-dir", "o", "", "a directory in which to write individual manifests, rather than printing to stdout")
+
+	// Disable sorting of flags so they are displayed in the order we
+	// configure them for improved UX.
+	cmd.Flags().SortFlags = false
 
 	// Hide and deprecate "git-paths", which was wrongly introduced since its inconsistent with fluxd's git-path flag
 	cmd.Flags().MarkHidden("git-paths")
