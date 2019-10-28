@@ -20,7 +20,7 @@ function setup() {
 }
 
 @test "Basic sync test" {
-  # wait until flux deploys the workloads
+  # Wait until flux deploys the workloads
   poll_until_true 'workload podinfo' 'kubectl -n demo describe deployment/podinfo'
 
   # Clone the repo and check the sync tag

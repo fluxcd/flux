@@ -71,6 +71,44 @@ function uninstall_flux_with_fluxctl() {
   $fluxctl_install_cmd --namespace "${FLUX_NAMESPACE}" | kubectl delete -f -
 }
 
+flux_gpg_helm_template="helm template --name flux-gpg
+    --set image.repository=docker.io/fluxcd/flux
+    --set image.tag=latest
+    --set git.url=ssh://git@gitsrv/git-server/repos/cluster.git
+    --set git.secretName=flux-git-deploy
+    --set git.pollInterval=10s
+    --set git.config.secretName=gitconfig
+    --set git.config.enabled=true
+    --set registry.excludeImage=*"
+
+function install_flux_gpg() {
+  local key_id=${1}
+  local gpg_secret_name=${2:-flux-gpg-signing-key}
+
+  if [ -z "$key_id" ]; then
+    echo "no key ID provided" >&2
+    exit 1
+  fi
+
+  $flux_gpg_helm_template \
+    --namespace "${FLUX_NAMESPACE}" \
+    --set-string git.config.data="${GITCONFIG}" \
+    --set-string ssh.known_hosts="${KNOWN_HOSTS}" \
+    --set-string git.signingKey="$key_id" \
+    --set-string gpgKeys.secretName="$gpg_secret_name" \
+    "${FLUX_ROOT_DIR}/chart/flux" |
+    kubectl --namespace "${FLUX_NAMESPACE}" apply -f - >&3
+}
+
+function uninstall_flux_gpg() {
+  $flux_gpg_helm_template \
+    --namespace "${FLUX_NAMESPACE}" \
+    --set-string git.config.data="${GITCONFIG}" \
+    --set-string ssh.known_hosts="${KNOWN_HOSTS}" \
+    "${FLUX_ROOT_DIR}/chart/flux" |
+    kubectl --namespace "${FLUX_NAMESPACE}" delete -f - >&3
+}
+
 function install_git_srv() {
   local secret_name=${1:-flux-git-deploy}
   local external_access_result_var=${2}
