@@ -35,7 +35,7 @@ spec:
       volumes:
       - name: flux-git-deploy
         secret:
-          secretName: flux-git-deploy
+          secretName: $GIT_SECRET_NAME
       - name: git-server-data
         emptyDir: {}
 ---

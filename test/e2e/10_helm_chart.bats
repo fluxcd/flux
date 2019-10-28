@@ -4,6 +4,7 @@ load lib/install
 load lib/poll
 
 function setup() {
+  generate_ssh_secret
   install_git_srv
   install_tiller
   install_flux_with_helm
@@ -31,5 +32,6 @@ function teardown() {
   uninstall_flux_with_helm
   uninstall_tiller
   uninstall_git_srv
+  delete_generated_ssh_secret
   kubectl delete namespace demo
 }

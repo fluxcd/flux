@@ -47,11 +47,6 @@ fi
 kubectl create namespace "$FLUX_NAMESPACE"
 defer kubectl delete namespace "$FLUX_NAMESPACE"
 
-echo '>>> Creating ssh key and Git access secret'
-ssh-keygen -t rsa -N "" -f "${FIXTURES_DIR}/id_rsa"
-defer rm -f "${FIXTURES_DIR}/id_rsa" "${FIXTURES_DIR}/id_rsa.pub"
-kubectl create secret generic flux-git-deploy --namespace="${FLUX_NAMESPACE}" --from-file="${FIXTURES_DIR}/known_hosts" --from-file="${FIXTURES_DIR}/id_rsa" --from-file=identity="${FIXTURES_DIR}/id_rsa" --from-file="${FIXTURES_DIR}/id_rsa.pub"
-
 if [ "${USING_KIND}" = 'true' ]; then
   echo '>>> Loading images into the Kind cluster'
   kind --name "${KIND_CLUSTER}" load docker-image 'docker.io/fluxcd/flux:latest'
