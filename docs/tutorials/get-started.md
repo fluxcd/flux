@@ -52,6 +52,10 @@ fluxctl install \
 manifests. Again, if you want to get started with Helm, please refer to the
 [Helm section](get-started-helm.md).
 
+> **Note:** if you want to supply any additional arguments to the Flux
+> daemon you can provide them using `--extra-flux-arguments`, e.g.
+> `--extra-flux-arguments=--git-readonly=true,--sync-state=secret`.
+
 Wait for Flux to start:
 
 ```sh
