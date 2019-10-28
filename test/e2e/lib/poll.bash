@@ -19,8 +19,8 @@ function poll_until_true() {
   count=0
   until eval "$check_cmd"; do
     echo -n '.' >&3
-    sleep $wait_period
-    count=$(($count + 1))
+    sleep "$wait_period"
+    count=$((count + 1))
     if [[ ${count} -eq ${retries} ]]; then
       echo ' No more retries left!' >&3
       return 1 # fail

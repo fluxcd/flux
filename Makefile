@@ -1,11 +1,13 @@
 .DEFAULT: all
-.PHONY: all release-bins clean realclean test integration-test generate-deploy check-generated
+.PHONY: all release-bins clean realclean test integration-test generate-deploy check-generated lint-e2e
 
 SUDO := $(shell docker info > /dev/null 2> /dev/null || echo "sudo")
 
 TEST_FLAGS?=
 
 BATS_VERSION := 1.1.0
+SHELLCHECK_VERSION := 0.7.0
+SHFMT_VERSION := 2.6.4
 
 include docker/kubectl.version
 include docker/kustomize.version
@@ -17,7 +19,8 @@ include docker/helm.version
 ifeq ($(ARCH),)
 	ARCH=amd64
 endif
-CURRENT_OS_ARCH=$(shell echo `go env GOOS`-`go env GOARCH`)
+CURRENT_OS=$(shell go env GOOS)
+CURRENT_OS_ARCH=$(shell echo $(CURRENT_OS)-`go env GOARCH`)
 GOBIN?=$(shell echo `go env GOPATH`/bin)
 
 godeps=$(shell go list -deps -f '{{if not .Standard}}{{ $$dep := . }}{{range .GoFiles}}{{$$dep.Dir}}/{{.}} {{end}}{{end}}' $(1) | sed "s%${PWD}/%%g")
@@ -58,8 +61,16 @@ realclean: clean
 test: test/bin/helm test/bin/kubectl test/bin/kustomize $(GENERATED_TEMPLATES_FILE)
 	PATH="${PWD}/bin:${PWD}/test/bin:${PATH}" go test ${TEST_FLAGS} $(shell go list ./... | grep -v "^github.com/fluxcd/flux/vendor" | sort -u)
 
-e2e: test/bin/helm test/bin/kubectl test/e2e/bats build/.flux.done
+e2e: lint-e2e test/bin/helm test/bin/kubectl test/e2e/bats build/.flux.done
 	PATH="${PWD}/test/bin:${PATH}" CURRENT_OS_ARCH=$(CURRENT_OS_ARCH) test/e2e/run.bash
+
+lint-e2e: test/bin/shfmt test/bin/shellcheck
+	@# shfmt is not compatible with .bats files, so we preprocess them to turn '@test's into functions
+	for I in test/e2e/*.bats; do \
+	  ( cat "$$I" | sed 's%@test.*%test() {%' | test/bin/shfmt -i 2 -sr -d ) || (echo "Please shfmt file $$I"; exit 1 )\
+	done
+	test/bin/shfmt -i 2 -sr -l test/e2e/run.bash test/e2e/lib/* || ("Please run 'test/bin/shfmt -i 2 -sr -w' on e2e files"; exit 1)
+	test/bin/shellcheck test/e2e/run.bash test/e2e/lib/* test/e2e/*.bats
 
 build/.%.done: docker/Dockerfile.%
 	mkdir -p ./build/docker/$*
@@ -82,8 +93,10 @@ build/helm: cache/linux-$(ARCH)/helm-$(HELM_VERSION)
 test/bin/helm: cache/$(CURRENT_OS_ARCH)/helm-$(HELM_VERSION)
 build/kustomize: cache/linux-amd64/kustomize-$(KUSTOMIZE_VERSION)
 test/bin/kustomize: cache/$(CURRENT_OS_ARCH)/kustomize-$(KUSTOMIZE_VERSION)
+test/bin/shellcheck: cache/$(CURRENT_OS_ARCH)/shellcheck-$(SHELLCHECK_VERSION)
+test/bin/shfmt: cache/$(CURRENT_OS_ARCH)/shfmt-$(SHFMT_VERSION)
 
-build/kubectl test/bin/kubectl build/kustomize test/bin/kustomize build/helm test/bin/helm:
+build/kubectl test/bin/kubectl build/kustomize test/bin/kustomize build/helm test/bin/helm test/bin/shellcheck test/bin/shfmt:
 	mkdir -p build
 	cp $< $@
 	if [ `basename $@` = "build" -a $(CURRENT_OS_ARCH) = "linux-$(ARCH)" ]; then strip $@; fi
@@ -108,13 +121,22 @@ cache/%/helm-$(HELM_VERSION): docker/helm.version
 	tar -m -C ./cache -xzf cache/$*/helm-$(HELM_VERSION).tar.gz $*/helm
 	mv cache/$*/helm $@
 
-test/e2e/bats: cache/bats_v$(BATS_VERSION).tar.gz
+cache/%/shellcheck-$(SHELLCHECK_VERSION):
+	mkdir -p cache/$*
+	curl --fail -L -o cache/$*/shellcheck-$(SHELLCHECK_VERSION).tar.xz "https://storage.googleapis.com/shellcheck/shellcheck-v$(SHELLCHECK_VERSION).$(CURRENT_OS).x86_64.tar.xz"
+	tar -C cache/$* --strip-components 1 -xvJf cache/$*/shellcheck-$(SHELLCHECK_VERSION).tar.xz shellcheck-v$(SHELLCHECK_VERSION)/shellcheck
+	mv cache/$*/shellcheck $@
+
+cache/%/shfmt-$(SHFMT_VERSION):
+	mkdir -p cache/$*
+	curl --fail -L -o $@ "https://github.com/mvdan/sh/releases/download/v$(SHFMT_VERSION)/shfmt_v$(SHFMT_VERSION)_`echo $* | tr - _`"
+
+test/e2e/bats: cache/bats-v$(BATS_VERSION).tar.gz
 	mkdir -p $@
 	tar -C $@ --strip-components 1 -xzf $< 
 
-cache/bats_v$(BATS_VERSION).tar.gz:
+cache/bats-v$(BATS_VERSION).tar.gz:
 	curl --fail -L -o $@ https://github.com/bats-core/bats-core/archive/v$(BATS_VERSION).tar.gz
-
 
 $(GOBIN)/fluxctl: $(FLUXCTL_DEPS) $(GENERATED_TEMPLATES_FILE)
 	go install ./cmd/fluxctl
