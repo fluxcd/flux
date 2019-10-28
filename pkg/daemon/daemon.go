@@ -47,6 +47,7 @@ type Daemon struct {
 	Logger                    log.Logger
 	ManifestGenerationEnabled bool
 	GitSecretEnabled          bool
+	GC                        bool
 	// bookkeeping
 	*LoopVars
 }

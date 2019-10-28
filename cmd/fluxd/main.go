@@ -500,8 +500,6 @@ func main() {
 		client := kubernetes.MakeClusterClientset(clientset, dynamicClientset, fhrClientset, hrClientset, discoClientset)
 		allowedNamespaces := append(*k8sNamespaceWhitelist, *k8sAllowNamespace...)
 		k8sInst := kubernetes.NewCluster(client, sshKeyRing, logger, allowedNamespaces, *registryExcludeImage)
-		k8sInst.GC = *syncGC
-		k8sInst.DryGC = *dryGC
 
 		if err := k8sInst.Ping(); err != nil {
 			logger.Log("ping", err)
@@ -702,6 +700,7 @@ func main() {
 		Logger:                    log.With(logger, "component", "daemon"),
 		ManifestGenerationEnabled: *manifestGeneration,
 		GitSecretEnabled:          *gitSecret,
+		GC:                        *syncGC && !*dryGC,
 		LoopVars: &daemon.LoopVars{
 			SyncInterval:        *syncInterval,
 			SyncTimeout:         *syncTimeout,
@@ -711,7 +710,7 @@ func main() {
 			GitVerifySignatures: *gitVerifySignatures,
 		},
 	}
-	engine, err := daemon.NewEngine(namespace, *gitURL, dmn, *syncInterval, *syncGC && !*dryGC, logger)
+	engine, appclientset, err := daemon.NewEngine(namespace, *gitURL, dmn, *syncInterval, logger)
 	if err != nil {
 		logger.Log("err", err)
 		os.Exit(1)
@@ -747,7 +746,7 @@ func main() {
 	}
 
 	shutdownWg.Add(1)
-	go dmn.Loop(shutdown, shutdownWg, log.With(logger, "component", "sync-loop"), engine)
+	go dmn.Loop(shutdown, shutdownWg, log.With(logger, "component", "sync-loop"), engine, appclientset.ArgoprojV1alpha1().Applications(namespace))
 
 	cacheWarmer.Notify = dmn.AskForAutomatedWorkloadImageUpdates
 	cacheWarmer.Priority = dmn.ImageRefresh

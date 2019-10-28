@@ -16,9 +16,12 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/fluxcd/flux/pkg/api/v10"
+	v10 "github.com/fluxcd/flux/pkg/api/v10"
 	"github.com/fluxcd/flux/pkg/api/v11"
+	v11 "github.com/fluxcd/flux/pkg/api/v11"
 	"github.com/fluxcd/flux/pkg/api/v6"
-	"github.com/fluxcd/flux/pkg/api/v9"
+	v6 "github.com/fluxcd/flux/pkg/api/v6"
+	v9 "github.com/fluxcd/flux/pkg/api/v9"
 	"github.com/fluxcd/flux/pkg/cluster"
 	"github.com/fluxcd/flux/pkg/cluster/kubernetes"
 	"github.com/fluxcd/flux/pkg/cluster/mock"

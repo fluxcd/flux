@@ -6,6 +6,12 @@ import (
 	"sync"
 	"time"
 
+	appsv1 "github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
+
+	"github.com/argoproj/argo-cd/engine/util/argo"
+
+	"github.com/argoproj/argo-cd/engine/pkg/client/clientset/versioned/typed/application/v1alpha1"
+
 	"github.com/argoproj/argo-cd/engine/pkg"
 
 	"github.com/go-kit/kit/log"
@@ -16,13 +22,12 @@ import (
 )
 
 type LoopVars struct {
-	SyncInterval        time.Duration
-	SyncTimeout         time.Duration
-	AutomationInterval  time.Duration
-	GitTimeout          time.Duration
-	GitVerifySignatures bool
-	SyncState           fluxsync.State
-
+	SyncInterval           time.Duration
+	SyncTimeout            time.Duration
+	AutomationInterval     time.Duration
+	GitTimeout             time.Duration
+	GitVerifySignatures    bool
+	SyncState              fluxsync.State
 	initOnce               sync.Once
 	syncSoon               chan struct{}
 	automatedWorkloadsSoon chan struct{}
@@ -35,7 +40,7 @@ func (loop *LoopVars) ensureInit() {
 	})
 }
 
-func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger, engine pkg.Engine) {
+func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger, engine pkg.Engine, appIf v1alpha1.ApplicationInterface) {
 	defer wg.Done()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -91,7 +96,23 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger,
 		case <-automatedWorkloadTimer.C:
 			d.AskForAutomatedWorkloadImageUpdates()
 		case <-d.syncSoon:
-			_ = engine.RefreshApps()
+			if !syncTimer.Stop() {
+				select {
+				case <-syncTimer.C:
+				default:
+				}
+			}
+			if _, err := argo.SetAppOperation(appIf, appName, &appsv1.Operation{
+				Sync: &appsv1.SyncOperation{
+					Revision: d.GitConfig.Branch,
+					Prune:    d.GC,
+					DryRun:   false,
+				},
+			}); err != nil {
+				logger.Log("Failed to set sync operation:", err)
+			}
+
+			syncTimer.Reset(d.SyncInterval)
 		case <-syncTimer.C:
 			d.AskForSync()
 		case <-d.Repo.C:

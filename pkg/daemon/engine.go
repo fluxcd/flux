@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/pkg/client/clientset/versioned"
+
 	"github.com/fluxcd/flux/pkg/cluster/kubernetes"
 
 	"github.com/go-kit/kit/log"
@@ -27,6 +29,7 @@ import (
 const (
 	clusterURL = "https://kubernetes.default.svc"
 	appLabel   = "fluxcd.io/application"
+	appName    = "flux"
 )
 
 func NewEngine(
@@ -34,9 +37,8 @@ func NewEngine(
 	repoURL string,
 	daemon *Daemon,
 	syncInterval time.Duration,
-	prune bool,
 	logger log.Logger,
-) (pkg.Engine, error) {
+) (pkg.Engine, versioned.Interface, error) {
 	// In-memory sync tag state
 	ratchet := &lastKnownSyncState{logger: logger, state: daemon.SyncState}
 
@@ -56,7 +58,7 @@ func NewEngine(
 			SourceRepos:              []string{"*"},
 		},
 	}, v1alpha1.Application{
-		ObjectMeta: v1.ObjectMeta{Name: "flux", Namespace: namespace},
+		ObjectMeta: v1.ObjectMeta{Name: appName, Namespace: namespace},
 		Spec: v1alpha1.ApplicationSpec{
 			Source: v1alpha1.ApplicationSource{
 				RepoURL:        repoURL,
@@ -67,22 +69,17 @@ func NewEngine(
 				Server:    clusterURL,
 				Namespace: namespace,
 			},
-			SyncPolicy: &v1alpha1.SyncPolicy{
-				Automated: &v1alpha1.SyncPolicyAutomated{
-					Prune:    prune,
-					SelfHeal: true,
-				},
-			},
 			Project: "default",
 		},
 	})
-	return engine.NewEngine(namespace, reconciliationSettings, creds, a, appclient, a, a, syncInterval, syncInterval, 9999, 20, func() error {
+	engine, err := engine.NewEngine(namespace, reconciliationSettings, creds, a, appclient, a, a, syncInterval, syncInterval, 9999, 20, func() error {
 		return nil
 	}, func(overrides map[string]v1alpha1.ResourceOverride) *lua.VM {
 		return &lua.VM{
 			ResourceOverrides: overrides,
 		}
 	}, a)
+	return engine, appclient, err
 }
 
 type engineAdaptor struct {
@@ -106,7 +103,7 @@ func (a *engineAdaptor) Generate(ctx context.Context, repo *v1alpha1.Repository,
 	for _, res := range resources {
 		csum := sha1.Sum(res.Bytes())
 		checkHex := hex.EncodeToString(csum[:])
-		data, err := kubernetes.ApplyMetadata(res, syncSetName, checkHex, map[string]string{appLabel: "flux"})
+		data, err := kubernetes.ApplyMetadata(res, syncSetName, checkHex, map[string]string{appLabel: appName})
 		if err != nil {
 			return nil, err
 		}

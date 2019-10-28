@@ -89,11 +89,6 @@ func isAddon(obj k8sObject) bool {
 // Cluster is a handle to a Kubernetes API server.
 // (Typically, this code is deployed into the same cluster.)
 type Cluster struct {
-	// Do garbage collection when syncing resources
-	GC bool
-	// dry run garbage collection without syncing
-	DryGC bool
-
 	client ExtendedClient
 
 	version    string // string response for the version command.
