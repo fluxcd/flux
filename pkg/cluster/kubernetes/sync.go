@@ -2,11 +2,8 @@ package kubernetes
 
 import (
 	"bytes"
-	"context"
-	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"os/exec"
@@ -18,11 +15,7 @@ import (
 	"github.com/imdario/mergo"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
 
 	"github.com/fluxcd/flux/pkg/cluster"
@@ -40,126 +33,6 @@ const (
 	// We annotate objects with the checksum of their Git manifest to verify this.
 	checksumAnnotation = kresource.PolicyPrefix + "sync-checksum"
 )
-
-// Sync takes a definition of what should be running in the cluster,
-// and attempts to make the cluster conform. An error return does not
-// necessarily indicate complete failure; some resources may succeed
-// in being synced, and some may fail (for example, they may be
-// malformed).
-func (c *Cluster) Sync(syncSet cluster.SyncSet) error {
-	logger := log.With(c.logger, "method", "Sync")
-
-	// Keep track of the checksum of each resource, so we can compare
-	// them during garbage collection.
-	checksums := map[string]string{}
-
-	// NB we get all resources, since we care about leaving unsynced,
-	// _ignored_ resources alone.
-	clusterResources, err := c.getAllowedResourcesBySelector("")
-	if err != nil {
-		return errors.Wrap(err, "collating resources in cluster for sync")
-	}
-
-	cs := makeChangeSet()
-	var errs cluster.SyncError
-	var excluded []string
-	for _, res := range syncSet.Resources {
-		resID := res.ResourceID()
-		id := resID.String()
-		if !c.IsAllowedResource(resID) {
-			excluded = append(excluded, id)
-			continue
-		}
-		// make a record of the checksum, whether we stage it to
-		// be applied or not, so that we don't delete it later.
-		csum := sha1.Sum(res.Bytes())
-		checkHex := hex.EncodeToString(csum[:])
-		checksums[id] = checkHex
-		if res.Policies().Has(policy.Ignore) {
-			logger.Log("info", "not applying resource; ignore annotation in file", "resource", res.ResourceID(), "source", res.Source())
-			continue
-		}
-		// It's possible to give a cluster resource the "ignore"
-		// annotation directly -- e.g., with `kubectl annotate` -- so
-		// we need to examine the cluster resource here too.
-		if cres, ok := clusterResources[id]; ok && cres.Policies().Has(policy.Ignore) {
-			logger.Log("info", "not applying resource; ignore annotation in cluster resource", "resource", cres.ResourceID())
-			continue
-		}
-		resBytes, err := ApplyMetadata(res, syncSet.Name, checkHex, nil)
-		if err == nil {
-			cs.stage("apply", res.ResourceID(), res.Source(), resBytes)
-		} else {
-			errs = append(errs, cluster.ResourceError{ResourceID: res.ResourceID(), Source: res.Source(), Error: err})
-			break
-		}
-	}
-
-	if len(excluded) > 0 {
-		logger.Log("warning", "not applying resources; excluded by namespace constraints", "resources", strings.Join(excluded, ","))
-	}
-
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.muSyncErrors.RLock()
-	if applyErrs := c.applier.apply(logger, cs, c.syncErrors); len(applyErrs) > 0 {
-		errs = append(errs, applyErrs...)
-	}
-	c.muSyncErrors.RUnlock()
-
-	if c.GC || c.DryGC {
-		deleteErrs, gcFailure := c.collectGarbage(syncSet, checksums, logger, c.DryGC)
-		if gcFailure != nil {
-			return gcFailure
-		}
-		errs = append(errs, deleteErrs...)
-	}
-
-	// If `nil`, errs is a cluster.SyncError(nil) rather than error(nil), so it cannot be returned directly.
-	if errs == nil {
-		return nil
-	}
-
-	// It is expected that Cluster.Sync is invoked with *all* resources.
-	// Otherwise it will override previously recorded sync errors.
-	c.setSyncErrors(errs)
-	return errs
-}
-
-func (c *Cluster) collectGarbage(
-	syncSet cluster.SyncSet,
-	checksums map[string]string,
-	logger log.Logger,
-	dryRun bool) (cluster.SyncError, error) {
-
-	orphanedResources := makeChangeSet()
-
-	clusterResources, err := c.getAllowedGCMarkedResourcesInSyncSet(syncSet.Name)
-	if err != nil {
-		return nil, errors.Wrap(err, "collating resources in cluster for calculating garbage collection")
-	}
-
-	for resourceID, res := range clusterResources {
-		actual := res.GetChecksum()
-		expected, ok := checksums[resourceID]
-
-		switch {
-		case !ok: // was not recorded as having been staged for application
-			c.logger.Log("info", "cluster resource not in resources to be synced; deleting", "dry-run", dryRun, "resource", resourceID)
-			if !dryRun {
-				orphanedResources.stage("delete", res.ResourceID(), "<cluster>", res.IdentifyingBytes())
-			}
-		case actual != expected:
-			c.logger.Log("warning", "resource to be synced has not been updated; skipping", "dry-run", dryRun, "resource", resourceID)
-			continue
-		default:
-			// The checksum is the same, indicating that it was
-			// applied earlier. Leave it alone.
-		}
-	}
-
-	return c.applier.apply(logger, orphanedResources, nil), nil
-}
 
 // --- internals in support of Sync
 
@@ -200,127 +73,6 @@ func (r *kuberesource) GetChecksum() string {
 
 func (r *kuberesource) GetGCMark() string {
 	return r.obj.GetLabels()[gcMarkLabel]
-}
-
-func (c *Cluster) getAllowedResourcesBySelector(selector string) (map[string]*kuberesource, error) {
-	listOptions := meta_v1.ListOptions{}
-	if selector != "" {
-		listOptions.LabelSelector = selector
-	}
-
-	_, resources, err := c.client.discoveryClient.ServerGroupsAndResources()
-	if err != nil {
-		discErr, ok := err.(*discovery.ErrGroupDiscoveryFailed)
-		if !ok {
-			return nil, err
-		}
-		for gv, e := range discErr.Groups {
-			if gv.Group == "metrics" || strings.HasSuffix(gv.Group, "metrics.k8s.io") {
-				// The Metrics API tends to be misconfigured, causing errors.
-				// We just ignore them, since it doesn't make sense to sync metrics anyways.
-				continue
-			}
-			// Tolerate empty GroupVersions due to e.g. misconfigured custom metrics
-			if e.Error() != fmt.Sprintf("Got empty response for: %v", gv) {
-				return nil, err
-			}
-		}
-	}
-
-	result := map[string]*kuberesource{}
-
-	contains := func(a []string, x string) bool {
-		for _, n := range a {
-			if x == n {
-				return true
-			}
-		}
-		return false
-	}
-
-	for _, resource := range resources {
-		for _, apiResource := range resource.APIResources {
-			verbs := apiResource.Verbs
-			if !contains(verbs, "list") {
-				continue
-			}
-			groupVersion, err := schema.ParseGroupVersion(resource.GroupVersion)
-			if err != nil {
-				return nil, err
-			}
-			gvr := groupVersion.WithResource(apiResource.Name)
-			list, err := c.listAllowedResources(apiResource.Namespaced, gvr, listOptions)
-			if err != nil {
-				if apierrors.IsForbidden(err) {
-					// we are not allowed to list this resource but
-					// shouldn't prevent us from listing the rest
-					continue
-				}
-				return nil, err
-			}
-
-			for i, item := range list {
-				apiVersion := item.GetAPIVersion()
-				kind := item.GetKind()
-
-				itemDesc := fmt.Sprintf("%s:%s", apiVersion, kind)
-				// https://github.com/kontena/k8s-client/blob/6e9a7ba1f03c255bd6f06e8724a1c7286b22e60f/lib/k8s/stack.rb#L17-L22
-				if itemDesc == "v1:ComponentStatus" || itemDesc == "v1:Endpoints" {
-					continue
-				}
-				// TODO(michael) also exclude anything that has an ownerReference (that isn't "standard"?)
-
-				res := &kuberesource{obj: &list[i], namespaced: apiResource.Namespaced}
-				result[res.ResourceID().String()] = res
-			}
-		}
-	}
-
-	return result, nil
-}
-
-func (c *Cluster) listAllowedResources(
-	namespaced bool, gvr schema.GroupVersionResource, options meta_v1.ListOptions) ([]unstructured.Unstructured, error) {
-	if !namespaced {
-		// The resource is not namespaced, everything is allowed
-		resourceClient := c.client.dynamicClient.Resource(gvr)
-		data, err := resourceClient.List(options)
-		if err != nil {
-			return nil, err
-		}
-		return data.Items, nil
-	}
-
-	// List resources only from the allowed namespaces
-	namespaces, err := c.getAllowedAndExistingNamespaces(context.Background())
-	if err != nil {
-		return nil, err
-	}
-	var result []unstructured.Unstructured
-	for _, ns := range namespaces {
-		data, err := c.client.dynamicClient.Resource(gvr).Namespace(ns).List(options)
-		if err != nil {
-			return result, err
-		}
-		result = append(result, data.Items...)
-	}
-	return result, nil
-}
-
-func (c *Cluster) getAllowedGCMarkedResourcesInSyncSet(syncSetName string) (map[string]*kuberesource, error) {
-	allGCMarkedResources, err := c.getAllowedResourcesBySelector(gcMarkLabel) // means "gcMarkLabel exists"
-	if err != nil {
-		return nil, err
-	}
-	allowedSyncSetGCMarkedResources := map[string]*kuberesource{}
-	for resID, kres := range allGCMarkedResources {
-		// Discard resources whose mark doesn't match their resource ID
-		if kres.GetGCMark() != makeGCMark(syncSetName, resID) {
-			continue
-		}
-		allowedSyncSetGCMarkedResources[resID] = kres
-	}
-	return allowedSyncSetGCMarkedResources, nil
 }
 
 func ApplyMetadata(res resource.Resource, syncSetName, checksum string, mixinLabels map[string]string) ([]byte, error) {
