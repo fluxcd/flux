@@ -378,7 +378,7 @@ metadata:
 		}
 
 		// Needed to get from KubeManifest to resource.Resource
-		resources, err := manifests.setEffectiveNamespaces(resources0)
+		resources, err := manifests.manifestToResources(resources0)
 		if err != nil {
 			t.Fatal(err)
 		}

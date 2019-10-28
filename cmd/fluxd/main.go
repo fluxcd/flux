@@ -498,9 +498,8 @@ func main() {
 		logger.Log("kubectl", kubectl)
 
 		client := kubernetes.MakeClusterClientset(clientset, dynamicClientset, fhrClientset, hrClientset, discoClientset)
-		kubectlApplier := kubernetes.NewKubectl(kubectl, restClientConfig)
 		allowedNamespaces := append(*k8sNamespaceWhitelist, *k8sAllowNamespace...)
-		k8sInst := kubernetes.NewCluster(client, kubectlApplier, sshKeyRing, logger, allowedNamespaces, *registryExcludeImage)
+		k8sInst := kubernetes.NewCluster(client, sshKeyRing, logger, allowedNamespaces, *registryExcludeImage)
 		k8sInst.GC = *syncGC
 		k8sInst.DryGC = *dryGC
 
@@ -512,14 +511,7 @@ func main() {
 
 		k8s = k8sInst
 		imageCreds = k8sInst.ImagesToFetch
-		// There is only one way we currently interpret a repo of
-		// files as manifests, and that's as Kubernetes yamels.
-		namespacer, err := kubernetes.NewNamespacer(discoClientset)
-		if err != nil {
-			logger.Log("err", err)
-			os.Exit(1)
-		}
-		k8sManifests = kubernetes.NewManifests(namespacer, logger)
+		k8sManifests = kubernetes.NewManifests(logger)
 	}
 
 	// Wrap the procedure for collecting images to scan

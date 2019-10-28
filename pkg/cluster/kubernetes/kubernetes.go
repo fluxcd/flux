@@ -94,8 +94,7 @@ type Cluster struct {
 	// dry run garbage collection without syncing
 	DryGC bool
 
-	client  ExtendedClient
-	applier Applier
+	client ExtendedClient
 
 	version    string // string response for the version command.
 	logger     log.Logger
@@ -114,10 +113,9 @@ type Cluster struct {
 }
 
 // NewCluster returns a usable cluster.
-func NewCluster(client ExtendedClient, applier Applier, sshKeyRing ssh.KeyRing, logger log.Logger, allowedNamespaces []string, imageExcludeList []string) *Cluster {
+func NewCluster(client ExtendedClient, sshKeyRing ssh.KeyRing, logger log.Logger, allowedNamespaces []string, imageExcludeList []string) *Cluster {
 	c := &Cluster{
 		client:            client,
-		applier:           applier,
 		logger:            logger,
 		sshKeyRing:        sshKeyRing,
 		allowedNamespaces: allowedNamespaces,
@@ -216,15 +214,6 @@ func (c *Cluster) AllWorkloads(ctx context.Context, restrictToNamespace string) 
 	}
 
 	return allworkloads, nil
-}
-
-func (c *Cluster) setSyncErrors(errs cluster.SyncError) {
-	c.muSyncErrors.Lock()
-	defer c.muSyncErrors.Unlock()
-	c.syncErrors = make(map[resource.ID]error)
-	for _, e := range errs {
-		c.syncErrors[e.ResourceID] = e.Error
-	}
 }
 
 func (c *Cluster) Ping() error {
