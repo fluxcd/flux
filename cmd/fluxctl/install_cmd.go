@@ -44,6 +44,8 @@ fluxctl install --git-url 'git@github.com:<your username>/flux-get-started' | ku
 		"Email to use as git committer")
 	cmd.Flags().StringVar(&opts.Namespace, "namespace", getKubeConfigContextNamespace("default"),
 		"Cluster namespace where to install flux")
+	cmd.Flags().StringVar(&opts.Image, "flux-image", "",
+		"Image (including the tag) the Flux daemon container should run, defaults to the latest release for this fluxctl version")
 	cmd.Flags().StringSliceVar(&opts.AdditionalFluxArgs, "extra-flux-arguments", []string{},
 		"Additional arguments for the Flux daemon container as key=value pairs, e.g. \"--git-readonly=true,--sync-state=secret\"")
 	cmd.Flags().StringVarP(&opts.outputDir, "output-dir", "o", "", "a directory in which to write individual manifests, rather than printing to stdout")

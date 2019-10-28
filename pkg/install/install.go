@@ -14,7 +14,11 @@ import (
 
 //go:generate go run generate.go
 
+// defaultImage holds the default image for if none is given.
+const defaultImage = "docker.io/fluxcd/flux:1.15.0"
+
 type TemplateParameters struct {
+	Image              string
 	GitURL             string
 	GitBranch          string
 	GitPaths           []string
@@ -23,6 +27,13 @@ type TemplateParameters struct {
 	GitEmail           string
 	Namespace          string
 	AdditionalFluxArgs []string
+}
+
+func (tp TemplateParameters) ImageOrDefault() string {
+	if tp.Image == "" {
+		return defaultImage
+	}
+	return tp.Image
 }
 
 func FillInTemplates(params TemplateParameters) (map[string][]byte, error) {
