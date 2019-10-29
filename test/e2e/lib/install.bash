@@ -69,8 +69,32 @@ function uninstall_flux_with_fluxctl() {
 
 }
 
+function generate_ssh_secret() {
+  local secret_name=${1:-flux-git-deploy}
+  local gen_dir
+  gen_dir=$(mktemp -d)
+
+  ssh-keygen -t rsa -N "" -f "$gen_dir/id_rsa"
+  kubectl create secret generic "$secret_name" \
+    --namespace="${FLUX_NAMESPACE}" \
+    --from-file="${FIXTURES_DIR}/known_hosts" \
+    --from-file="$gen_dir/id_rsa" \
+    --from-file=identity="$gen_dir/id_rsa" \
+    --from-file="$gen_dir/id_rsa.pub"
+  rm -rf "$gen_dir"
+  echo "$secret_name"
+}
+
+function delete_generated_ssh_secret() {
+  local secret_name=${1:-flux-git-deploy}
+  kubectl delete -n "${FLUX_NAMESPACE}" secret "$secret_name"
+}
+
 function install_git_srv() {
-  kubectl apply -n "${FLUX_NAMESPACE}" -f "${E2E_DIR}/fixtures/gitsrv.yaml"
+  local secret_name=${1:-flux-git-deploy}
+
+  sed "s/\$GIT_SECRET_NAME/$secret_name/" <"${E2E_DIR}/fixtures/gitsrv.yaml" | kubectl apply -n "${FLUX_NAMESPACE}" -f -
+
   kubectl -n "${FLUX_NAMESPACE}" rollout status deployment/gitsrv
 }
 

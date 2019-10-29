@@ -4,6 +4,7 @@ load lib/install
 load lib/poll
 
 function setup() {
+  generate_ssh_secret
   install_git_srv
   install_flux_with_fluxctl
 }
@@ -25,5 +26,6 @@ function teardown() {
 
   uninstall_flux_with_fluxctl
   uninstall_git_srv
+  delete_generated_ssh_secret
   kubectl delete namespace demo
 }
