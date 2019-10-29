@@ -4,6 +4,9 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/engine/util/settings"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,10 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/fluxcd/flux/pkg/api/v10"
-	v10 "github.com/fluxcd/flux/pkg/api/v10"
 	"github.com/fluxcd/flux/pkg/api/v11"
-	v11 "github.com/fluxcd/flux/pkg/api/v11"
-	"github.com/fluxcd/flux/pkg/api/v6"
 	v6 "github.com/fluxcd/flux/pkg/api/v6"
 	v9 "github.com/fluxcd/flux/pkg/api/v9"
 	"github.com/fluxcd/flux/pkg/cluster"
@@ -728,7 +728,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *mock.Mock, *mockEventWr
 	// Jobs queue (starts itself)
 	jobs := job.NewQueue(jshutdown, jwg)
 
-	manifests := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
+	manifests := kubernetes.NewManifests(log.NewLogfmtLogger(os.Stdout))
 
 	gitSync, _ := fluxsync.NewGitTagSyncProvider(repo, syncTag, "", false, params)
 
@@ -753,7 +753,8 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *mock.Mock, *mockEventWr
 		}
 
 		dwg.Add(1)
-		go d.Loop(dshutdown, dwg, logger)
+		appclient := settings.NewStaticAppClientSet(v1alpha1.AppProject{}, v1alpha1.Application{ObjectMeta: v1.ObjectMeta{Name: "flux"}})
+		go d.Loop(dshutdown, dwg, logger, appclient.ArgoprojV1alpha1().Applications("default"))
 	}
 
 	stop := func() {

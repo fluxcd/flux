@@ -6,7 +6,10 @@ import (
 	"encoding/hex"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/util/kube"
+
 	"github.com/argoproj/argo-cd/engine/pkg/client/clientset/versioned"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/fluxcd/flux/pkg/cluster/kubernetes"
 
@@ -32,17 +35,17 @@ const (
 	appName    = "flux"
 )
 
-func NewEngine(
+func RunEngine(
 	namespace string,
 	repoURL string,
 	daemon *Daemon,
 	syncInterval time.Duration,
 	logger log.Logger,
-) (pkg.Engine, versioned.Interface, error) {
+) (versioned.Interface, error) {
 	// In-memory sync tag state
 	ratchet := &lastKnownSyncState{logger: logger, state: daemon.SyncState}
 
-	a := &engineAdaptor{namespace: namespace, daemon: daemon, ratchet: ratchet}
+	a := &engineAdaptor{namespace: namespace, daemon: daemon, ratchet: ratchet, initialized: make(chan bool)}
 	reconciliationSettings := &settingsutil.StaticReconciliationSettings{
 		AppInstanceLabelKey: appLabel,
 	}
@@ -79,13 +82,32 @@ func NewEngine(
 			ResourceOverrides: overrides,
 		}
 	}, a)
-	return engine, appclient, err
+
+	if err != nil {
+		return nil, err
+	}
+	go engine.Run(context.Background(), 1, 1)
+	<-a.initialized
+	return appclient, err
 }
 
 type engineAdaptor struct {
-	namespace string
-	daemon    *Daemon
-	ratchet   *lastKnownSyncState
+	namespace   string
+	daemon      *Daemon
+	ratchet     *lastKnownSyncState
+	initialized chan bool
+}
+
+func (a *engineAdaptor) OnClusterInitialized(server string) {
+	a.initialized <- true
+}
+
+func (a *engineAdaptor) OnResourceUpdated(un *unstructured.Unstructured) {
+	a.daemon.Cluster.OnResourceUpdated(un)
+}
+
+func (a *engineAdaptor) OnResourceRemoved(key kube.ResourceKey) {
+	a.daemon.Cluster.OnResourceRemoved(key)
 }
 
 func (a *engineAdaptor) Generate(ctx context.Context, repo *v1alpha1.Repository, revision string, source *v1alpha1.ApplicationSource, setting *pkg.ManifestGenerationSettings) (*pkg.ManifestResponse, error) {

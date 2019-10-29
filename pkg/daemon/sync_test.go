@@ -63,7 +63,7 @@ func daemon(t *testing.T) (*Daemon, func()) {
 		UserEmail: gitEmail,
 	}
 
-	manifests := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
+	manifests := kubernetes.NewManifests(log.NewLogfmtLogger(os.Stdout))
 
 	jobs := job.NewQueue(shutdown, wg)
 	d := &Daemon{

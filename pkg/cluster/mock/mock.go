@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"context"
 
+	"github.com/argoproj/argo-cd/engine/util/kube"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
 	"github.com/fluxcd/flux/pkg/cluster"
 	"github.com/fluxcd/flux/pkg/image"
 	"github.com/fluxcd/flux/pkg/manifests"
@@ -27,6 +30,16 @@ type Mock struct {
 	CreateManifestPatchFunc       func(originalManifests, modifiedManifests []byte, originalSource, modifiedSource string) ([]byte, error)
 	ApplyManifestPatchFunc        func(originalManifests, patch []byte, originalSource, patchSource string) ([]byte, error)
 	AppendManifestToBufferFunc    func([]byte, *bytes.Buffer) error
+	OnResourceUpdatedFunc         func(un *unstructured.Unstructured)
+	OnResourceRemovedFunc         func(key kube.ResourceKey)
+}
+
+func (m *Mock) OnResourceUpdated(un *unstructured.Unstructured) {
+	m.OnResourceUpdatedFunc(un)
+}
+
+func (m *Mock) OnResourceRemoved(key kube.ResourceKey) {
+	m.OnResourceRemovedFunc(key)
 }
 
 var _ cluster.Cluster = &Mock{}

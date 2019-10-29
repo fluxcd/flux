@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 
+	"github.com/argoproj/argo-cd/engine/util/kube"
+
 	"github.com/fluxcd/flux/pkg/policy"
 	"github.com/fluxcd/flux/pkg/resource"
 	"github.com/fluxcd/flux/pkg/ssh"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 // Constants for workload ready status. These are defined here so that
@@ -31,6 +34,8 @@ type Cluster interface {
 	Ping() error
 	Export(ctx context.Context) ([]byte, error)
 	PublicSSHKey(regenerate bool) (ssh.PublicKey, error)
+	OnResourceUpdated(un *unstructured.Unstructured)
+	OnResourceRemoved(key kube.ResourceKey)
 }
 
 // RolloutStatus describes numbers of pods in different states and

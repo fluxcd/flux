@@ -6,13 +6,13 @@ import (
 	"sync"
 	"time"
 
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	appsv1 "github.com/argoproj/argo-cd/engine/pkg/apis/application/v1alpha1"
 
 	"github.com/argoproj/argo-cd/engine/util/argo"
 
 	"github.com/argoproj/argo-cd/engine/pkg/client/clientset/versioned/typed/application/v1alpha1"
-
-	"github.com/argoproj/argo-cd/engine/pkg"
 
 	"github.com/go-kit/kit/log"
 
@@ -40,11 +40,8 @@ func (loop *LoopVars) ensureInit() {
 	})
 }
 
-func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger, engine pkg.Engine, appIf v1alpha1.ApplicationInterface) {
+func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger, appIf v1alpha1.ApplicationInterface) {
 	defer wg.Done()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go engine.Run(ctx, 1, 1)
 
 	// We want to sync at least every `SyncInterval`. Being told to
 	// sync, or completing a job, may intervene (in which case,
@@ -102,14 +99,15 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger,
 				default:
 				}
 			}
-			if _, err := argo.SetAppOperation(appIf, appName, &appsv1.Operation{
-				Sync: &appsv1.SyncOperation{
-					Revision: d.GitConfig.Branch,
-					Prune:    d.GC,
-					DryRun:   false,
-				},
-			}); err != nil {
-				logger.Log("Failed to set sync operation:", err)
+
+			if app, err := appIf.Get(appName, v1.GetOptions{}); err == nil && app.Operation == nil {
+				_, _ = argo.SetAppOperation(appIf, appName, &appsv1.Operation{
+					Sync: &appsv1.SyncOperation{
+						Revision: d.GitConfig.Branch,
+						Prune:    d.GC,
+						DryRun:   false,
+					},
+				})
 			}
 
 			syncTimer.Reset(d.SyncInterval)

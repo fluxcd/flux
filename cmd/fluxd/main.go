@@ -24,10 +24,8 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
-	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	k8sruntime "k8s.io/apimachinery/pkg/util/runtime"
-	k8sclientdynamic "k8s.io/client-go/dynamic"
 	k8sclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -428,11 +426,6 @@ func main() {
 			logger.Log("err", err)
 			os.Exit(1)
 		}
-		dynamicClientset, err := k8sclientdynamic.NewForConfig(restClientConfig)
-		if err != nil {
-			logger.Log("err", err)
-			os.Exit(1)
-		}
 
 		fhrClientset, err := hrclient.NewForConfig(restClientConfig)
 		if err != nil {
@@ -445,13 +438,6 @@ func main() {
 			logger.Log("error", fmt.Sprintf("Error building helm operator clientset: %v", err))
 			os.Exit(1)
 		}
-
-		crdClient, err := crd.NewForConfig(restClientConfig)
-		if err != nil {
-			logger.Log("error", fmt.Sprintf("Error building API extensions (CRD) clientset: %v", err))
-			os.Exit(1)
-		}
-		discoClientset := kubernetes.MakeCachedDiscovery(clientset.Discovery(), crdClient, shutdown)
 
 		serverVersion, err := clientset.ServerVersion()
 		if err != nil {
@@ -497,7 +483,7 @@ func main() {
 		}
 		logger.Log("kubectl", kubectl)
 
-		client := kubernetes.MakeClusterClientset(clientset, dynamicClientset, fhrClientset, hrClientset, discoClientset)
+		client := kubernetes.MakeClusterClientset(clientset, fhrClientset, hrClientset)
 		allowedNamespaces := append(*k8sNamespaceWhitelist, *k8sAllowNamespace...)
 		k8sInst := kubernetes.NewCluster(client, sshKeyRing, logger, allowedNamespaces, *registryExcludeImage)
 
@@ -710,7 +696,7 @@ func main() {
 			GitVerifySignatures: *gitVerifySignatures,
 		},
 	}
-	engine, appclientset, err := daemon.NewEngine(namespace, *gitURL, dmn, *syncInterval, logger)
+	appclientset, err := daemon.RunEngine(namespace, *gitURL, dmn, *syncInterval, logger)
 	if err != nil {
 		logger.Log("err", err)
 		os.Exit(1)
@@ -746,7 +732,7 @@ func main() {
 	}
 
 	shutdownWg.Add(1)
-	go dmn.Loop(shutdown, shutdownWg, log.With(logger, "component", "sync-loop"), engine, appclientset.ArgoprojV1alpha1().Applications(namespace))
+	go dmn.Loop(shutdown, shutdownWg, log.With(logger, "component", "sync-loop"), appclientset.ArgoprojV1alpha1().Applications(namespace))
 
 	cacheWarmer.Notify = dmn.AskForAutomatedWorkloadImageUpdates
 	cacheWarmer.Priority = dmn.ImageRefresh
