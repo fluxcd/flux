@@ -45,13 +45,13 @@ function uninstall_flux_with_helm() {
   kubectl delete crd helmreleases.flux.weave.works > /dev/null 2>&1
 }
 
-fluxctl_install_cmd="fluxctl install --namespace ${FLUX_NAMESPACE} --git-url=ssh://git@gitsrv/git-server/repos/cluster.git --git-email=foo"
+fluxctl_install_cmd="fluxctl install --git-url=ssh://git@gitsrv/git-server/repos/cluster.git --git-email=foo"
 
 function install_flux_with_fluxctl() {
   local eol=$'\n'
   # Use the local Flux image instead of the latest release, use a poll interval of 10s
   # (to make tests quicker) and disable registry polling (to avoid overloading kind)
-  $fluxctl_install_cmd |
+  $fluxctl_install_cmd --namespace "${FLUX_NAMESPACE}" |
     sed 's%docker\.io/fluxcd/flux:.*%fluxcd/flux:latest%' |
     sed "s%--git-email=foo%--git-email=foo\\$eol        - --git-poll-interval=10s%" |
     sed "s%--git-email=foo%--git-email=foo\\$eol        - --sync-interval=10s%" |
@@ -65,8 +65,7 @@ function install_flux_with_fluxctl() {
 }
 
 function uninstall_flux_with_fluxctl() {
-  $fluxctl_install_cmd | kubectl delete -f -
-
+  $fluxctl_install_cmd --namespace "${FLUX_NAMESPACE}" | kubectl delete -f -
 }
 
 function generate_ssh_secret() {

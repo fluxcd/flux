@@ -1,9 +1,12 @@
 #!/usr/bin/env bats
 
+load lib/env
 load lib/install
 load lib/poll
 
 function setup() {
+  setup_env
+  kubectl create namespace "$FLUX_NAMESPACE"
   generate_ssh_secret
   install_git_srv
   install_tiller
@@ -32,6 +35,7 @@ function teardown() {
   uninstall_flux_with_helm
   uninstall_tiller
   uninstall_git_srv
-  delete_generated_ssh_secret
-  kubectl delete namespace demo
+  kubectl delete namespace "$DEMO_NAMESPACE"
+  # This also takes care of removing the generated secret
+  kubectl delete namespace "$FLUX_NAMESPACE"
 }

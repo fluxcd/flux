@@ -5,20 +5,12 @@ set -o errexit
 # This script runs the bats tests, first ensuring there is a kubernetes cluster available,
 # with a flux namespace and a git secret ready to use
 
-# Global variables to be used in the libraries/tests
-export FLUX_NAMESPACE=flux-e2e
-FLUX_ROOT_DIR=$(git rev-parse --show-toplevel)
-export FLUX_ROOT_DIR
-export E2E_DIR="${FLUX_ROOT_DIR}/test/e2e"
-export FIXTURES_DIR="${E2E_DIR}/fixtures"
-KNOWN_HOSTS=$(cat "${FIXTURES_DIR}/known_hosts")
-export KNOWN_HOSTS
-GITCONFIG=$(cat "${FIXTURES_DIR}/gitconfig")
-export GITCONFIG
-export DEMO_NAMESPACE=demo
+# Directory paths we need to be aware of
+FLUX_ROOT_DIR="$(git rev-parse --show-toplevel)"
+E2E_DIR="${FLUX_ROOT_DIR}/test/e2e"
+CACHE_DIR="${FLUX_ROOT_DIR}/cache/$CURRENT_OS_ARCH"
 
 KIND_VERSION="v0.5.1"
-CACHE_DIR="${FLUX_ROOT_DIR}/cache/$CURRENT_OS_ARCH"
 KIND_CACHE_PATH="${CACHE_DIR}/kind-$KIND_VERSION"
 KIND_CLUSTER=flux-e2e
 USING_KIND=false
@@ -43,9 +35,6 @@ if ! kubectl version > /dev/null 2>&1; then
   USING_KIND=true
   kubectl get pods --all-namespaces
 fi
-
-kubectl create namespace "$FLUX_NAMESPACE"
-defer kubectl delete namespace "$FLUX_NAMESPACE"
 
 if [ "${USING_KIND}" = 'true' ]; then
   echo '>>> Loading images into the Kind cluster'
