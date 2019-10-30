@@ -41,9 +41,11 @@ if [ "${USING_KIND}" = 'true' ]; then
   kind --name "${KIND_CLUSTER}" load docker-image 'docker.io/fluxcd/flux:latest'
 fi
 
-# Run the tests
 echo '>>> Running the tests'
+# Run all tests by default but let users specify which ones to run, e.g. with E2E_TESTS='11_*' make e2e
+E2E_TESTS=${E2E_TESTS:-.}
 (
   cd "${E2E_DIR}"
-  "${E2E_DIR}/bats/bin/bats" -t .
+  # shellcheck disable=SC2086
+  "${E2E_DIR}/bats/bin/bats" -t ${E2E_TESTS}
 )
