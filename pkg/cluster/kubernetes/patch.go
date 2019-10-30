@@ -74,7 +74,7 @@ func applyManifestPatch(originalManifests, patchManifests []byte, originalSource
 	// Make sure all patch resources have a matching resource
 	for id, patchResource := range patchResources {
 		if _, ok := originalResources[id]; !ok {
-			return nil, fmt.Errorf("missing resource (%s) for patch", resourceID(patchResource))
+			return nil, fmt.Errorf("patch refers to missing resource (%s)", resourceID(patchResource))
 		}
 	}
 
@@ -94,7 +94,7 @@ func applyManifestPatch(originalManifests, patchManifests []byte, originalSource
 			// There was a patch, apply it
 			patched, err := applyPatch(originalResource, patchedResource, scheme)
 			if err != nil {
-				return nil, fmt.Errorf("cannot obtain patch for resource %s: %s", id, err)
+				return nil, fmt.Errorf("cannot apply patch for resource %s: %s", id, err)
 			}
 			resourceBytes = patched
 		}
@@ -221,8 +221,7 @@ func applyPatch(originalManifest, patchManifest kresource.KubeManifest, scheme *
 	}
 	patched, err := jsonyaml.JSONToYAML(patchedJSON)
 	if err != nil {
-		return nil, fmt.Errorf("cannot transform patched resource (%s) to YAML: %s",
-			resourceID(originalManifest), err)
+		return nil, fmt.Errorf("cannot transform patched resource (%s) to YAML: %s", resourceID(originalManifest), err)
 	}
 	return patched, nil
 }
@@ -230,5 +229,5 @@ func applyPatch(originalManifest, patchManifest kresource.KubeManifest, scheme *
 // resourceID works like Resource.ID() but avoids <cluster> namespaces,
 // since they may be incorrect
 func resourceID(manifest kresource.KubeManifest) resource.ID {
-	return resource.MakeID(manifest.GetNamespace(), manifest.GetKind(), manifest.GetKind())
+	return resource.MakeID(manifest.GetNamespace(), manifest.GetKind(), manifest.GetName())
 }

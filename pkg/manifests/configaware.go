@@ -237,7 +237,7 @@ func (ca *configAware) getGeneratedAndPatchedManifests(ctx context.Context, cf *
 	}
 	patchedManifests, err := ca.manifests.ApplyManifestPatch(generatedManifests, patch, relConfigFilePath, explicitPatchFilePath)
 	if err != nil {
-		return nil, nil, "", fmt.Errorf("cannot patch generated resources: %s", err)
+		return nil, nil, "", fmt.Errorf("processing %q, cannot apply patchFile %q to generated resources: %s", relConfigFilePath, explicitPatchFilePath, err)
 	}
 	return generatedManifests, patchedManifests, patchFilePath, nil
 }
