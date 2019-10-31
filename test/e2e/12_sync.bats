@@ -36,7 +36,7 @@ function setup() {
   [ "$sync_tag_hash" = "$head_hash" ]
 
   # Add a change, wait for it to happen and check the sync tag again
-  sed -i '' 's%stefanprodan/podinfo:2.1.0%stefanprodan/podinfo:3.1.5%' "${clone_dir}/workloads/podinfo-dep.yaml"
+  sed -i'.bak' 's%stefanprodan/podinfo:2.1.0%stefanprodan/podinfo:3.1.5%' "${clone_dir}/workloads/podinfo-dep.yaml"
   git commit -am "Bump podinfo"
   head_hash=$(git rev-list -n 1 HEAD)
   git push
