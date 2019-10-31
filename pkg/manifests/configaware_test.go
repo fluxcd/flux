@@ -235,3 +235,44 @@ spec:
 	assert.NoError(t, err)
 	assert.Equal(t, expectedPatch, string(patch))
 }
+
+const mistakenConf = `
+version: 1
+commandUpdated: # <-- because this is commandUpdated, patchFile is ignored
+  generators:
+    - command: |
+       echo "apiVersion: extensions/v1beta1
+       kind: Deployment
+       metadata:
+         name: helloworld
+       spec:
+         template:
+           metadata:
+             labels:
+              name: helloworld
+           spec:
+             containers:
+             - name: greeter
+               image: quay.io/weaveworks/helloworld:master-a000001
+       ---
+       apiVersion: v1
+       kind: Namespace
+       metadata:
+         name: demo"
+  patchFile: patchfile.yaml
+`
+
+// This tests that when using a config with no update commands, and
+// update operation results in an error, rather than a silent failure
+// to make any changes.
+func TestMistakenConfigFile(t *testing.T) {
+	frs, cleanup := setup(t, mistakenConf)
+	defer cleanup()
+
+	deploymentID := resource.MustParseID("default:deployment/helloworld")
+	ref, _ := image.ParseRef("repo/image:tag")
+
+	ctx := context.Background()
+	err := frs.SetWorkloadContainerImage(ctx, deploymentID, "greeter", ref)
+	assert.Error(t, err)
+}

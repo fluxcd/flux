@@ -102,6 +102,14 @@ func NewConfigFile(path, workingDir string) (*ConfigFile, error) {
 
 // -- entry points for using a config file to generate or update manifests
 
+func makeNoCommandsRunErr(field string, cf *ConfigFile) error {
+	relConfigPath, err := cf.RelativeConfigPath()
+	if err != nil {
+		return fmt.Errorf("config file not relative to working dir: %s", err)
+	}
+	return fmt.Errorf("no %s commands to run in %s", field, relConfigPath)
+}
+
 // RelativeConfigPath returns the path to the config file, relative to
 // the working directory. This is used in error messages and to
 // identify resources generated from the config file.
@@ -128,6 +136,10 @@ func (cf *ConfigFile) SetWorkloadContainerImage(ctx context.Context, manifests M
 
 	// Command-updated
 	result := cf.execContainerImageUpdaters(ctx, r.ResourceID(), container, newImageID.Name.String(), newImageID.Tag)
+	if len(result) == 0 {
+		return makeNoCommandsRunErr("update.containerImage", cf)
+	}
+
 	if len(result) > 0 && result[len(result)-1].Error != nil {
 		updaters := cf.CommandUpdated.Updaters
 		return fmt.Errorf("error executing image updater command %q from file %q: %s\noutput:\n%s",
@@ -167,6 +179,10 @@ func (cf *ConfigFile) UpdateWorkloadPolicies(ctx context.Context, manifests Mani
 
 	for key, value := range changes {
 		result := cf.execPolicyUpdaters(ctx, r.ResourceID(), key, value)
+		if len(result) == 0 {
+			return false, makeNoCommandsRunErr("updaters.policy", cf)
+		}
+
 		if len(result) > 0 && result[len(result)-1].Error != nil {
 			updaters := cf.CommandUpdated.Updaters
 			err := fmt.Errorf("error executing annotation updater command %q from file %q: %s\noutput:\n%s",
