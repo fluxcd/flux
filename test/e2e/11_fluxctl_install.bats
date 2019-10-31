@@ -5,9 +5,7 @@ load lib/install
 load lib/poll
 
 function setup() {
-  setup_env
   kubectl create namespace "$FLUX_NAMESPACE"
-  generate_ssh_secret
   install_git_srv
   install_flux_with_fluxctl
 }
@@ -30,6 +28,5 @@ function teardown() {
   uninstall_flux_with_fluxctl
   uninstall_git_srv
   kubectl delete namespace "$DEMO_NAMESPACE"
-  # This also takes care of removing the generated secret
   kubectl delete namespace "$FLUX_NAMESPACE"
 }
