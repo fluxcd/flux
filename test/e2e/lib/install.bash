@@ -64,7 +64,7 @@ function install_flux_with_fluxctl() {
   # Add the known hosts file manually (it's much easier than editing the manifests to add a volume)
   local flux_podname
   flux_podname=$(kubectl get pod -n "${FLUX_NAMESPACE}" -l name=flux -o jsonpath="{['items'][0].metadata.name}")
-  kubectl exec -n "${FLUX_NAMESPACE}" "${flux_podname}" -- sh -c "echo '${KNOWN_HOSTS}' > /root/.ssh/known_hosts" >&3
+  kubectl exec -n "${FLUX_NAMESPACE}" "${flux_podname}" -- sh -c "mkdir -p /root/.ssh; echo '${KNOWN_HOSTS}' > /root/.ssh/known_hosts" >&3
 }
 
 function uninstall_flux_with_fluxctl() {
