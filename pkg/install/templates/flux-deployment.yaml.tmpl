@@ -158,10 +158,11 @@ spec:
         # - --git-verify-signatures
 
         # Tell flux it has readonly access to the repo (default `false`)
-        # - --git-readonly
-{{ if .GitReadOnly }}
+{{- if .GitReadOnly }}
         - --git-readonly
-{{ end }}
+{{- else }}
+        # - --git-readonly
+{{- end }}
 
         # Instruct flux where to put sync bookkeeping (default "git", meaning use a tag in the upstream git repo)
         # - --sync-state=git
