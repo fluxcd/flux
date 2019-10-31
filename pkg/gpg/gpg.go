@@ -64,7 +64,7 @@ func ImportKeys(src string, trustImportedKeys bool) ([]string, error) {
 }
 
 func gpgImport(path string) error {
-	cmd := exec.Command("gpg", "--import", path)
+	cmd := exec.Command("gpg", "--import", "--batch", path)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("error importing key: %s", string(out))
