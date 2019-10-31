@@ -37,7 +37,7 @@ function setup() {
 
   # Add a change, wait for it to happen and check the sync tag again
   sed -i'.bak' 's%stefanprodan/podinfo:2.1.0%stefanprodan/podinfo:3.1.5%' "${clone_dir}/workloads/podinfo-dep.yaml"
-  git commit -am "Bump podinfo"
+  git -c 'user.email=foo@bar.com' -c 'user.name=Foo' commit -am "Bump podinfo"
   head_hash=$(git rev-list -n 1 HEAD)
   git push
   poll_until_equals "podinfo image" "stefanprodan/podinfo:3.1.5" "kubectl get pod -n demo -l app=podinfo -o\"jsonpath={['items'][0]['spec']['containers'][0]['image']}\""
