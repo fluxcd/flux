@@ -47,9 +47,9 @@ function setup() {
 }
 
 function teardown() {
-  uninstall_flux_with_fluxctl
   kill "$git_port_forward_pid"
-  uninstall_git_srv
-  kubectl delete namespace "$DEMO_NAMESPACE"
+  # Removing the namespace also takes care of removing Flux and gitsrv.
   kubectl delete namespace "$FLUX_NAMESPACE"
+  # Only remove the demo workloads after Flux, so that they cannot be recreated.
+  kubectl delete namespace "$DEMO_NAMESPACE"
 }

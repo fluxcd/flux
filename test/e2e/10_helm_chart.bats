@@ -32,7 +32,8 @@ function teardown() {
 
   uninstall_flux_with_helm
   uninstall_tiller
-  uninstall_git_srv
-  kubectl delete namespace "$DEMO_NAMESPACE"
+  # Removing the namespace also takes care of removing gitsrv.
   kubectl delete namespace "$FLUX_NAMESPACE"
+  # Only remove the demo workloads after Flux, so that they cannot be recreated.
+  kubectl delete namespace "$DEMO_NAMESPACE"
 }
