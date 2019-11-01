@@ -5,7 +5,6 @@ load lib/install
 load lib/poll
 load lib/defer
 
-git_ssh_cmd=""
 git_port_forward_pid=""
 
 function setup() {
@@ -14,6 +13,7 @@ function setup() {
   install_git_srv flux-git-deploy git_srv_result
   # shellcheck disable=SC2154
   git_ssh_cmd="${git_srv_result[0]}"
+  export GIT_SSH_COMMAND="$git_ssh_cmd"
   # shellcheck disable=SC2154
   git_port_forward_pid="${git_srv_result[1]}"
   install_flux_with_fluxctl
@@ -27,7 +27,6 @@ function setup() {
   local clone_dir
   clone_dir="$(mktemp -d)"
   defer rm -rf "$clone_dir"
-  export GIT_SSH_COMMAND="$git_ssh_cmd"
   git clone -b master ssh://git@localhost/git-server/repos/cluster.git "$clone_dir"
   cd "$clone_dir"
   local sync_tag_hash
@@ -48,6 +47,7 @@ function setup() {
 
 function teardown() {
   kill "$git_port_forward_pid"
+  unset GIT_SSH_COMMAND
   # Removing the namespace also takes care of removing Flux and gitsrv.
   kubectl delete namespace "$FLUX_NAMESPACE"
   # Only remove the demo workloads after Flux, so that they cannot be recreated.
