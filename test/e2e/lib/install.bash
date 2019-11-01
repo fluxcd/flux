@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# shellcheck disable=SC1090
+source "${E2E_DIR}/lib/defer.bash"
+
 function install_tiller() {
   if ! helm version > /dev/null 2>&1; then # only if helm isn't already installed
     kubectl --namespace kube-system create sa tiller
@@ -60,43 +63,50 @@ function install_flux_with_fluxctl() {
   kubectl -n "${FLUX_NAMESPACE}" rollout status deployment/flux
   # Add the known hosts file manually (it's much easier than editing the manifests to add a volume)
   local flux_podname
-  flux_podname=$(kubectl get pod -n flux-e2e -l name=flux -o jsonpath="{['items'][0].metadata.name}")
-  kubectl exec -n "${FLUX_NAMESPACE}" "${flux_podname}" -- sh -c "echo '${KNOWN_HOSTS}' > /root/.ssh/known_hosts"
+  flux_podname=$(kubectl get pod -n "${FLUX_NAMESPACE}" -l name=flux -o jsonpath="{['items'][0].metadata.name}")
+  kubectl exec -n "${FLUX_NAMESPACE}" "${flux_podname}" -- sh -c "mkdir -p /root/.ssh; echo '${KNOWN_HOSTS}' > /root/.ssh/known_hosts" >&3
 }
 
 function uninstall_flux_with_fluxctl() {
   $fluxctl_install_cmd --namespace "${FLUX_NAMESPACE}" | kubectl delete -f -
 }
 
-function generate_ssh_secret() {
+function install_git_srv() {
   local secret_name=${1:-flux-git-deploy}
+  local external_access_result_var=${2}
   local gen_dir
   gen_dir=$(mktemp -d)
 
   ssh-keygen -t rsa -N "" -f "$gen_dir/id_rsa"
+  defer rm -rf "$gen_dir"
   kubectl create secret generic "$secret_name" \
     --namespace="${FLUX_NAMESPACE}" \
     --from-file="${FIXTURES_DIR}/known_hosts" \
     --from-file="$gen_dir/id_rsa" \
     --from-file=identity="$gen_dir/id_rsa" \
     --from-file="$gen_dir/id_rsa.pub"
-  rm -rf "$gen_dir"
-  echo "$secret_name"
-}
 
-function delete_generated_ssh_secret() {
-  local secret_name=${1:-flux-git-deploy}
-  kubectl delete -n "${FLUX_NAMESPACE}" secret "$secret_name"
-}
-
-function install_git_srv() {
-  local secret_name=${1:-flux-git-deploy}
-
-  sed "s/\$GIT_SECRET_NAME/$secret_name/" <"${E2E_DIR}/fixtures/gitsrv.yaml" | kubectl apply -n "${FLUX_NAMESPACE}" -f -
-
+  sed "s/\$GIT_SECRET_NAME/$secret_name/" < "${E2E_DIR}/fixtures/gitsrv.yaml" | kubectl apply -n "${FLUX_NAMESPACE}" -f -
+  # wait for the git server to be ready
   kubectl -n "${FLUX_NAMESPACE}" rollout status deployment/gitsrv
+
+  if [ -n "$external_access_result_var" ]; then
+    local git_srv_podname
+    git_srv_podname=$(kubectl get pod -n "${FLUX_NAMESPACE}" -l name=gitsrv -o jsonpath="{['items'][0].metadata.name}")
+    coproc kubectl port-forward -n "${FLUX_NAMESPACE}" "$git_srv_podname" :22
+    local local_port
+    read -r local_port <&"${COPROC[0]}"-
+    # shellcheck disable=SC2001
+    local_port=$(echo "$local_port" | sed 's%.*:\([0-9]*\).*%\1%')
+    local ssh_cmd="ssh -o UserKnownHostsFile=/dev/null  -o StrictHostKeyChecking=no -i $gen_dir/id_rsa -p $local_port"
+    # return the ssh command needed for git, and the PID of the port-forwarding PID into a variable of choice
+    eval "${external_access_result_var}=('$ssh_cmd' '$COPROC_PID')"
+  fi
 }
 
 function uninstall_git_srv() {
+  local secret_name=${1:-flux-git-deploy}
+  # Silence secret deletion errors since the secret can be missing (deleted by uninstalling Flux)
+  kubectl delete -n "${FLUX_NAMESPACE}" secret "$secret_name" &> /dev/null
   kubectl delete -n "${FLUX_NAMESPACE}" -f "${E2E_DIR}/fixtures/gitsrv.yaml"
 }

@@ -5,9 +5,7 @@ load lib/install
 load lib/poll
 
 function setup() {
-  setup_env
   kubectl create namespace "$FLUX_NAMESPACE"
-  generate_ssh_secret
   install_git_srv
   install_tiller
   install_flux_with_helm
@@ -34,8 +32,8 @@ function teardown() {
 
   uninstall_flux_with_helm
   uninstall_tiller
-  uninstall_git_srv
-  kubectl delete namespace "$DEMO_NAMESPACE"
-  # This also takes care of removing the generated secret
+  # Removing the namespace also takes care of removing gitsrv.
   kubectl delete namespace "$FLUX_NAMESPACE"
+  # Only remove the demo workloads after Flux, so that they cannot be recreated.
+  kubectl delete namespace "$DEMO_NAMESPACE"
 }
