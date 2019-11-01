@@ -106,6 +106,7 @@ function install_git_srv() {
 
 function uninstall_git_srv() {
   local secret_name=${1:-flux-git-deploy}
-  kubectl delete -n "${FLUX_NAMESPACE}" secret "$secret_name"
+  # Silence secret deletion errors since the secret can be missing (deleted by uninstalling Flux)
+  kubectl delete -n "${FLUX_NAMESPACE}" secret "$secret_name" &> /dev/null
   kubectl delete -n "${FLUX_NAMESPACE}" -f "${E2E_DIR}/fixtures/gitsrv.yaml"
 }
