@@ -8,7 +8,7 @@ function create_gpg_key() {
   local batchcfg
   batchcfg=$(mktemp)
 
-  cat >"$batchcfg" <<EOF
+  cat > "$batchcfg" << EOF
   %echo Generating a throwaway OpenPGP key for "$name <$email>"
   Key-Type: 1
   Key-Length: 2048
@@ -28,9 +28,9 @@ EOF
 
   # Find the ID of the key we just generated
   local key_id
-  key_id=$(gpg --no-tty --list-secret-keys --with-colons "$name" 2>/dev/null \
-	  | awk -F: '/^sec:/ { print $5 }' | tail -1)
-	echo "$key_id"
+  key_id=$(gpg --no-tty --list-secret-keys --with-colons "$name" 2> /dev/null |
+    awk -F: '/^sec:/ { print $5 }' | tail -1)
+  echo "$key_id"
 }
 
 function create_secret_from_gpg_key() {
@@ -44,7 +44,7 @@ function create_secret_from_gpg_key() {
 
   # Export key to secret
   gpg --export-secret-keys "$key_id" |
-  kubectl --namespace "${FLUX_NAMESPACE}" \
-    create secret generic "$secret_name" \
-    --from-file=flux.asc=/dev/stdin
+    kubectl --namespace "${FLUX_NAMESPACE}" \
+      create secret generic "$secret_name" \
+      --from-file=flux.asc=/dev/stdin
 }
