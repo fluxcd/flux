@@ -64,13 +64,17 @@ test: test/bin/helm test/bin/kubectl test/bin/kustomize $(GENERATED_TEMPLATES_FI
 e2e: lint-e2e test/bin/helm test/bin/kubectl test/e2e/bats build/.flux.done
 	PATH="${PWD}/test/bin:${PATH}" CURRENT_OS_ARCH=$(CURRENT_OS_ARCH) test/e2e/run.bash
 
+E2E_BATS_FILES := test/e2e/*.bats
+E2E_BASH_FILES := test/e2e/run.bash test/e2e/lib/*
+SHFMT_DIFF_CMD := test/bin/shfmt -i 2 -sr -d
+SHFMT_WRITE_CMD := test/bin/shfmt -i 2 -sr -w
 lint-e2e: test/bin/shfmt test/bin/shellcheck
 	@# shfmt is not compatible with .bats files, so we preprocess them to turn '@test's into functions
-	for I in test/e2e/*.bats; do \
-	  ( cat "$$I" | sed 's%@test.*%test() {%' | test/bin/shfmt -i 2 -sr -d ) || (echo "Please shfmt file $$I"; exit 1 )\
+	for I in $(E2E_BATS_FILES); do \
+	  ( cat "$$I" | sed 's%@test.*%test() {%' | $(SHFMT_DIFF_CMD) ) || ( echo "Please correct the diff for file $$I"; exit 1 ); \
 	done
-	test/bin/shfmt -i 2 -sr -l test/e2e/run.bash test/e2e/lib/* || ("Please run 'test/bin/shfmt -i 2 -sr -w' on e2e files"; exit 1)
-	test/bin/shellcheck test/e2e/run.bash test/e2e/lib/* test/e2e/*.bats
+	$(SHFMT_DIFF_CMD) $(E2E_BASH_FILES) || ( echo "Please run '$(SHFMT_WRITE_CMD) $(E2E_BASH_FILES)'"; exit 1 )
+	test/bin/shellcheck $(E2E_BASH_FILES) $(E2E_BATS_FILES)
 
 build/.%.done: docker/Dockerfile.%
 	mkdir -p ./build/docker/$*
