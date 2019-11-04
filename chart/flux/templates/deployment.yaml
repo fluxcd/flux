@@ -218,7 +218,7 @@ spec:
           {{- if .Values.manifestGeneration }}
           - --manifest-generation=true
           {{- end }}
-          - --registry-poll-interval={{ .Values.registry.pollInterval }}
+          - --automation-interval={{ .Values.registry.pollInterval | default .Values.registry.automationInterval }}
           - --registry-rps={{ .Values.registry.rps }}
           - --registry-burst={{ .Values.registry.burst }}
           - --registry-trace={{ .Values.registry.trace }}
