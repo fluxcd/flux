@@ -17,14 +17,8 @@ function setup() {
 }
 
 function teardown() {
-  # For debugging purposes (in case the test fails)
-  echo '>>> Flux logs'
-  kubectl -n "${FLUX_NAMESPACE}" logs deployment/flux
-  echo '>>> List pods'
-  kubectl -n "${DEMO_NAMESPACE}" get pods
-  echo '>>> Check workload'
-  kubectl -n "${DEMO_NAMESPACE}" rollout status deployment/podinfo
-
+  # Removing Flux also takes care of the global resources it installs.
+  uninstall_flux_with_fluxctl
   # Removing the namespace also takes care of removing Flux and gitsrv.
   kubectl delete namespace "$FLUX_NAMESPACE"
   # Only remove the demo workloads after Flux, so that they cannot be recreated.
