@@ -66,8 +66,11 @@ function setup() {
 }
 
 function teardown() {
+  # Teardown the created port-forward to gitsrv and restore Git settings.
   kill "$git_port_forward_pid"
   unset GIT_SSH_COMMAND
+  # Uninstall Flux and the global resources it installs.
+  uninstall_flux_gpg
   # Removing the namespace also takes care of removing Flux and gitsrv.
   kubectl delete namespace "$FLUX_NAMESPACE"
   # Only remove the demo workloads after Flux, so that they cannot be recreated.
