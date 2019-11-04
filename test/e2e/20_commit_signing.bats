@@ -6,6 +6,7 @@ load lib/gpg
 load lib/install
 load lib/poll
 
+tmp_gnupghome=""
 git_port_forward_pid=""
 
 function setup() {
@@ -22,7 +23,6 @@ function setup() {
   # Create a temporary GNUPGHOME
   tmp_gnupghome=$(mktemp -d)
   export GNUPGHOME="$tmp_gnupghome"
-  defer rm -rf "$tmp_gnupghome"
 
   # Install Flux, with a new GPG key and signing enabled
   gpg_key=$(create_gpg_key)
@@ -68,7 +68,9 @@ function setup() {
 function teardown() {
   # Teardown the created port-forward to gitsrv and restore Git settings.
   kill "$git_port_forward_pid"
-  unset GIT_SSH_COMMAND
+  # Kill the agent and remove temporary GNUPGHOME
+  gpgconf --kill gpg-agent
+  rm -rf "$tmp_gnupghome"
   # Uninstall Flux and the global resources it installs.
   uninstall_flux_gpg
   # Removing the namespace also takes care of removing Flux and gitsrv.

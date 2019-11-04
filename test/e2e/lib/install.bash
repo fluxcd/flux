@@ -83,7 +83,8 @@ flux_gpg_helm_template="helm template --name flux-gpg
 
 function install_flux_gpg() {
   local key_id=${1}
-  local gpg_secret_name=${2:-flux-gpg-signing-key}
+  local git_verify=${2:-false}
+  local gpg_secret_name=${3:-flux-gpg-signing-key}
 
   if [ -z "$key_id" ]; then
     echo "no key ID provided" >&2
@@ -95,6 +96,7 @@ function install_flux_gpg() {
     --set-string git.config.data="${GITCONFIG}" \
     --set-string ssh.known_hosts="${KNOWN_HOSTS}" \
     --set-string git.signingKey="$key_id" \
+    --set-string git.verifySignatures="$git_verify" \
     --set-string gpgKeys.secretName="$gpg_secret_name" \
     "${FLUX_ROOT_DIR}/chart/flux" |
     kubectl --namespace "${FLUX_NAMESPACE}" apply -f - >&3
@@ -110,22 +112,35 @@ function uninstall_flux_gpg() {
 }
 
 function install_git_srv() {
-  local secret_name=${1:-flux-git-deploy}
+  local git_secret_name=${1:-flux-git-deploy}
   local external_access_result_var=${2}
+  local gpg_enable=${3:-false}
+  local gpg_secret_name=${4:-flux-gpg-signing-key}
   local gen_dir
   gen_dir=$(mktemp -d)
 
   ssh-keygen -t rsa -N "" -f "$gen_dir/id_rsa"
   defer rm -rf "$gen_dir"
-  kubectl create secret generic "$secret_name" \
+  kubectl create secret generic "$git_secret_name" \
     --namespace="${FLUX_NAMESPACE}" \
     --from-file="${FIXTURES_DIR}/known_hosts" \
     --from-file="$gen_dir/id_rsa" \
     --from-file=identity="$gen_dir/id_rsa" \
     --from-file="$gen_dir/id_rsa.pub"
 
-  sed "s/\$GIT_SECRET_NAME/$secret_name/" < "${E2E_DIR}/fixtures/gitsrv.yaml" | kubectl apply -n "${FLUX_NAMESPACE}" -f -
-  # wait for the git server to be ready
+  local template="${E2E_DIR}/fixtures/gitsrv.yaml"
+  if [ "$gpg_enable" == "true" ]; then
+    template="${E2E_DIR}/fixtures/gitsrv-gpg.yaml"
+  fi
+
+  (
+    export GIT_SECRET_NAME=$git_secret_name
+    export GPG_SECRET_NAME=$gpg_secret_name
+
+    envsubst < "$template" | kubectl apply -n "${FLUX_NAMESPACE}" -f - >&3
+  )
+
+  # Wait for the git server to be ready
   kubectl -n "${FLUX_NAMESPACE}" rollout status deployment/gitsrv
 
   if [ -n "$external_access_result_var" ]; then

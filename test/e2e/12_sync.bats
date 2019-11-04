@@ -84,7 +84,6 @@ function teardown() {
   rm -rf "$clone_dir"
   # Teardown the created port-forward to gitsrv and restore Git settings.
   kill "$git_port_forward_pid"
-  unset GIT_SSH_COMMAND
   # Uninstall Flux and the global resources it installs.
   uninstall_flux_with_fluxctl
   # Removing the namespace also takes care of removing gitsrv.

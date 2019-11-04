@@ -24,12 +24,14 @@ spec:
         - name: TAR_URL
           value: "https://github.com/fluxcd/flux-get-started/archive/master.tar.gz"
         - name: GPG_KEYFILE
-          value: ""
+          value: /git-server/gpg/flux.asc
         ports:
         - containerPort: 22
           name: ssh
           protocol: TCP
         volumeMounts:
+        - mountPath: /git-server/gpg
+          name: git-gpg-keys
         - mountPath: /git-server/repos
           name: git-server-data
         - mountPath: /git-server/keys
@@ -40,6 +42,9 @@ spec:
           secretName: $GIT_SECRET_NAME
       - name: git-server-data
         emptyDir: {}
+      - name: git-gpg-keys
+        secret:
+          secretName: $GPG_SECRET_NAME
 ---
 apiVersion: v1
 kind: Service
