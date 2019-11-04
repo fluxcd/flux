@@ -21,6 +21,7 @@ type TemplateParameters struct {
 	GitLabel           string
 	GitUser            string
 	GitEmail           string
+	GitReadOnly        bool
 	Namespace          string
 	AdditionalFluxArgs []string
 }

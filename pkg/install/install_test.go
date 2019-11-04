@@ -35,6 +35,7 @@ func TestFillInTemplatesAllParameters(t *testing.T) {
 		GitUser:            "User",
 		GitEmail:           "this.is@anemail.com",
 		Namespace:          "flux",
+		GitReadOnly:        true,
 		AdditionalFluxArgs: []string{"arg1=foo", "arg2=bar"},
 	})
 
