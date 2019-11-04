@@ -51,16 +51,13 @@ function uninstall_flux_with_helm() {
 fluxctl_install_cmd="fluxctl install --git-url=ssh://git@gitsrv/git-server/repos/cluster.git --git-email=foo"
 
 function install_flux_with_fluxctl() {
-  local eol=$'\n'
-  # Use the local Flux image instead of the latest release, use a poll interval of 10s
-  # (to make tests quicker) and disable registry polling (to avoid overloading kind)
-  $fluxctl_install_cmd --namespace "${FLUX_NAMESPACE}" |
-    sed 's%docker\.io/fluxcd/flux:.*%fluxcd/flux:latest%' |
-    sed "s%--git-email=foo%--git-email=foo\\$eol        - --git-poll-interval=10s%" |
-    sed "s%--git-email=foo%--git-email=foo\\$eol        - --sync-interval=10s%" |
-    sed "s%--git-email=foo%--git-email=foo\\$eol        - --registry-exclude-image=\*%" |
-    kubectl apply -f -
-  kubectl -n "${FLUX_NAMESPACE}" rollout status deployment/flux
+  local kustomtmp
+  kustomtmp="$(mktemp -d)"
+  # This generates the base descriptions, which we'll then patch with a kustomization
+  $fluxctl_install_cmd --namespace "${FLUX_NAMESPACE}" -o "${kustomtmp}" 2>&3
+  cp ${E2E_DIR}/fixtures/{kustomization,e2e_patch}.yaml "${kustomtmp}/"
+  kubectl apply -k "${kustomtmp}" >&3
+  kubectl -n "${FLUX_NAMESPACE}" rollout status -w --timeout=30s deployment/flux
   # Add the known hosts file manually (it's much easier than editing the manifests to add a volume)
   local flux_podname
   flux_podname=$(kubectl get pod -n "${FLUX_NAMESPACE}" -l name=flux -o jsonpath="{['items'][0].metadata.name}")
