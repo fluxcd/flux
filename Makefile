@@ -101,7 +101,7 @@ test/bin/shellcheck: cache/$(CURRENT_OS_ARCH)/shellcheck-$(SHELLCHECK_VERSION)
 test/bin/shfmt: cache/$(CURRENT_OS_ARCH)/shfmt-$(SHFMT_VERSION)
 
 build/kubectl test/bin/kubectl build/kustomize test/bin/kustomize build/helm test/bin/helm test/bin/shellcheck test/bin/shfmt:
-	mkdir -p build
+	mkdir -p $(@D)
 	cp $< $@
 	if [ `basename $@` = "build" -a $(CURRENT_OS_ARCH) = "linux-$(ARCH)" ]; then strip $@; fi
 	chmod a+x $@
