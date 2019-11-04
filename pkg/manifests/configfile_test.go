@@ -73,7 +73,7 @@ func TestExecGenerators(t *testing.T) {
 	var cf ConfigFile
 	err := yaml.Unmarshal([]byte(echoCmdUpdatedConfigFile), &cf)
 	assert.NoError(t, err)
-	result := cf.ExecGenerators(context.Background(), cf.CommandUpdated.Generators)
+	result := cf.execGenerators(context.Background(), cf.CommandUpdated.Generators)
 	assert.Equal(t, 2, len(result), "result: %s", result)
 	assert.Equal(t, "g1\n", string(result[0].Stdout))
 	assert.Equal(t, "g2\n", string(result[1].Stdout))
@@ -84,7 +84,7 @@ func TestExecContainerImageUpdaters(t *testing.T) {
 	err := yaml.Unmarshal([]byte(echoCmdUpdatedConfigFile), &cf)
 	assert.NoError(t, err)
 	resourceID := resource.MustParseID("default:deployment/foo")
-	result := cf.ExecContainerImageUpdaters(context.Background(), resourceID, "bar", "repo/image", "latest")
+	result := cf.execContainerImageUpdaters(context.Background(), resourceID, "bar", "repo/image", "latest")
 	assert.Equal(t, 2, len(result), "result: %s", result)
 	assert.Equal(t,
 		"uci1 default:deployment/foo default deployment foo bar repo/image latest\n",
@@ -102,7 +102,7 @@ func TestExecAnnotationUpdaters(t *testing.T) {
 
 	// Test the update/addition of annotations
 	annotationValue := "value"
-	result := cf.ExecPolicyUpdaters(context.Background(), resourceID, "key", annotationValue)
+	result := cf.execPolicyUpdaters(context.Background(), resourceID, "key", annotationValue)
 	assert.Equal(t, 2, len(result), "result: %s", result)
 	assert.Equal(t,
 		"ua1 default:deployment/foo default deployment foo key value\n",
@@ -112,7 +112,7 @@ func TestExecAnnotationUpdaters(t *testing.T) {
 		string(result[1].Output))
 
 	// Test the deletion of annotations "
-	result = cf.ExecPolicyUpdaters(context.Background(), resourceID, "key", "")
+	result = cf.execPolicyUpdaters(context.Background(), resourceID, "key", "")
 	assert.Equal(t, 2, len(result), "result: %s", result)
 	assert.Equal(t,
 		"ua1 default:deployment/foo default deployment foo key delete\n",
@@ -120,5 +120,4 @@ func TestExecAnnotationUpdaters(t *testing.T) {
 	assert.Equal(t,
 		"ua2 default:deployment/foo default deployment foo key delete\n",
 		string(result[1].Output))
-
 }

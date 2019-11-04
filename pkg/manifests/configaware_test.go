@@ -90,8 +90,20 @@ commandUpdated:
 
 	assert.Len(t, configFiles, 2)
 	// We assume config files are processed in order to simplify the checks
-	assert.Equal(t, filepath.Join(baseDir, "envs/staging"), configFiles[0].WorkingDir)
-	assert.Equal(t, filepath.Join(baseDir, "envs/production"), configFiles[1].WorkingDir)
+	assert.Equal(t, filepath.Join(baseDir, "envs/staging"), configFiles[0].workingDir)
+	assert.Equal(t, filepath.Join(baseDir, "envs/production"), configFiles[1].workingDir)
+
+	mustRelativeConfigPath := func(cf *ConfigFile) string {
+		p, err := cf.RelativeConfigPath()
+		if err != nil {
+			t.Error(err)
+		}
+		return p
+	}
+
+	assert.Equal(t, "../.flux.yaml", mustRelativeConfigPath(configFiles[0]))
+	assert.Equal(t, "../.flux.yaml", mustRelativeConfigPath(configFiles[1]))
+
 	assert.NotNil(t, configFiles[0].CommandUpdated)
 	assert.Len(t, configFiles[0].CommandUpdated.Generators, 1)
 	assert.Equal(t, "echo g1", configFiles[0].CommandUpdated.Generators[0].Command)
@@ -222,4 +234,45 @@ spec:
 	patch, err := ioutil.ReadFile(patchFilePath)
 	assert.NoError(t, err)
 	assert.Equal(t, expectedPatch, string(patch))
+}
+
+const mistakenConf = `
+version: 1
+commandUpdated: # <-- because this is commandUpdated, patchFile is ignored
+  generators:
+    - command: |
+       echo "apiVersion: extensions/v1beta1
+       kind: Deployment
+       metadata:
+         name: helloworld
+       spec:
+         template:
+           metadata:
+             labels:
+              name: helloworld
+           spec:
+             containers:
+             - name: greeter
+               image: quay.io/weaveworks/helloworld:master-a000001
+       ---
+       apiVersion: v1
+       kind: Namespace
+       metadata:
+         name: demo"
+  patchFile: patchfile.yaml
+`
+
+// This tests that when using a config with no update commands, and
+// update operation results in an error, rather than a silent failure
+// to make any changes.
+func TestMistakenConfigFile(t *testing.T) {
+	frs, cleanup := setup(t, mistakenConf)
+	defer cleanup()
+
+	deploymentID := resource.MustParseID("default:deployment/helloworld")
+	ref, _ := image.ParseRef("repo/image:tag")
+
+	ctx := context.Background()
+	err := frs.SetWorkloadContainerImage(ctx, deploymentID, "greeter", ref)
+	assert.Error(t, err)
 }
