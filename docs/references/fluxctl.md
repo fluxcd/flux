@@ -536,6 +536,11 @@ fluxctl policy --workload=default:deployment/helloworld --tag-all='semver:*'
 Using a semver filter will also affect how Flux sorts images, so
 that the higher versions will be considered newer.
 
+Semver has a concept of "pre-release" versions which have an extra
+label like `-beta` at the end.  If you want to include these then
+write a policy with a hyphen; for example `>=1.2.3` will skip
+prereleases while `>=1.2.3-0` will include prereleases.
+
 #### Regexp
 
 If your images have complex tags you can filter by regular expression:
