@@ -37,7 +37,7 @@ function setup() {
   [ "$sync_tag_hash" = "$head_hash" ]
 
   # Add a change, wait for it to happen and check the sync tag again
-  sed -i'.bak' 's%stefanprodan/podinfo:2.1.0%stefanprodan/podinfo:3.1.5%' "${clone_dir}/workloads/podinfo-dep.yaml"
+  sed -i'.bak' 's%stefanprodan/podinfo:.*%stefanprodan/podinfo:3.1.5%' "${clone_dir}/workloads/podinfo-dep.yaml"
   git -c 'user.email=foo@bar.com' -c 'user.name=Foo' commit -am "Bump podinfo"
   head_hash=$(git rev-list -n 1 HEAD)
   git push
@@ -60,7 +60,7 @@ function setup() {
 
   # Bump the image of podinfo, duplicate the resource definition (to cause a sync failure)
   # and make sure the sync doesn't go through
-  sed -i'.bak' 's%stefanprodan/podinfo:2.1.0%stefanprodan/podinfo:3.1.5%' "${clone_dir}/workloads/podinfo-dep.yaml"
+  sed -i'.bak' 's%stefanprodan/podinfo:.*%stefanprodan/podinfo:3.1.5%' "${clone_dir}/workloads/podinfo-dep.yaml"
   cp "${clone_dir}/workloads/podinfo-dep.yaml" "${clone_dir}/workloads/podinfo-dep-2.yaml"
   git add "${clone_dir}/workloads/podinfo-dep-2.yaml"
   git -c 'user.email=foo@bar.com' -c 'user.name=Foo' commit -am "Bump podinfo and duplicate it to cause an error"
