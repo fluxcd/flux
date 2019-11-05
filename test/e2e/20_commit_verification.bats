@@ -7,6 +7,7 @@ load lib/poll
 
 tmp_gnupghome=""
 git_port_forward_pid=""
+clone_dir=""
 
 function setup() {
   kubectl create namespace "${FLUX_NAMESPACE}"
@@ -34,16 +35,13 @@ function setup() {
 
   # shellcheck disable=SC2030
   git_port_forward_pid="${git_srv_result[1]}"
-  defer kill "$git_port_forward_pid"
 
   # Test that the resources from https://github.com/fluxcd/flux-get-started are deployed
   poll_until_true 'namespace demo' 'kubectl describe ns/demo'
-  defer kubectl delete namespace "$DEMO_NAMESPACE"
 
   # Clone the repo
-  local clone_dir
+  # shellcheck disable=SC2030
   clone_dir="$(mktemp -d)"
-  defer rm -rf "$clone_dir"
   git clone -b master ssh://git@localhost/git-server/repos/cluster.git "$clone_dir"
   cd "$clone_dir"
 
@@ -95,6 +93,8 @@ function setup() {
 }
 
 function teardown() {
+  # shellcheck disable=SC2031
+  rm -rf "$clone_dir"
   # (Maybe) teardown the created port-forward to gitsrv.
   # shellcheck disable=SC2031
   kill "$git_port_forward_pid" || true
@@ -106,4 +106,6 @@ function teardown() {
   uninstall_flux_gpg
   # Removing the namespace also takes care of removing Flux and gitsrv.
   kubectl delete namespace "$FLUX_NAMESPACE"
+  # (Maybe) remove the demo namespace
+  kubectl delete namespace "$DEMO_NAMESPACE" &> /dev/null || true
 }
