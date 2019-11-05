@@ -1,12 +1,12 @@
 #!/usr/bin/env bats
 
-load lib/defer
 load lib/env
 load lib/gpg
 load lib/install
 load lib/poll
 
 tmp_gnupghome=""
+git_port_forward_pid=""
 
 function setup() {
   kubectl create namespace "${FLUX_NAMESPACE}"
@@ -32,6 +32,7 @@ function setup() {
   git_ssh_cmd="${git_srv_result[0]}"
   export GIT_SSH_COMMAND="$git_ssh_cmd"
 
+  # shellcheck disable=SC2030
   git_port_forward_pid="${git_srv_result[1]}"
   defer kill "$git_port_forward_pid"
 
@@ -78,9 +79,8 @@ function setup() {
   gpg_key=$(create_gpg_key)
   create_secret_from_gpg_key "$gpg_key"
 
-  # Install the git server with _unsigned_ init commit,
-  # allowing external access
-  install_git_srv flux-git-deploy git_srv_result false
+  # Install the git server with _unsigned_ init commit
+  install_git_srv flux-git-deploy "" false
 
   # Install Flux with the GPG key, and commit verification enabled
   install_flux_gpg "$gpg_key" true
@@ -95,6 +95,9 @@ function setup() {
 }
 
 function teardown() {
+  # (Maybe) teardown the created port-forward to gitsrv.
+  # shellcheck disable=SC2031
+  kill "$git_port_forward_pid" || true
   # Kill the agent and remove temporary GNUPGHOME
   gpgconf --kill gpg-agent
   rm -rf "$tmp_gnupghome"

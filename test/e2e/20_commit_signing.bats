@@ -66,7 +66,7 @@ function setup() {
 }
 
 function teardown() {
-  # Teardown the created port-forward to gitsrv and restore Git settings.
+  # Teardown the created port-forward to gitsrv.
   kill "$git_port_forward_pid"
   # Kill the agent and remove temporary GNUPGHOME
   gpgconf --kill gpg-agent
