@@ -53,10 +53,21 @@ fluxctl_install_cmd="fluxctl install --git-url=ssh://git@gitsrv/git-server/repos
 function install_flux_with_fluxctl() {
   local kustomtmp
   kustomtmp="$(mktemp -d)"
-  # This generates the base descriptions, which we'll then patch with a kustomization
-  $fluxctl_install_cmd --namespace "${FLUX_NAMESPACE}" -o "${kustomtmp}" 2>&3
-  cp ${E2E_DIR}/fixtures/{kustomization,e2e_patch}.yaml "${kustomtmp}/"
-  kubectl apply -k "${kustomtmp}" >&3
+  mkdir "${kustomtmp}/base"
+  # This generates the base manifests, which we'll then patch with a kustomization
+  echo ">>> writing base configuration to ${kustomtmp}" >&3
+  $fluxctl_install_cmd --namespace "${FLUX_NAMESPACE}" -o "${kustomtmp}/base/"
+  # Everything goes into one directory, but not everything is
+  # necessarily used by the kustomization
+  cp -R "${E2E_DIR}"/fixtures/kustom/* "${kustomtmp}/"
+  local kustomization
+  kustomization="base"
+  if [ -n "$1" ]; then
+    # use the kustomization given instead; ../base will still be
+    # there to be used as a base
+    kustomization="$1"
+  fi
+  kubectl apply -k "${kustomtmp}/${kustomization}" >&3
   kubectl -n "${FLUX_NAMESPACE}" rollout status -w --timeout=30s deployment/flux
   # Add the known hosts file manually (it's much easier than editing the manifests to add a volume)
   local flux_podname
