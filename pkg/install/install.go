@@ -23,6 +23,7 @@ type TemplateParameters struct {
 	GitEmail           string
 	GitReadOnly        bool
 	Namespace          string
+	ManifestGeneration bool
 	AdditionalFluxArgs []string
 }
 
