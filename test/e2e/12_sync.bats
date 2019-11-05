@@ -57,6 +57,7 @@ function setup() {
   sync_tag_hash=$(git rev-list -n 1 flux)
   head_hash=$(git rev-list -n 1 HEAD)
   [ "$sync_tag_hash" = "$head_hash" ]
+  podinfo_image=$(kubectl get pod -n demo -l app=podinfo -o"jsonpath={['items'][0]['spec']['containers'][0]['image']}")
 
   # Bump the image of podinfo, duplicate the resource definition (to cause a sync failure)
   # and make sure the sync doesn't go through
@@ -68,9 +69,9 @@ function setup() {
   # Wait until we find the duplicate failure in the logs
   poll_until_true "duplicate resource in Flux logs" "kubectl logs -n $FLUX_NAMESPACE -l name=flux | grep -q \"duplicate definition of 'demo:deployment/podinfo'\""
   # Make sure that the version of podinfo wasn't bumped
-  local podinfo_image
-  podinfo_image=$(kubectl get pod -n demo -l app=podinfo -o"jsonpath={['items'][0]['spec']['containers'][0]['image']}")
-  [ "$podinfo_image" = "stefanprodan/podinfo:2.1.0" ]
+  local podinfo_image_now
+  podinfo_image_now=$(kubectl get pod -n demo -l app=podinfo -o"jsonpath={['items'][0]['spec']['containers'][0]['image']}")
+  [ "$podinfo_image" = "$podinfo_image_now" ]
   # Make sure that the Flux sync tag remains untouched
   git pull -f --tags
   sync_tag_hash=$(git rev-list -n 1 flux)
