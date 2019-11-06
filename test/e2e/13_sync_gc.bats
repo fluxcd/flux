@@ -16,6 +16,7 @@ function setup() {
   export GIT_SSH_COMMAND="$git_ssh_cmd"
   # shellcheck disable=SC2154
   git_port_forward_pid="${git_srv_result[1]}"
+  defer kill "$git_port_forward_pid"
   install_flux_with_fluxctl "13_sync_gc"
 }
 
@@ -52,7 +53,7 @@ function setup() {
 }
 
 function teardown() {
-  kill "$git_port_forward_pid"
+  run_deferred
   # Removing the namespace also takes care of removing Flux and gitsrv.
   kubectl delete namespace "$FLUX_NAMESPACE"
   # Only remove the demo workloads after Flux, so that they cannot be recreated.

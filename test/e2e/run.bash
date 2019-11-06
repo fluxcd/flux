@@ -17,6 +17,7 @@ USING_KIND=false
 
 # shellcheck disable=SC1090
 source "${E2E_DIR}/lib/defer.bash"
+trap run_deferred EXIT
 
 # Check if there is a kubernetes cluster running, otherwise use Kind
 if ! kubectl version > /dev/null 2>&1; then

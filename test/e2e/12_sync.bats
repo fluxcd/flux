@@ -17,10 +17,15 @@ function setup() {
   export GIT_SSH_COMMAND="$git_ssh_cmd"
   # shellcheck disable=SC2154
   git_port_forward_pid="${git_srv_result[1]}"
+  # Teardown the created port-forward to gitsrv and restore Git settings.
+  defer kill "$git_port_forward_pid"
+
   install_flux_with_fluxctl
+
   # Clone the repo and
   clone_dir="$(mktemp -d)"
   git clone -b master ssh://git@localhost/git-server/repos/cluster.git "$clone_dir"
+  defer rm -rf "$clone_dir"
   # shellcheck disable=SC2164
   cd "$clone_dir"
 }
@@ -81,9 +86,7 @@ function setup() {
 }
 
 function teardown() {
-  rm -rf "$clone_dir"
-  # Teardown the created port-forward to gitsrv and restore Git settings.
-  kill "$git_port_forward_pid"
+  run_deferred
   # Uninstall Flux and the global resources it installs.
   uninstall_flux_with_fluxctl
   # Removing the namespace also takes care of removing gitsrv.
