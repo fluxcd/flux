@@ -12,4 +12,4 @@ patchesJson6902:
     version: v1
     kind: Deployment
     name: flux
-  path: e2e_patch.json
+  path: e2e_patch.yaml
