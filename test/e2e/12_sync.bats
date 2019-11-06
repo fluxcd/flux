@@ -33,8 +33,9 @@ function setup() {
   git pull -f --tags
   local sync_tag_hash
   sync_tag_hash=$(git rev-list -n 1 flux)
+  local head_hash
   head_hash=$(git rev-list -n 1 HEAD)
-  [ "$sync_tag_hash" = "$head_hash" ]
+  [ "$head_hash" = "$sync_tag_hash" ]
 
   # Add a change, wait for it to happen and check the sync tag again
   sed -i'.bak' 's%stefanprodan/podinfo:.*%stefanprodan/podinfo:3.1.5%' "${clone_dir}/workloads/podinfo-dep.yaml"
@@ -44,7 +45,7 @@ function setup() {
   poll_until_equals "podinfo image" "stefanprodan/podinfo:3.1.5" "kubectl get pod -n demo -l app=podinfo -o\"jsonpath={['items'][0]['spec']['containers'][0]['image']}\""
   git pull -f --tags
   sync_tag_hash=$(git rev-list -n 1 flux)
-  [ "$sync_tag_hash" = "$head_hash" ]
+  [ "$head_hash" = "$sync_tag_hash" ]
 }
 
 @test "Sync fails on duplicate resource" {
@@ -55,8 +56,9 @@ function setup() {
   git pull -f --tags
   local sync_tag_hash
   sync_tag_hash=$(git rev-list -n 1 flux)
+  local head_hash
   head_hash=$(git rev-list -n 1 HEAD)
-  [ "$sync_tag_hash" = "$head_hash" ]
+  [ "$head_hash" = "$sync_tag_hash" ]
   podinfo_image=$(kubectl get pod -n demo -l app=podinfo -o"jsonpath={['items'][0]['spec']['containers'][0]['image']}")
 
   # Bump the image of podinfo, duplicate the resource definition (to cause a sync failure)
@@ -75,7 +77,7 @@ function setup() {
   # Make sure that the Flux sync tag remains untouched
   git pull -f --tags
   sync_tag_hash=$(git rev-list -n 1 flux)
-  [ "$sync_tag_hash" = "$head_hash" ]
+  [ "$head_hash" = "$sync_tag_hash" ]
 }
 
 function teardown() {
