@@ -51,24 +51,18 @@ function uninstall_flux_with_helm() {
 fluxctl_install_cmd="fluxctl install --git-url=ssh://git@gitsrv/git-server/repos/cluster.git --git-email=foo"
 
 function install_flux_with_fluxctl() {
+  kustomization_dir=${1:-base/flux}
   local kustomtmp
   kustomtmp="$(mktemp -d)"
   defer "rm -rf \"${kustomtmp}\""
-  mkdir "${kustomtmp}/base"
+  mkdir -p "${kustomtmp}/base/flux"
   # This generates the base manifests, which we'll then patch with a kustomization
-  echo ">>> writing base configuration to ${kustomtmp}/base" >&3
-  $fluxctl_install_cmd --namespace "${FLUX_NAMESPACE}" -o "${kustomtmp}/base/"
+  echo ">>> writing base configuration to ${kustomtmp}/base/flux" >&3
+  $fluxctl_install_cmd --namespace "${FLUX_NAMESPACE}" -o "${kustomtmp}/base/flux"
   # Everything goes into one directory, but not everything is
   # necessarily used by the kustomization
   cp -R "${E2E_DIR}"/fixtures/kustom/* "${kustomtmp}/"
-  local kustomization
-  kustomization="base"
-  if [ -n "$1" ]; then
-    # use the kustomization given instead; ../base will still be
-    # there to be used as a base
-    kustomization="$1"
-  fi
-  kubectl apply -k "${kustomtmp}/${kustomization}" >&3
+  kubectl apply -k "${kustomtmp}/${kustomization_dir}" >&3
   kubectl -n "${FLUX_NAMESPACE}" rollout status -w --timeout=30s deployment/flux
   # Add the known hosts file manually (it's much easier than editing the manifests to add a volume)
   local flux_podname
@@ -121,33 +115,21 @@ function uninstall_flux_gpg() {
 }
 
 function install_git_srv() {
-  local git_secret_name=${1:-flux-git-deploy}
-  local external_access_result_var=${2}
-  local gpg_enable=${3:-false}
-  local gpg_secret_name=${4:-flux-gpg-signing-key}
+  local external_access_result_var=${1}
+  local kustomization_dir=${2:-base/gitsrv}
   local gen_dir
   gen_dir=$(mktemp -d)
 
   ssh-keygen -t rsa -N "" -f "$gen_dir/id_rsa"
   defer rm -rf "$gen_dir"
-  kubectl create secret generic "$git_secret_name" \
+  kubectl create secret generic flux-git-deploy \
     --namespace="${FLUX_NAMESPACE}" \
     --from-file="${FIXTURES_DIR}/known_hosts" \
     --from-file="$gen_dir/id_rsa" \
     --from-file=identity="$gen_dir/id_rsa" \
     --from-file="$gen_dir/id_rsa.pub"
 
-  local template="${E2E_DIR}/fixtures/gitsrv.yaml"
-  if [ "$gpg_enable" == "true" ]; then
-    template="${E2E_DIR}/fixtures/gitsrv-gpg.yaml"
-  fi
-
-  (
-    export GIT_SECRET_NAME=$git_secret_name
-    export GPG_SECRET_NAME=$gpg_secret_name
-
-    envsubst < "$template" | kubectl apply -n "${FLUX_NAMESPACE}" -f - >&3
-  )
+  kubectl apply -n "${FLUX_NAMESPACE}" -k "${E2E_DIR}/fixtures/kustom/${kustomization_dir}" >&3
 
   # Wait for the git server to be ready
   kubectl -n "${FLUX_NAMESPACE}" rollout status deployment/gitsrv

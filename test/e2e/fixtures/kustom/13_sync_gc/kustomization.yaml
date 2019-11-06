@@ -1,5 +1,5 @@
 bases:
-- "../base"
+- "../base/flux"
 patchesJson6902:
 ## this patch is for test-specific patches; supply a filename to
 ## install_flux_with_fluxctl and it will use that rather than the

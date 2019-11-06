@@ -10,7 +10,7 @@ clone_dir=""
 function setup() {
   kubectl create namespace "$FLUX_NAMESPACE"
   # Install flux and the git server, allowing external access
-  install_git_srv flux-git-deploy git_srv_result
+  install_git_srv git_srv_result
   # shellcheck disable=SC2154
   export GIT_SSH_COMMAND="${git_srv_result[0]}"
   # Teardown the created port-forward to gitsrv and restore Git settings.

@@ -24,7 +24,7 @@ function setup() {
 
   # Install the git server with signed init commit,
   # allowing external access
-  install_git_srv flux-git-deploy git_srv_result true
+  install_git_srv git_srv_result 20_gpg/gitsrv
 
   # Install Flux with the GPG key, and commit verification enabled
   install_flux_gpg "$gpg_key" true
@@ -78,7 +78,7 @@ function setup() {
   create_secret_from_gpg_key "$gpg_key"
 
   # Install the git server with _unsigned_ init commit
-  install_git_srv flux-git-deploy "" false
+  install_git_srv
 
   # Install Flux with the GPG key, and commit verification enabled
   install_flux_gpg "$gpg_key" true
