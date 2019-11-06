@@ -53,7 +53,7 @@ fluxctl_install_cmd="fluxctl install --git-url=ssh://git@gitsrv/git-server/repos
 function install_flux_with_fluxctl() {
   local kustomtmp
   kustomtmp="$(mktemp -d)"
-  defer "if [ -d \"${kustomtmp}\" ]; then rm -r \"${kustomtmp}\"; fi"
+  defer "rm -rf \"${kustomtmp}\""
   mkdir "${kustomtmp}/base"
   # This generates the base manifests, which we'll then patch with a kustomization
   echo ">>> writing base configuration to ${kustomtmp}/base" >&3
