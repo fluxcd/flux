@@ -167,6 +167,9 @@ spec:
         # - --connect=wss://cloud.weave.works/api/flux
         # - --token=abc123abc123abc123abc123
 
+        # Enable manifest generation (default `false`)
+        # - --manifest-generation=false
+
         # Serve /metrics endpoint at different port;
         # make sure to set prometheus' annotation to scrape the port value.
         - --listen-metrics=:3031
