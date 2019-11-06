@@ -51,16 +51,25 @@ function uninstall_flux_with_helm() {
 fluxctl_install_cmd="fluxctl install --git-url=ssh://git@gitsrv/git-server/repos/cluster.git --git-email=foo"
 
 function install_flux_with_fluxctl() {
-  local eol=$'\n'
-  # Use the local Flux image instead of the latest release, use a poll interval of 10s
-  # (to make tests quicker) and disable registry polling (to avoid overloading kind)
-  $fluxctl_install_cmd --namespace "${FLUX_NAMESPACE}" |
-    sed 's%docker\.io/fluxcd/flux:.*%fluxcd/flux:latest%' |
-    sed "s%--git-email=foo%--git-email=foo\\$eol        - --git-poll-interval=10s%" |
-    sed "s%--git-email=foo%--git-email=foo\\$eol        - --sync-interval=10s%" |
-    sed "s%--git-email=foo%--git-email=foo\\$eol        - --registry-exclude-image=\*%" |
-    kubectl apply -f -
-  kubectl -n "${FLUX_NAMESPACE}" rollout status deployment/flux
+  local kustomtmp
+  kustomtmp="$(mktemp -d)"
+  defer "if [ -d \"${kustomtmp}\" ]; then rm -r \"${kustomtmp}\"; fi"
+  mkdir "${kustomtmp}/base"
+  # This generates the base manifests, which we'll then patch with a kustomization
+  echo ">>> writing base configuration to ${kustomtmp}/base" >&3
+  $fluxctl_install_cmd --namespace "${FLUX_NAMESPACE}" -o "${kustomtmp}/base/"
+  # Everything goes into one directory, but not everything is
+  # necessarily used by the kustomization
+  cp -R "${E2E_DIR}"/fixtures/kustom/* "${kustomtmp}/"
+  local kustomization
+  kustomization="base"
+  if [ -n "$1" ]; then
+    # use the kustomization given instead; ../base will still be
+    # there to be used as a base
+    kustomization="$1"
+  fi
+  kubectl apply -k "${kustomtmp}/${kustomization}" >&3
+  kubectl -n "${FLUX_NAMESPACE}" rollout status -w --timeout=30s deployment/flux
   # Add the known hosts file manually (it's much easier than editing the manifests to add a volume)
   local flux_podname
   flux_podname=$(kubectl get pod -n "${FLUX_NAMESPACE}" -l name=flux -o jsonpath="{['items'][0].metadata.name}")
