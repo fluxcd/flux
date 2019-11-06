@@ -6,28 +6,24 @@ load lib/gpg
 load lib/install
 load lib/poll
 
-tmp_gnupghome=""
-git_port_forward_pid=""
-
 function setup() {
   kubectl create namespace "${FLUX_NAMESPACE}" &> /dev/null
 
   # Install the git server, allowing external access
   install_git_srv flux-git-deploy git_srv_result
   # shellcheck disable=SC2154
-  git_ssh_cmd="${git_srv_result[0]}"
-  export GIT_SSH_COMMAND="$git_ssh_cmd"
-  # shellcheck disable=SC2154
-  git_port_forward_pid="${git_srv_result[1]}"
+  export GIT_SSH_COMMAND="${git_srv_result[0]}"
   # Teardown the created port-forward to gitsrv.
-  defer kill "$git_port_forward_pid"
+  defer kill "${git_srv_result[1]}"
 
   # Create a temporary GNUPGHOME
+  local tmp_gnupghome
   tmp_gnupghome=$(mktemp -d)
   export GNUPGHOME="$tmp_gnupghome"
   defer rm -rf "$tmp_gnupghome"
 
   # Install Flux, with a new GPG key and signing enabled
+  local gpg_key
   gpg_key=$(create_gpg_key)
   create_secret_from_gpg_key "$gpg_key"
   install_flux_gpg "$gpg_key"

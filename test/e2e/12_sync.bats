@@ -5,7 +5,6 @@ load lib/install
 load lib/poll
 load lib/defer
 
-git_port_forward_pid=""
 clone_dir=""
 
 function setup() {
@@ -13,19 +12,16 @@ function setup() {
   # Install flux and the git server, allowing external access
   install_git_srv flux-git-deploy git_srv_result
   # shellcheck disable=SC2154
-  git_ssh_cmd="${git_srv_result[0]}"
-  export GIT_SSH_COMMAND="$git_ssh_cmd"
-  # shellcheck disable=SC2154
-  git_port_forward_pid="${git_srv_result[1]}"
+  export GIT_SSH_COMMAND="${git_srv_result[0]}"
   # Teardown the created port-forward to gitsrv and restore Git settings.
-  defer kill "$git_port_forward_pid"
+  defer kill "${git_srv_result[1]}"
 
   install_flux_with_fluxctl
 
-  # Clone the repo and
+  # Clone the repo
   clone_dir="$(mktemp -d)"
-  git clone -b master ssh://git@localhost/git-server/repos/cluster.git "$clone_dir"
   defer rm -rf "$clone_dir"
+  git clone -b master ssh://git@localhost/git-server/repos/cluster.git "$clone_dir"
   # shellcheck disable=SC2164
   cd "$clone_dir"
 }
