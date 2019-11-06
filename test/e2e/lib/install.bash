@@ -52,6 +52,7 @@ fluxctl_install_cmd="fluxctl install --git-url=ssh://git@gitsrv/git-server/repos
 
 function install_flux_with_fluxctl() {
   kustomization_dir=${1:-base/flux}
+  kubectl -n "${FLUX_NAMESPACE}" create configmap flux-known-hosts --from-file="${E2E_DIR}/fixtures/known_hosts"
   local kustomtmp
   kustomtmp="$(mktemp -d)"
   defer "rm -rf \"${kustomtmp}\""
@@ -64,14 +65,11 @@ function install_flux_with_fluxctl() {
   cp -R "${E2E_DIR}"/fixtures/kustom/* "${kustomtmp}/"
   kubectl apply -k "${kustomtmp}/${kustomization_dir}" >&3
   kubectl -n "${FLUX_NAMESPACE}" rollout status -w --timeout=30s deployment/flux
-  # Add the known hosts file manually (it's much easier than editing the manifests to add a volume)
-  local flux_podname
-  flux_podname=$(kubectl get pod -n "${FLUX_NAMESPACE}" -l name=flux -o jsonpath="{['items'][0].metadata.name}")
-  kubectl exec -n "${FLUX_NAMESPACE}" "${flux_podname}" -- sh -c "mkdir -p /root/.ssh; echo '${KNOWN_HOSTS}' > /root/.ssh/known_hosts" >&3
 }
 
 function uninstall_flux_with_fluxctl() {
-  $fluxctl_install_cmd --namespace "${FLUX_NAMESPACE}" | kubectl delete -f -
+  kubectl delete -n "${FLUX_NAMESPACE}" configmap flux-known-hosts
+  $fluxctl_install_cmd -n "${FLUX_NAMESPACE}" | kubectl delete -f -
 }
 
 flux_gpg_helm_template="helm template --name flux-gpg

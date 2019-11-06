@@ -5,8 +5,6 @@ resources:
 - memcache-dep.yaml
 - memcache-svc.yaml
 patchesJson6902:
-# use a poll interval of 10s (to make tests quicker) and disable
-# registry polling (to avoid overloading kind)
 - target:
     group: apps
     version: v1
