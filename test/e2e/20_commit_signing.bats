@@ -20,7 +20,7 @@ function setup() {
   local tmp_gnupghome
   tmp_gnupghome=$(mktemp -d)
   export GNUPGHOME="$tmp_gnupghome"
-  defer rm -rf "$tmp_gnupghome"
+  defer rm -rf "'$tmp_gnupghome'"
 
   # Install Flux, with a new GPG key and signing enabled
   local gpg_key
@@ -42,7 +42,7 @@ function setup() {
   # Clone the repo
   local clone_dir
   clone_dir="$(mktemp -d)"
-  defer rm -rf "$clone_dir"
+  defer rm -rf "'$clone_dir'"
   git clone -b master ssh://git@localhost/git-server/repos/cluster.git "$clone_dir"
   cd "$clone_dir"
 
@@ -61,7 +61,7 @@ function setup() {
   # Clone the repo
   local clone_dir
   clone_dir="$(mktemp -d)"
-  defer rm -rf "$clone_dir"
+  defer rm -rf "'$clone_dir'"
   git clone -b master ssh://git@localhost/git-server/repos/cluster.git "$clone_dir"
   cd "$clone_dir"
 

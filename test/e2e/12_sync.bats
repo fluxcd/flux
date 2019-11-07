@@ -20,7 +20,7 @@ function setup() {
 
   # Clone the repo
   clone_dir="$(mktemp -d)"
-  defer rm -rf "$clone_dir"
+  defer rm -rf "'$clone_dir'"
   git clone -b master ssh://git@localhost/git-server/repos/cluster.git "$clone_dir"
   # shellcheck disable=SC2164
   cd "$clone_dir"

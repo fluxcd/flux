@@ -11,7 +11,7 @@ function setup() {
 
   # Create a temporary GNUPGHOME
   tmp_gnupghome=$(mktemp -d)
-  defer "rm -rf '$tmp_gnupghome'"
+  defer rm -rf "'$tmp_gnupghome'"
   export GNUPGHOME="$tmp_gnupghome"
 }
 

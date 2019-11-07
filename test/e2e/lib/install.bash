@@ -58,7 +58,7 @@ function install_flux_with_fluxctl() {
   kubectl -n "${FLUX_NAMESPACE}" create configmap flux-known-hosts --from-file="${E2E_DIR}/fixtures/known_hosts"
   local kustomtmp
   kustomtmp="$(mktemp -d)"
-  defer "rm -rf \"${kustomtmp}\""
+  defer rm -rf "'${kustomtmp}'"
   mkdir -p "${kustomtmp}/base/flux"
   # This generates the base manifests, which we'll then patch with a kustomization
   echo ">>> writing base configuration to ${kustomtmp}/base/flux" >&3
@@ -85,7 +85,7 @@ function install_git_srv() {
   gen_dir=$(mktemp -d)
 
   ssh-keygen -t rsa -N "" -f "$gen_dir/id_rsa"
-  defer rm -rf "$gen_dir"
+  defer rm -rf "'$gen_dir'"
   kubectl create secret generic flux-git-deploy \
     --namespace="${FLUX_NAMESPACE}" \
     --from-file="${FIXTURES_DIR}/known_hosts" \

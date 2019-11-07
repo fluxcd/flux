@@ -26,7 +26,7 @@ function setup() {
   # Clone the repo and check the sync tag
   local clone_dir
   clone_dir="$(mktemp -d)"
-  defer rm -rf "$clone_dir"
+  defer rm -rf "'$clone_dir'"
   git clone -b master ssh://git@localhost/git-server/repos/cluster.git "$clone_dir"
   cd "$clone_dir"
   local sync_tag_hash
