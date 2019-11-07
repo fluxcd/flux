@@ -93,7 +93,7 @@ function setup() {
   install_flux_with_fluxctl '20_gpg/flux' 'template_values'
 
   # Wait for Flux to report that it sees an invalid commit
-  poll_until_true 'invalid GPG signature log' "kubectl logs -n ${FLUX_NAMESPACE} deploy/flux | grep -e 'found invalid GPG signature for commit'"
+  poll_until_true 'invalid GPG signature log' "kubectl logs -n ${FLUX_NAMESPACE} deploy/flux | grep -q -e 'found invalid GPG signature for commit'"
 
   # Attempt to lock a resource, and confirm it returns an error.
   run fluxctl --k8s-fwd-ns "${FLUX_NAMESPACE}" lock --workload demo:deployment/podinfo

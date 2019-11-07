@@ -70,7 +70,7 @@ function setup() {
   git -c 'user.email=foo@bar.com' -c 'user.name=Foo' commit -am "Bump podinfo and duplicate it to cause an error"
   git push
   # Wait until we find the duplicate failure in the logs
-  poll_until_true "duplicate resource in Flux logs" "kubectl logs -n $FLUX_NAMESPACE -l name=flux | grep -q \"duplicate definition of 'demo:deployment/podinfo'\""
+  poll_until_true "duplicate resource in Flux logs" "kubectl logs -n $FLUX_NAMESPACE deploy/flux | grep -q \"duplicate definition of 'demo:deployment/podinfo'\""
   # Make sure that the version of podinfo wasn't bumped
   local podinfo_image_now
   podinfo_image_now=$(kubectl get pod -n demo -l app=podinfo -o"jsonpath={['items'][0]['spec']['containers'][0]['image']}")
