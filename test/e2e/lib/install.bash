@@ -2,6 +2,8 @@
 
 # shellcheck disable=SC1090
 source "${E2E_DIR}/lib/defer.bash"
+# shellcheck disable=SC1090
+source "${E2E_DIR}/lib/template.bash"
 
 function install_tiller() {
   if ! helm version > /dev/null 2>&1; then # only if helm isn't already installed
@@ -52,6 +54,7 @@ fluxctl_install_cmd="fluxctl install --git-url=ssh://git@gitsrv/git-server/repos
 
 function install_flux_with_fluxctl() {
   kustomization_dir=${1:-base/flux}
+  key_values_varname=${2}
   kubectl -n "${FLUX_NAMESPACE}" create configmap flux-known-hosts --from-file="${E2E_DIR}/fixtures/known_hosts"
   local kustomtmp
   kustomtmp="$(mktemp -d)"
@@ -63,53 +66,16 @@ function install_flux_with_fluxctl() {
   # Everything goes into one directory, but not everything is
   # necessarily used by the kustomization
   cp -R "${E2E_DIR}"/fixtures/kustom/* "${kustomtmp}/"
+  if [ -n "$2" ]; then
+    fill_in_place_recursively "$key_values_varname" "${kustomtmp}"
+  fi
   kubectl apply -k "${kustomtmp}/${kustomization_dir}" >&3
   kubectl -n "${FLUX_NAMESPACE}" rollout status -w --timeout=30s deployment/flux
 }
 
 function uninstall_flux_with_fluxctl() {
   kubectl delete -n "${FLUX_NAMESPACE}" configmap flux-known-hosts
-  $fluxctl_install_cmd -n "${FLUX_NAMESPACE}" | kubectl delete -f -
-}
-
-flux_gpg_helm_template="helm template --name flux-gpg
-    --set image.repository=docker.io/fluxcd/flux
-    --set image.tag=latest
-    --set git.url=ssh://git@gitsrv/git-server/repos/cluster.git
-    --set git.secretName=flux-git-deploy
-    --set git.pollInterval=10s
-    --set git.config.secretName=gitconfig
-    --set git.config.enabled=true
-    --set registry.excludeImage=*"
-
-function install_flux_gpg() {
-  local key_id=${1}
-  local git_verify=${2:-false}
-  local gpg_secret_name=${3:-flux-gpg-signing-key}
-
-  if [ -z "$key_id" ]; then
-    echo "no key ID provided" >&2
-    exit 1
-  fi
-
-  $flux_gpg_helm_template \
-    --namespace "${FLUX_NAMESPACE}" \
-    --set-string git.config.data="${GITCONFIG}" \
-    --set-string ssh.known_hosts="${KNOWN_HOSTS}" \
-    --set-string git.signingKey="$key_id" \
-    --set-string git.verifySignatures="$git_verify" \
-    --set-string gpgKeys.secretName="$gpg_secret_name" \
-    "${FLUX_ROOT_DIR}/chart/flux" |
-    kubectl --namespace "${FLUX_NAMESPACE}" apply -f - >&3
-}
-
-function uninstall_flux_gpg() {
-  $flux_gpg_helm_template \
-    --namespace "${FLUX_NAMESPACE}" \
-    --set-string git.config.data="${GITCONFIG}" \
-    --set-string ssh.known_hosts="${KNOWN_HOSTS}" \
-    "${FLUX_ROOT_DIR}/chart/flux" |
-    kubectl --namespace "${FLUX_NAMESPACE}" delete -f - >&3
+  $fluxctl_install_cmd --namespace "${FLUX_NAMESPACE}" | kubectl delete -f -
 }
 
 function install_git_srv() {

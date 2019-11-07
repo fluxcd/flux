@@ -1,0 +1,9 @@
+bases:
+- "../../base/flux"
+patchesJson6902:
+- target:
+    group: apps
+    version: v1
+    kind: Deployment
+    name: flux
+  path: gpg_patch.yaml

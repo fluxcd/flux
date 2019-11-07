@@ -26,7 +26,12 @@ function setup() {
   local gpg_key
   gpg_key=$(create_gpg_key)
   create_secret_from_gpg_key "$gpg_key"
-  install_flux_gpg "$gpg_key"
+  local -A template_values
+  # shellcheck disable=SC2034
+  template_values['FLUX_GPG_KEY_ID']="$gpg_key"
+  # shellcheck disable=SC2034
+  template_values['FLUX_GIT_VERIFY_SIGNATURES']="false"
+  install_flux_with_fluxctl '20_gpg/flux' 'template_values'
 }
 
 @test "Git sync tag is signed" {
@@ -43,7 +48,7 @@ function setup() {
 
   # Test that the tag has been signed, this errors if this isn't the case
   git pull -f --tags
-  git verify-tag --raw flux-sync >&3
+  git verify-tag --raw flux >&3
 }
 
 @test "Git commits are signed" {
@@ -69,7 +74,7 @@ function teardown() {
   # Kill the agent and remove temporary GNUPGHOME
   gpgconf --kill gpg-agent
   # Uninstall Flux and the global resources it installs.
-  uninstall_flux_gpg
+  uninstall_flux_with_fluxctl
   # Removing the namespace also takes care of removing Flux and gitsrv.
   kubectl delete namespace "$FLUX_NAMESPACE"
   # Only remove the demo workloads after Flux, so that they cannot be recreated.

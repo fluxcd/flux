@@ -35,7 +35,6 @@ EOF
 
 function create_secret_from_gpg_key() {
   local key_id="${1}"
-  local secret_name="${2:-flux-gpg-signing-key}"
 
   if [ -z "$key_id" ]; then
     echo "no key ID provided" >&2
@@ -45,6 +44,6 @@ function create_secret_from_gpg_key() {
   # Export key to secret
   gpg --export-secret-keys "$key_id" |
     kubectl --namespace "${FLUX_NAMESPACE}" \
-      create secret generic "$secret_name" \
+      create secret generic flux-gpg-signing-key \
       --from-file=flux.asc=/dev/stdin
 }
