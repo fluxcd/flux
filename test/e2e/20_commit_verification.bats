@@ -4,16 +4,14 @@ load lib/env
 load lib/gpg
 load lib/install
 load lib/poll
-
-tmp_gnupghome=""
-git_port_forward_pid=""
-clone_dir=""
+load lib/defer
 
 function setup() {
   kubectl create namespace "${FLUX_NAMESPACE}"
 
   # Create a temporary GNUPGHOME
   tmp_gnupghome=$(mktemp -d)
+  defer "rm -rf '$tmp_gnupghome'"
   export GNUPGHOME="$tmp_gnupghome"
 }
 
@@ -39,7 +37,7 @@ function setup() {
   export GIT_SSH_COMMAND="$git_ssh_cmd"
 
   # shellcheck disable=SC2030
-  git_port_forward_pid="${git_srv_result[1]}"
+  defer "kill '${git_srv_result[1]}'"
 
   # Test that the resources from https://github.com/fluxcd/flux-get-started are deployed
   poll_until_true 'namespace demo' 'kubectl describe ns/demo'
@@ -47,6 +45,7 @@ function setup() {
   # Clone the repo
   # shellcheck disable=SC2030
   clone_dir="$(mktemp -d)"
+  defer "rm -rf '$clone_dir'"
   git clone -b master ssh://git@localhost/git-server/repos/cluster.git "$clone_dir"
   cd "$clone_dir"
 
@@ -103,14 +102,9 @@ function setup() {
 }
 
 function teardown() {
-  # shellcheck disable=SC2031
-  rm -rf "$clone_dir"
-  # (Maybe) teardown the created port-forward to gitsrv.
-  # shellcheck disable=SC2031
-  kill "$git_port_forward_pid" || true
-  # Kill the agent and remove temporary GNUPGHOME
+  run_deferred
+  # Kill the agent
   gpgconf --kill gpg-agent
-  rm -rf "$tmp_gnupghome"
   # Although the namespace delete below takes care of removing most Flux
   # elements, the global resources will not be removed without this.
   uninstall_flux_with_fluxctl
