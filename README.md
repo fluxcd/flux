@@ -56,6 +56,7 @@ container images and config changes are propagated to the cluster.
 - [College of William & Mary](https://www.wm.edu)
 - [Control Plane](https://control-plane.io)
 - [Crowd Riff](https://crowdriff.com)
+- [Cybrary](https://cybrary.it)
 - [FireHydrant](https://firehydrant.io)
 - [Gini](https://gini.net)
 - [HMCTS](https://www.gov.uk/government/organisations/hm-courts-and-tribunals-service)
