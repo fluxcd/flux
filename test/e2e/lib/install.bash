@@ -66,7 +66,7 @@ function install_flux_with_fluxctl() {
   # Everything goes into one directory, but not everything is
   # necessarily used by the kustomization
   cp -R "${E2E_DIR}"/fixtures/kustom/* "${kustomtmp}/"
-  if [ -n "$2" ]; then
+  if [ -n "$key_values_varname" ]; then
     fill_in_place_recursively "$key_values_varname" "${kustomtmp}"
   fi
   kubectl apply -k "${kustomtmp}/${kustomization_dir}" >&3

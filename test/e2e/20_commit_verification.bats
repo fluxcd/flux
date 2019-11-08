@@ -37,7 +37,7 @@ function setup() {
   export GIT_SSH_COMMAND="$git_ssh_cmd"
 
   # shellcheck disable=SC2030
-  defer "kill '${git_srv_result[1]}'"
+  defer kill "${git_srv_result[1]}"
 
   # Test that the resources from https://github.com/fluxcd/flux-get-started are deployed
   poll_until_true 'namespace demo' 'kubectl describe ns/demo'
@@ -45,7 +45,7 @@ function setup() {
   # Clone the repo
   # shellcheck disable=SC2030
   clone_dir="$(mktemp -d)"
-  defer "rm -rf '$clone_dir'"
+  defer rm -rf "'$clone_dir'"
   git clone -b master ssh://git@localhost/git-server/repos/cluster.git "$clone_dir"
   cd "$clone_dir"
 
