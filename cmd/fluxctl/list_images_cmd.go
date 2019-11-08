@@ -130,8 +130,8 @@ func (opts *imageListOpts) RunE(cmd *cobra.Command, args []string) error {
 				}
 				if printLine {
 					createdAt := ""
-					if !available.CreatedTS().IsZero() {
-						createdAt = available.CreatedTS().Format(time.RFC822)
+					if !available.CreatedAt.IsZero() {
+						createdAt = available.CreatedAt.Format(time.RFC822)
 					}
 					fmt.Fprintf(out, "\t\t%s %s\t%s\n", running, tag, createdAt)
 				}
