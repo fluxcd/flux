@@ -1,0 +1,21 @@
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: --git-poll-interval=10s
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: --sync-interval=10s
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: --registry-exclude-image=*
+- op: add
+  path: /spec/template/spec/containers/0/volumeMounts/-
+  value:
+    name: known-hosts
+    mountPath: /root/.ssh/known_hosts
+    subPath: known_hosts
+- op: add
+  path: /spec/template/spec/volumes/-
+  value:
+    name: known-hosts
+    configMap:
+      name: flux-known-hosts

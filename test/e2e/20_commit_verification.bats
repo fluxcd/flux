@@ -4,16 +4,14 @@ load lib/env
 load lib/gpg
 load lib/install
 load lib/poll
-
-tmp_gnupghome=""
-git_port_forward_pid=""
-clone_dir=""
+load lib/defer
 
 function setup() {
   kubectl create namespace "${FLUX_NAMESPACE}"
 
   # Create a temporary GNUPGHOME
   tmp_gnupghome=$(mktemp -d)
+  defer rm -rf "'$tmp_gnupghome'"
   export GNUPGHOME="$tmp_gnupghome"
 }
 
@@ -24,17 +22,22 @@ function setup() {
 
   # Install the git server with signed init commit,
   # allowing external access
-  install_git_srv flux-git-deploy git_srv_result true
+  install_git_srv git_srv_result 20_gpg/gitsrv
 
   # Install Flux with the GPG key, and commit verification enabled
-  install_flux_gpg "$gpg_key" true
+  local -A template_values
+  # shellcheck disable=SC2034
+  template_values['FLUX_GPG_KEY_ID']="$gpg_key"
+  # shellcheck disable=SC2034
+  template_values['FLUX_GIT_VERIFY_SIGNATURES']="true"
+  install_flux_with_fluxctl '20_gpg/flux' 'template_values'
 
   # shellcheck disable=SC2154
   git_ssh_cmd="${git_srv_result[0]}"
   export GIT_SSH_COMMAND="$git_ssh_cmd"
 
   # shellcheck disable=SC2030
-  git_port_forward_pid="${git_srv_result[1]}"
+  defer kill "${git_srv_result[1]}"
 
   # Test that the resources from https://github.com/fluxcd/flux-get-started are deployed
   poll_until_true 'namespace demo' 'kubectl describe ns/demo'
@@ -42,10 +45,11 @@ function setup() {
   # Clone the repo
   # shellcheck disable=SC2030
   clone_dir="$(mktemp -d)"
+  defer rm -rf "'$clone_dir'"
   git clone -b master ssh://git@localhost/git-server/repos/cluster.git "$clone_dir"
   cd "$clone_dir"
 
-  local sync_tag="flux-sync"
+  local sync_tag="flux"
   local org_head_hash
   org_head_hash=$(git rev-list -n 1 HEAD)
   sync_tag_hash=$(git rev-list -n 1 "$sync_tag")
@@ -78,13 +82,18 @@ function setup() {
   create_secret_from_gpg_key "$gpg_key"
 
   # Install the git server with _unsigned_ init commit
-  install_git_srv flux-git-deploy "" false
+  install_git_srv
 
   # Install Flux with the GPG key, and commit verification enabled
-  install_flux_gpg "$gpg_key" true
+  local -A template_values
+  # shellcheck disable=SC2034
+  template_values['FLUX_GPG_KEY_ID']="$gpg_key"
+  # shellcheck disable=SC2034
+  template_values['FLUX_GIT_VERIFY_SIGNATURES']="true"
+  install_flux_with_fluxctl '20_gpg/flux' 'template_values'
 
   # Wait for Flux to report that it sees an invalid commit
-  poll_until_true 'invalid GPG signature log' "kubectl logs -n ${FLUX_NAMESPACE} deploy/flux-gpg | grep -e 'found invalid GPG signature for commit'"
+  poll_until_true 'invalid GPG signature log' "kubectl logs -n ${FLUX_NAMESPACE} deploy/flux | grep -q -e 'found invalid GPG signature for commit'"
 
   # Attempt to lock a resource, and confirm it returns an error.
   run fluxctl --k8s-fwd-ns "${FLUX_NAMESPACE}" lock --workload demo:deployment/podinfo
@@ -93,17 +102,12 @@ function setup() {
 }
 
 function teardown() {
-  # shellcheck disable=SC2031
-  rm -rf "$clone_dir"
-  # (Maybe) teardown the created port-forward to gitsrv.
-  # shellcheck disable=SC2031
-  kill "$git_port_forward_pid" || true
-  # Kill the agent and remove temporary GNUPGHOME
+  run_deferred
+  # Kill the agent
   gpgconf --kill gpg-agent
-  rm -rf "$tmp_gnupghome"
   # Although the namespace delete below takes care of removing most Flux
   # elements, the global resources will not be removed without this.
-  uninstall_flux_gpg
+  uninstall_flux_with_fluxctl
   # Removing the namespace also takes care of removing Flux and gitsrv.
   kubectl delete namespace "$FLUX_NAMESPACE"
   # (Maybe) remove the demo namespace

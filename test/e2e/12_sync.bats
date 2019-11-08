@@ -5,27 +5,23 @@ load lib/install
 load lib/poll
 load lib/defer
 
-git_port_forward_pid=""
 clone_dir=""
 
 function setup() {
   kubectl create namespace "$FLUX_NAMESPACE"
   # Install flux and the git server, allowing external access
-  install_git_srv flux-git-deploy git_srv_result
+  install_git_srv git_srv_result
   # shellcheck disable=SC2154
-  git_ssh_cmd="${git_srv_result[0]}"
-  export GIT_SSH_COMMAND="$git_ssh_cmd"
-  # shellcheck disable=SC2154
-  git_port_forward_pid="${git_srv_result[1]}"
+  export GIT_SSH_COMMAND="${git_srv_result[0]}"
   # Teardown the created port-forward to gitsrv and restore Git settings.
-  defer kill "$git_port_forward_pid"
+  defer kill "${git_srv_result[1]}"
 
   install_flux_with_fluxctl
 
-  # Clone the repo and
+  # Clone the repo
   clone_dir="$(mktemp -d)"
+  defer rm -rf "'$clone_dir'"
   git clone -b master ssh://git@localhost/git-server/repos/cluster.git "$clone_dir"
-  defer rm -rf "$clone_dir"
   # shellcheck disable=SC2164
   cd "$clone_dir"
 }
@@ -74,7 +70,7 @@ function setup() {
   git -c 'user.email=foo@bar.com' -c 'user.name=Foo' commit -am "Bump podinfo and duplicate it to cause an error"
   git push
   # Wait until we find the duplicate failure in the logs
-  poll_until_true "duplicate resource in Flux logs" "kubectl logs -n $FLUX_NAMESPACE -l name=flux | grep -q \"duplicate definition of 'demo:deployment/podinfo'\""
+  poll_until_true "duplicate resource in Flux logs" "kubectl logs -n $FLUX_NAMESPACE deploy/flux | grep -q \"duplicate definition of 'demo:deployment/podinfo'\""
   # Make sure that the version of podinfo wasn't bumped
   local podinfo_image_now
   podinfo_image_now=$(kubectl get pod -n demo -l app=podinfo -o"jsonpath={['items'][0]['spec']['containers'][0]['image']}")
@@ -87,7 +83,8 @@ function setup() {
 
 function teardown() {
   run_deferred
-  # Uninstall Flux and the global resources it installs.
+  # Although the namespace delete below takes care of removing most Flux
+  # elements, the global resources will not be removed without this.
   uninstall_flux_with_fluxctl
   # Removing the namespace also takes care of removing gitsrv.
   kubectl delete namespace "$FLUX_NAMESPACE"
