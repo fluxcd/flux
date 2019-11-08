@@ -83,7 +83,8 @@ function setup() {
 
 function teardown() {
   run_deferred
-  # Uninstall Flux and the global resources it installs.
+  # Although the namespace delete below takes care of removing most Flux
+  # elements, the global resources will not be removed without this.
   uninstall_flux_with_fluxctl
   # Removing the namespace also takes care of removing gitsrv.
   kubectl delete namespace "$FLUX_NAMESPACE"
