@@ -93,16 +93,8 @@ commandUpdated:
 	assert.Equal(t, filepath.Join(baseDir, "envs/staging"), configFiles[0].workingDir)
 	assert.Equal(t, filepath.Join(baseDir, "envs/production"), configFiles[1].workingDir)
 
-	mustRelativeConfigPath := func(cf *ConfigFile) string {
-		p, err := cf.RelativeConfigPath()
-		if err != nil {
-			t.Error(err)
-		}
-		return p
-	}
-
-	assert.Equal(t, "../.flux.yaml", mustRelativeConfigPath(configFiles[0]))
-	assert.Equal(t, "../.flux.yaml", mustRelativeConfigPath(configFiles[1]))
+	assert.Equal(t, "../.flux.yaml", configFiles[0].RelativeConfigPath())
+	assert.Equal(t, "../.flux.yaml", configFiles[1].RelativeConfigPath())
 
 	assert.NotNil(t, configFiles[0].CommandUpdated)
 	assert.Len(t, configFiles[0].CommandUpdated.Generators, 1)

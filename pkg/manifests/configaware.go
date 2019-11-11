@@ -33,6 +33,9 @@ type configAware struct {
 	resourcesByID map[string]resourceWithOrigin
 }
 
+// NewConfigAware constructs a `Store` that processes in-repo config
+// files (`.flux.yaml`) where present, and otherwise looks for "raw"
+// YAML files.
 func NewConfigAware(baseDir string, targetPaths []string, manifests Manifests) (*configAware, error) {
 	configFiles, rawManifestDirs, err := splitConfigFilesAndRawManifestPaths(baseDir, targetPaths)
 	if err != nil {
@@ -71,7 +74,7 @@ func splitConfigFilesAndRawManifestPaths(baseDir string, paths []string) ([]*Con
 			}
 			return nil, nil, fmt.Errorf("error when searching config files for path %q: %s", relPath, err)
 		}
-		cf, err := NewConfigFile(configFilePath, workingDirPath)
+		cf, err := NewConfigFile(relPath, configFilePath, workingDirPath)
 		if err != nil {
 			relConfigFilePath, relErr := filepath.Rel(baseDir, configFilePath)
 			if relErr != nil {
@@ -208,11 +211,7 @@ func (ca *configAware) getResourcesByID(ctx context.Context) (map[string]resourc
 		if err != nil {
 			return nil, err
 		}
-		relConfigFilePath, err := cf.RelativeConfigPath()
-		if err != nil {
-			return nil, err
-		}
-		resources, err := ca.manifests.ParseManifest(resourceManifests, relConfigFilePath)
+		resources, err := ca.manifests.ParseManifest(resourceManifests, cf.RelativeConfigPath())
 		if err != nil {
 			return nil, err
 		}

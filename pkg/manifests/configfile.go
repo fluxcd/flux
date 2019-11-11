@@ -33,8 +33,13 @@ type ConfigFile struct {
 	CommandUpdated *CommandUpdated `yaml:"commandUpdated"`
 	PatchUpdated   *PatchUpdated   `yaml:"patchUpdated"`
 
-	path       string // the absolute path to the .flux.yaml
-	workingDir string // the absolute path to the dir in which to run commands or find a patch file
+	// These are supplied, and can't be calculated from each other
+	originalPath string // the path relative to the repo root, for identifying generated manifests
+	configPath   string // the absolute path to the .flux.yaml
+	workingDir   string // the absolute path to the dir in which to run commands or find a patch file
+
+	// This is calculated on creation
+	relativeConfigPath string // the path to the config file _relative_ to the working directory
 }
 
 // CommandUpdated represents a config in which updates are done by
@@ -77,17 +82,27 @@ type PatchUpdated struct {
 
 // NewConfigFile constructs a ConfigFile from the file at the absolute
 // path given, with the absolute working dir given.
-func NewConfigFile(path, workingDir string) (*ConfigFile, error) {
-	var result ConfigFile
-	fileBytes, err := ioutil.ReadFile(path)
+func NewConfigFile(originalPath, configPath, workingDir string) (*ConfigFile, error) {
+	result := &ConfigFile{
+		originalPath: originalPath,
+		configPath:   configPath,
+		workingDir:   workingDir,
+	}
+
+	relConfigPath, err := filepath.Rel(workingDir, configPath)
+	if err != nil {
+		return nil, fmt.Errorf("config file not relative to working dir: %s", err)
+	}
+	result.relativeConfigPath = relConfigPath
+
+	fileBytes, err := ioutil.ReadFile(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read: %s", err)
 	}
-	if err := yaml.Unmarshal(fileBytes, &result); err != nil {
+	if err := yaml.Unmarshal(fileBytes, result); err != nil {
 		return nil, fmt.Errorf("cannot parse: %s", err)
 	}
-	result.path = path
-	result.workingDir = workingDir
+
 	switch {
 	case result.Version != 1:
 		return nil, errors.New("incorrect version, only version 1 is supported for now")
@@ -97,24 +112,20 @@ func NewConfigFile(path, workingDir string) (*ConfigFile, error) {
 	case result.PatchUpdated != nil && result.PatchUpdated.PatchFile == "":
 		return nil, errors.New("patchUpdated's patchFile cannot be empty")
 	}
-	return &result, nil
+	return result, nil
 }
 
 // -- entry points for using a config file to generate or update manifests
 
 func makeNoCommandsRunErr(field string, cf *ConfigFile) error {
-	relConfigPath, err := cf.RelativeConfigPath()
-	if err != nil {
-		return fmt.Errorf("config file not relative to working dir: %s", err)
-	}
-	return fmt.Errorf("no %s commands to run in %s", field, relConfigPath)
+	return fmt.Errorf("no %s commands to run in %s (from path %s)", field, cf.RelativeConfigPath(), cf.originalPath)
 }
 
 // RelativeConfigPath returns the path to the config file, relative to
 // the working directory. This is used in error messages and to
 // identify resources generated from the config file.
-func (cf *ConfigFile) RelativeConfigPath() (string, error) {
-	return filepath.Rel(cf.workingDir, cf.path)
+func (cf *ConfigFile) RelativeConfigPath() string {
+	return cf.relativeConfigPath
 }
 
 // GenerateManifests returns the manifests generated (and patched, if
@@ -240,13 +251,9 @@ func (cf *ConfigFile) getGeneratedAndPatchedManifests(ctx context.Context, manif
 		}
 		patch = nil
 	}
-	relConfigFilePath, err := cf.RelativeConfigPath()
+	patchedManifests, err := manifests.ApplyManifestPatch(generatedManifests, patch, cf.RelativeConfigPath(), relPatchFilePath)
 	if err != nil {
-		return nil, nil, "", err
-	}
-	patchedManifests, err := manifests.ApplyManifestPatch(generatedManifests, patch, relConfigFilePath, relPatchFilePath)
-	if err != nil {
-		return nil, nil, "", fmt.Errorf("processing %q, cannot apply patchFile %q to generated resources: %s", relConfigFilePath, relPatchFilePath, err)
+		return nil, nil, "", fmt.Errorf("processing %q, cannot apply patchFile %q to generated resources: %s", cf.RelativeConfigPath(), relPatchFilePath, err)
 	}
 	return generatedManifests, patchedManifests, patchFilePath, nil
 }
@@ -257,14 +264,10 @@ func (cf *ConfigFile) getGeneratedAndPatchedManifests(ctx context.Context, manif
 func (cf *ConfigFile) getGeneratedManifests(ctx context.Context, manifests Manifests, generators []Generator) ([]byte, error) {
 	buf := bytes.NewBuffer(nil)
 	for i, cmdResult := range cf.execGenerators(ctx, generators) {
-		relConfigFilePath, err := cf.RelativeConfigPath()
-		if err != nil {
-			return nil, err
-		}
 		if cmdResult.Error != nil {
 			err := fmt.Errorf("error executing generator command %q from file %q: %s\nerror output:\n%s\ngenerated output:\n%s",
 				generators[i].Command,
-				relConfigFilePath,
+				cf.RelativeConfigPath(),
 				cmdResult.Error,
 				string(cmdResult.Stderr),
 				string(cmdResult.Stderr),
@@ -283,11 +286,7 @@ func (cf *ConfigFile) getGeneratedManifests(ctx context.Context, manifests Manif
 func (cf *ConfigFile) updatePatchFile(ctx context.Context, manifests Manifests, updateFn func(previousManifests []byte) ([]byte, error)) error {
 	generatedManifests, patchedManifests, patchFilePath, err := cf.getGeneratedAndPatchedManifests(ctx, manifests)
 	if err != nil {
-		relConfigFilePath, err := cf.RelativeConfigPath()
-		if err != nil {
-			return err
-		}
-		return fmt.Errorf("error parsing generated, patched output from file %s: %s", relConfigFilePath, err)
+		return fmt.Errorf("error parsing generated, patched output from file %s: %s", cf.RelativeConfigPath(), err)
 	}
 	finalManifests, err := updateFn(patchedManifests)
 	if err != nil {
