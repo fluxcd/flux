@@ -1,3 +1,29 @@
+# What is `gitops-engine-poc` branch?
+
+[Argo CD](https://github.com/argoproj/argo-cd) and [Flux CD](https://github.com/fluxcd/flux) are joining forces and
+[GitOps Engine](https://github.com/argoproj/gitops-engine) is the first step.
+The [gitops-engine-poc](https://github.com/argoproj/argo-cd/tree/release-1.1) is a PoC which demonstrates that
+proposed [design](https://github.com/argoproj/gitops-engine/blob/master/specs/design-top-down.md) is possible.
+
+As part of PoC the GitOps engine code was moved into [engine](https://github.com/argoproj/argo-cd/tree/gitops-engine-poc/engine)
+directory and used by both [Argo CD](https://github.com/argoproj/argo-cd) and [Flux CD](https://github.com/fluxcd/flux).
+
+The PoC image is available in docker hub: `fluxcd/flux:gitops-poc-b4cc9b6a`. Give it a try:
+1. Install [fluxctl](https://docs.fluxcd.io/en/stable/references/fluxctl.html)
+2. Install Flux CD using the command below.
+
+```bash
+kubectl create ns flux
+export GHUSER=<your-github-user>
+fluxctl install \
+--git-user=${GHUSER} \
+--git-email=${GHUSER}@users.noreply.github.com \
+--git-url=git@github.com:${GHUSER}/flux-get-started \
+--git-path=namespaces,workloads \
+--namespace=flux | sed -e 's/docker\.io\/fluxcd\/flux.*/fluxcd\/flux:gitops-poc-b4cc9b6a/g' | kubectl apply -f -
+```
+3. Follow the steps from [get started tutorial](https://docs.fluxcd.io/en/stable/tutorials/get-started.html)
+
 # Flux
 
 > **Announcement** [Flux has joined CNCF as a sandbox project](https://www.weave.works/blog/flux-joins-the-cncf-sandbox)
