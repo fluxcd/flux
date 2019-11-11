@@ -128,6 +128,14 @@ func (cf *ConfigFile) RelativeConfigPath() string {
 	return cf.relativeConfigPath
 }
 
+// ConfigVsOriginalPath shows the config file as it relates to the
+// repo-relative path, e.g., `staging/../.flux.yaml`
+func (cf *ConfigFile) ConfigVsOriginalPath() string {
+	// filepath.Join will clean the resulting path, but here I want to
+	// leave parent paths in, e.g., `staging/../.flux.yaml`
+	return fmt.Sprintf("%s%c%s", cf.originalPath, filepath.Separator, cf.RelativeConfigPath())
+}
+
 // GenerateManifests returns the manifests generated (and patched, if
 // necessary) according to the config file.
 func (cf *ConfigFile) GenerateManifests(ctx context.Context, manifests Manifests) ([]byte, error) {
