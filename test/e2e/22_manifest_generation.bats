@@ -17,6 +17,7 @@ function setup() {
 }
 
 @test "Basic sync and editing" {
+  skip # needed until https://github.com/fluxcd/flux/issues/2602 is fixed
   # Wait until flux deploys the workloads
   poll_until_true 'workload podinfo' 'kubectl -n demo describe deployment/podinfo'
 
