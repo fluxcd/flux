@@ -121,7 +121,7 @@ func (cf *ConfigFile) RelativeConfigPath() (string, error) {
 // necessary) according to the config file.
 func (cf *ConfigFile) GenerateManifests(ctx context.Context, manifests Manifests) ([]byte, error) {
 	if cf.PatchUpdated != nil {
-		finalBytes, _, _, err := cf.getGeneratedAndPatchedManifests(ctx, manifests)
+		_, finalBytes, _, err := cf.getGeneratedAndPatchedManifests(ctx, manifests)
 		return finalBytes, err
 	}
 	return cf.getGeneratedManifests(ctx, manifests, cf.CommandUpdated.Generators)
@@ -212,7 +212,7 @@ type ConfigFileCombinedExecResult struct {
 
 // -- these are helpers to support the entry points above
 
-// getGeneratedAndPatchedManifests is used to generated manifests when
+// getGeneratedAndPatchedManifests is used to generate manifests when
 // the config is patchUpdated.
 func (cf *ConfigFile) getGeneratedAndPatchedManifests(ctx context.Context, manifests Manifests) ([]byte, []byte, string, error) {
 	generatedManifests, err := cf.getGeneratedManifests(ctx, manifests, cf.PatchUpdated.Generators)
