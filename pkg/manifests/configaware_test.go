@@ -93,8 +93,8 @@ commandUpdated:
 	assert.Equal(t, filepath.Join(baseDir, "envs/staging"), configFiles[0].workingDir)
 	assert.Equal(t, filepath.Join(baseDir, "envs/production"), configFiles[1].workingDir)
 
-	assert.Equal(t, "../.flux.yaml", configFiles[0].RelativeConfigPath())
-	assert.Equal(t, "../.flux.yaml", configFiles[1].RelativeConfigPath())
+	assert.Equal(t, "envs/staging/../.flux.yaml", configFiles[0].ConfigRelativeToWorkingDir())
+	assert.Equal(t, "envs/production/../.flux.yaml", configFiles[1].ConfigRelativeToWorkingDir())
 
 	assert.NotNil(t, configFiles[0].CommandUpdated)
 	assert.Len(t, configFiles[0].CommandUpdated.Generators, 1)
