@@ -268,3 +268,43 @@ func TestMistakenConfigFile(t *testing.T) {
 	err := frs.SetWorkloadContainerImage(ctx, deploymentID, "greeter", ref)
 	assert.Error(t, err)
 }
+
+func TestDuplicateDetection(t *testing.T) {
+	// this one has the same resource twice in the generated manifests
+	conf, cleanup := setup(t, `
+version: 1
+commandUpdated:
+  generators:
+  - command: |
+     echo "apiVersion: v1
+     kind: Namespace
+     metadata:
+       name: demo
+     ---
+     apiVersion: extensions/v1beta1
+     kind: Deployment
+     metadata:
+       name: helloworld
+     spec:
+       template:
+         metadata:
+           labels:
+             name: helloworld
+         spec:
+           containers:
+           - name: greeter
+             image: quay.io/weaveworks/helloworld:master-a000001
+     ---
+     apiVersion: v1
+     kind: Namespace
+     metadata:
+       name: demo
+     "
+`)
+	defer cleanup()
+
+	res, err := conf.GetAllResourcesByID(context.Background())
+	assert.Nil(t, res)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "duplicate")
+}
