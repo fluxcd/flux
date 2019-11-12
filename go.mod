@@ -73,4 +73,4 @@ replace (
 	k8s.io/component-base => k8s.io/component-base v0.0.0-20190708175518-244289f83105
 )
 
-replace github.com/argoproj/argo-cd/engine => ../go/src/github.com/argoproj/argo-cd/engine
+replace github.com/argoproj/argo-cd/engine => github.com/argoproj/gitops-engine v0.0.0-20191112175126-bee53e288f1c

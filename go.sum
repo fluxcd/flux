@@ -40,6 +40,7 @@ github.com/argoproj/argo v2.4.2+incompatible h1:FFA8pREl78H0HHucYdFJI0UCgxnO709+
 github.com/argoproj/argo v2.4.2+incompatible/go.mod h1:KJ0MB+tuhtAklR4jkPM10mIZXfRA0peTYJ1sLUnFLVU=
 github.com/argoproj/argo-cd v1.2.3 h1:5fmdNQ6I6F+5PUVhwIm6N6jDJm3vtjkfCFDzzzUnGcw=
 github.com/argoproj/argo-cd v1.2.3/go.mod h1:UPOPiF6Y1y/oTL3X1KcuLbu7ljD7f4+SIaXvlowBmhE=
+github.com/argoproj/gitops-engine v0.0.0-20191112175126-bee53e288f1c/go.mod h1:LbYAYnIq1pqkj5K0KKlNHwr4wsunqK6k6mG1Qyhexk8=
 github.com/argoproj/pkg v0.0.0-20190718233452-38dba6e98495 h1:AP0ylCjCa87LMo2uWleH7TtBLebXj7CJapZOjOEYGnA=
 github.com/argoproj/pkg v0.0.0-20190718233452-38dba6e98495/go.mod h1:2EZ44RG/CcgtPTwrRR0apOc7oU6UIw8GjCUJWZ8X3bM=
 github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6/go.mod h1:grANhF5doyWs3UAsr3K4I6qtAmlQcZDesFNEHPZAzj8=
