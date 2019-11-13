@@ -156,9 +156,9 @@ In addition, `updaters` are provided with some environment variables:
 
 * `FLUX_WORKLOAD`: Workload to be updated. Its format is `<namespace>:<kind>/<name>` (e.g. `default:deployment/foo`).
   For convenience (to circumvent parsing) `FLUX_WORKLOAD` is also broken down into the following environment variables:
-        * `FLUX_WL_NS`
-        * `FLUX_WL_KIND`
-        * `FLUX_WL_NAME`
+  * `FLUX_WL_NS`
+  * `FLUX_WL_KIND`
+  * `FLUX_WL_NAME`
 * `containerImage` updaters are provided with:
   * `FLUX_CONTAINER`: Name of the container within the workload whose image needs to be updated.
   * `FLUX_IMG`: Image name which the container needs to be updated to (e.g. `nginx`).
