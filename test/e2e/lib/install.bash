@@ -55,6 +55,7 @@ fluxctl_install_cmd="fluxctl install --git-url=ssh://git@gitsrv/git-server/repos
 function install_flux_with_fluxctl() {
   kustomization_dir=${1:-base/flux}
   key_values_varname=${2}
+  kubectl apply -f "${FIXTURES_DIR}/flux-helm-release-crd.yaml"
   kubectl -n "${FLUX_NAMESPACE}" create configmap flux-known-hosts --from-file="${E2E_DIR}/fixtures/known_hosts"
   local kustomtmp
   kustomtmp="$(mktemp -d)"
@@ -75,6 +76,7 @@ function install_flux_with_fluxctl() {
 
 function uninstall_flux_with_fluxctl() {
   kubectl delete -n "${FLUX_NAMESPACE}" configmap flux-known-hosts
+  kubectl delete -f "${FIXTURES_DIR}/flux-helm-release-crd.yaml"
   $fluxctl_install_cmd --namespace "${FLUX_NAMESPACE}" | kubectl delete -f -
 }
 
