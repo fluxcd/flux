@@ -112,7 +112,7 @@ commandUpdated:
 }
 
 func setup(t *testing.T, configFileBody string) (*configAware, func()) {
-	manifests := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
+	manifests := kubernetes.NewManifests(log.NewLogfmtLogger(os.Stdout))
 	baseDir, cleanup := testfiles.TempDir(t)
 	if len(configFileBody) > 0 {
 		ioutil.WriteFile(filepath.Join(baseDir, ConfigFilename), []byte(configFileBody), 0600)

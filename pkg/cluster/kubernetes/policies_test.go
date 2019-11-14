@@ -189,7 +189,7 @@ func TestUpdatePolicies(t *testing.T) {
 			caseIn := templToString(t, annotationsTemplate, c.in)
 			caseOut := templToString(t, annotationsTemplate, c.out)
 			resourceID := resource.MustParseID("default:deployment/nginx")
-			manifests := NewManifests(ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
+			manifests := NewManifests(log.NewLogfmtLogger(os.Stdout))
 			out, err := manifests.UpdateWorkloadPolicies([]byte(caseIn), resourceID, c.update)
 			assert.Equal(t, c.wantErr, err != nil, "unexpected error value: %s", err)
 			if !c.wantErr {

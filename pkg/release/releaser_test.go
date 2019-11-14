@@ -139,7 +139,7 @@ var (
 			},
 		},
 	}
-	mockManifests = kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
+	mockManifests = kubernetes.NewManifests(log.NewLogfmtLogger(os.Stdout))
 )
 
 func mockCluster(running ...cluster.Workload) *mock.Mock {
@@ -1070,7 +1070,7 @@ func Test_BadRelease(t *testing.T) {
 	checkout1, cleanup1 := setup(t)
 	defer cleanup1()
 
-	manifests := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
+	manifests := kubernetes.NewManifests(log.NewLogfmtLogger(os.Stdout))
 	ctx := context.Background()
 	rc := &ReleaseContext{
 		cluster:       mCluster,

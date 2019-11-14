@@ -23,7 +23,7 @@ func TestSync(t *testing.T) {
 	defer cleanup()
 
 	// Start with nothing running. We should be told to apply all the things.
-	parser := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
+	parser := kubernetes.NewManifests(log.NewLogfmtLogger(os.Stdout))
 	clus := &syncCluster{map[string]string{}}
 
 	dirs := checkout.AbsolutePaths()
