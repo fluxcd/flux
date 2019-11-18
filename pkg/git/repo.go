@@ -29,6 +29,8 @@ type NotReadyError struct {
 	underlying error
 }
 
+func (err NotReadyError) Unwrap() error { return err.underlying }
+
 func (err NotReadyError) Error() string {
 	return "git repo not ready: " + err.underlying.Error()
 }
