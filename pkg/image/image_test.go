@@ -235,12 +235,14 @@ func TestImageInfoCreatedAtZero(t *testing.T) {
 func TestImage_OrderByCreationDate(t *testing.T) {
 	time0 := testTime.Add(time.Second)
 	time2 := testTime.Add(-time.Second)
+	ignoredTime := testTime.Add(+time.Minute)
+	ignoredTime2 := testTime.Add(+time.Hour)
 	imA := mustMakeInfo("my/Image:2", testTime)
-	imB := mustMakeInfo("my/Image:0", time.Time{}).setLabels(Labels{Created: time0})
-	imC := mustMakeInfo("my/Image:3", time.Time{}).setLabels(Labels{BuildDate: time2})
-	imD := mustMakeInfo("my/Image:4", time.Time{})                                      // test nil
-	imE := mustMakeInfo("my/Image:1", time.Time{}).setLabels(Labels{Created: testTime}) // test equal
-	imF := mustMakeInfo("my/Image:5", time.Time{})                                      // test nil equal
+	imB := mustMakeInfo("my/Image:0", time0).setLabels(Labels{Created: ignoredTime2})  // label time should be ignored
+	imC := mustMakeInfo("my/Image:3", time2).setLabels(Labels{BuildDate: ignoredTime}) // label time should be ignored
+	imD := mustMakeInfo("my/Image:4", time.Time{})                                     // test nil
+	imE := mustMakeInfo("my/Image:1", testTime).setLabels(Labels{Created: testTime})   // test equal
+	imF := mustMakeInfo("my/Image:5", time.Time{})                                     // test nil equal
 	imgs := []Info{imA, imB, imC, imD, imE, imF}
 	Sort(imgs, NewerByCreated)
 	checkSorted(t, imgs)
@@ -256,7 +258,7 @@ func checkSorted(t *testing.T, imgs []Info) {
 	for i, im := range imgs {
 		if strconv.Itoa(i) != im.ID.Tag {
 			for j, jim := range imgs {
-				t.Logf("%v: %v %s", j, jim.ID.String(), jim.CreatedTS())
+				t.Logf("%v: %v %s", j, jim.ID.String(), jim.CreatedAt)
 			}
 			t.Fatalf("Not sorted in expected order: %#v", imgs)
 		}
