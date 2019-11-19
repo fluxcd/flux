@@ -240,46 +240,52 @@ func interpretAsContainer(m mapper) (image.Ref, ImageSetter, bool) {
 	case string:
 		// container:
 		//   image: 'repo/image:tag'
-		imageRef, err := image.ParseRef(img)
-		if err == nil {
-			var reggy bool
-			if registry, ok := m.get("registry"); ok {
-				// container:
-				//   registry: registry.com
-				//	 image: repo/foo
-				if registryStr, ok := registry.(string); ok {
-					reggy = true
-					imageRef.Domain = registryStr
-				}
+		fullImgStr := img
+
+		var reggy bool
+		// container:
+		//   registry: registry.com
+		//	 image: repo/foo
+		if registry, ok := m.get("registry"); ok {
+			if registryStr, ok := registry.(string); ok {
+				reggy = true
+				fullImgStr = registryStr + "/" + fullImgStr
 			}
-			var taggy bool
-			if tag, ok := m.get("tag"); ok {
-				// container:
-				//   image: repo/foo
-				//   tag: v1
-				if tagStr, ok := tag.(string); ok {
-					taggy = true
-					imageRef.Tag = tagStr
-				}
-			}
-			return imageRef, func(ref image.Ref) {
-				switch {
-				case (reggy && taggy):
-					m.set("registry", ref.Domain)
-					m.set("image", ref.Image)
-					m.set("tag", ref.Tag)
-					return
-				case reggy:
-					m.set("registry", ref.Domain)
-					m.set("image", ref.Name.Image+":"+ref.Tag)
-				case taggy:
-					m.set("image", ref.Name.String())
-					m.set("tag", ref.Tag)
-				default:
-					m.set("image", ref.String())
-				}
-			}, true
 		}
+
+		var taggy bool
+		// container:
+		//   image: repo/foo
+		//   tag: v1
+		if tag, ok := m.get("tag"); ok {
+			if tagStr, ok := tag.(string); ok {
+				taggy = true
+				fullImgStr = fullImgStr + ":" + tagStr
+			}
+		}
+
+		imageRef, err := image.ParseRef(fullImgStr)
+		if err != nil {
+			return image.Ref{}, nil, false
+		}
+
+		return imageRef, func(ref image.Ref) {
+			switch {
+			case reggy && taggy:
+				m.set("registry", ref.Domain)
+				m.set("image", ref.Image)
+				m.set("tag", ref.Tag)
+				return
+			case reggy:
+				m.set("registry", ref.Domain)
+				m.set("image", ref.Name.Image+":"+ref.Tag)
+			case taggy:
+				m.set("image", ref.Name.String())
+				m.set("tag", ref.Tag)
+			default:
+				m.set("image", ref.String())
+			}
+		}, true
 	case map[string]interface{}:
 		return interpretAsImage(stringMap(img))
 	case map[interface{}]interface{}:
@@ -300,46 +306,52 @@ func interpretAsImage(m mapper) (image.Ref, ImageSetter, bool) {
 	// image:
 	//   repository: repo/foo
 	if imgStr, ok := imgRepo.(string); ok {
-		imageRef, err := image.ParseRef(imgStr)
-		if err == nil {
-			var reggy bool
-			// image:
-			//   registry: registry.com
-			//   repository: repo/foo
-			if registry, ok := m.get("registry"); ok {
-				if registryStr, ok := registry.(string); ok {
-					reggy = true
-					imageRef.Domain = registryStr
-				}
+		fullImgStr := imgStr
+
+		var reggy bool
+		// image:
+		//   registry: registry.com
+		//   repository: repo/foo
+		if registry, ok := m.get("registry"); ok {
+			if registryStr, ok := registry.(string); ok {
+				reggy = ok
+				fullImgStr = registryStr + "/" + fullImgStr
 			}
-			var taggy bool
-			// image:
-			//   repository: repo/foo
-			//   tag: v1
-			if tag, ok := m.get("tag"); ok {
-				if tagStr, ok := tag.(string); ok {
-					taggy = true
-					imageRef.Tag = tagStr
-				}
-			}
-			return imageRef, func(ref image.Ref) {
-				switch {
-				case (reggy && taggy):
-					m.set("registry", ref.Domain)
-					m.set("repository", ref.Image)
-					m.set("tag", ref.Tag)
-					return
-				case reggy:
-					m.set("registry", ref.Domain)
-					m.set("repository", ref.Name.Image+":"+ref.Tag)
-				case taggy:
-					m.set("repository", ref.Name.String())
-					m.set("tag", ref.Tag)
-				default:
-					m.set("repository", ref.String())
-				}
-			}, true
 		}
+
+		var taggy bool
+		// image:
+		//   repository: repo/foo
+		//   tag: v1
+		if tag, ok := m.get("tag"); ok {
+			if tagStr, ok := tag.(string); ok {
+				taggy = ok
+				fullImgStr = fullImgStr + ":" + tagStr
+			}
+		}
+
+		imageRef, err := image.ParseRef(fullImgStr)
+		if err != nil {
+			return image.Ref{}, nil, false
+		}
+
+		return imageRef, func(ref image.Ref) {
+			switch {
+			case reggy && taggy:
+				m.set("registry", ref.Domain)
+				m.set("repository", ref.Image)
+				m.set("tag", ref.Tag)
+				return
+			case reggy:
+				m.set("registry", ref.Domain)
+				m.set("repository", ref.Name.Image+":"+ref.Tag)
+			case taggy:
+				m.set("repository", ref.Name.String())
+				m.set("tag", ref.Tag)
+			default:
+				m.set("repository", ref.String())
+			}
+		}, true
 	}
 
 	return image.Ref{}, nil, false
