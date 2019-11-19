@@ -716,6 +716,83 @@ spec:
 	}
 }
 
+func TestParseNamedImageObjectFormatWithRegistryAndMultiElementImage(t *testing.T) {
+	expectedContainer := "db"
+	expectedRegistry := "registry.com"
+	expectedImageName := "public/bitnami/ghost"
+	expectedImageTag := "1.21.5-r0"
+	expectedImage := expectedRegistry + "/" + expectedImageName + ":" + expectedImageTag
+
+	doc := `---
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  name: ghost
+  namespace: ghost
+  labels:
+    chart: ghost
+spec:
+  chart:
+    git: git@github.com:fluxcd/flux-get-started
+    ref: master
+    path: charts/ghost
+  values:
+    other:
+      not: "containing image"
+    ` + expectedContainer + `:
+      first: post
+      image:
+        registry: ` + expectedRegistry + `
+        repository: ` + expectedImageName + `
+        tag: ` + expectedImageTag + `
+      persistence:
+        enabled: false
+`
+
+	resources, err := ParseMultidoc([]byte(doc), "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, ok := resources["ghost:helmrelease/ghost"]
+	if !ok {
+		t.Fatalf("expected resource not found; instead got %#v", resources)
+	}
+	hr, ok := res.(resource.Workload)
+	if !ok {
+		t.Fatalf("expected resource to be a Workload, instead got %#v", res)
+	}
+
+	containers := hr.Containers()
+	if len(containers) != 1 {
+		t.Fatalf("expected 1 container; got %#v", containers)
+	}
+	image := containers[0].Image.String()
+	if image != expectedImage {
+		t.Errorf("expected container image %q, got %q", expectedImage, image)
+	}
+	if containers[0].Name != expectedContainer {
+		t.Errorf("expected container name %q, got %q", expectedContainer, containers[0].Name)
+	}
+
+	newImage := containers[0].Image.WithNewTag("some-other-tag")
+	newImage.Domain = "someotherregistry.com"
+	if err := hr.SetContainerImage(expectedContainer, newImage); err != nil {
+		t.Error(err)
+	}
+
+	containers = hr.Containers()
+	if len(containers) != 1 {
+		t.Fatalf("expected 1 container; got %#v", containers)
+	}
+	image = containers[0].Image.String()
+	if image != newImage.String() {
+		t.Errorf("expected container image %q, got %q", newImage.String(), image)
+	}
+	if containers[0].Name != expectedContainer {
+		t.Errorf("expected container name %q, got %q", expectedContainer, containers[0].Name)
+	}
+}
+
 func TestParseNamedImageObjectFormatWithRegistryWitoutTag(t *testing.T) {
 	expectedContainer := "db"
 	expectedRegistry := "registry.com"
