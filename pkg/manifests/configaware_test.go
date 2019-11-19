@@ -17,6 +17,49 @@ import (
 	"github.com/fluxcd/flux/pkg/resource"
 )
 
+// represents, for the purpose of setting a test up, either a
+// - path to a .flux.yaml: `config{path: ..., fluxyaml: ...}`
+// - a .flux.yaml for the whole "repo": `config{fluxyaml: ...}`
+type config struct {
+	path     string
+	fluxyaml string
+}
+
+// set a directory up with the given `--git-path` arguments
+// (subpaths), and locations in which to put config files. The paths
+// and the config locations don't necessarily have to line up. You can
+// pass `nil` for the paths, to indicate "just use the base path".
+func setup(t *testing.T, paths []string, configs ...config) (*configAware, string, func()) {
+	manifests := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
+	baseDir, cleanup := testfiles.TempDir(t)
+
+	// te constructor NewConfigAware expects at least one absolute path.
+	var searchPaths []string
+	for _, p := range paths {
+		searchPaths = append(searchPaths, filepath.Join(baseDir, p))
+	}
+	if len(paths) == 0 {
+		searchPaths = []string{baseDir}
+	}
+
+	for _, c := range configs {
+		p := c.path
+		if p == "" {
+			p = "."
+		}
+		if len(c.fluxyaml) > 0 {
+			err := os.MkdirAll(filepath.Join(baseDir, p), 0777)
+			assert.NoError(t, err)
+			ioutil.WriteFile(filepath.Join(baseDir, p, ConfigFilename), []byte(c.fluxyaml), 0600)
+		}
+	}
+	frs, err := NewConfigAware(baseDir, searchPaths, manifests)
+	assert.NoError(t, err)
+	return frs, baseDir, cleanup
+}
+
+// ---
+
 func TestFindConfigFilePaths(t *testing.T) {
 	baseDir, clean := testfiles.TempDir(t)
 	defer clean()
@@ -93,33 +136,14 @@ commandUpdated:
 	assert.Equal(t, filepath.Join(baseDir, "envs/staging"), configFiles[0].workingDir)
 	assert.Equal(t, filepath.Join(baseDir, "envs/production"), configFiles[1].workingDir)
 
-	mustRelativeConfigPath := func(cf *ConfigFile) string {
-		p, err := cf.RelativeConfigPath()
-		if err != nil {
-			t.Error(err)
-		}
-		return p
-	}
-
-	assert.Equal(t, "../.flux.yaml", mustRelativeConfigPath(configFiles[0]))
-	assert.Equal(t, "../.flux.yaml", mustRelativeConfigPath(configFiles[1]))
+	assert.Equal(t, "envs/staging/../.flux.yaml", configFiles[0].ConfigRelativeToWorkingDir())
+	assert.Equal(t, "envs/production/../.flux.yaml", configFiles[1].ConfigRelativeToWorkingDir())
 
 	assert.NotNil(t, configFiles[0].CommandUpdated)
 	assert.Len(t, configFiles[0].CommandUpdated.Generators, 1)
 	assert.Equal(t, "echo g1", configFiles[0].CommandUpdated.Generators[0].Command)
 	assert.NotNil(t, configFiles[1].CommandUpdated)
 	assert.Equal(t, configFiles[0].CommandUpdated.Generators, configFiles[0].CommandUpdated.Generators)
-}
-
-func setup(t *testing.T, configFileBody string) (*configAware, func()) {
-	manifests := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
-	baseDir, cleanup := testfiles.TempDir(t)
-	if len(configFileBody) > 0 {
-		ioutil.WriteFile(filepath.Join(baseDir, ConfigFilename), []byte(configFileBody), 0600)
-	}
-	frs, err := NewConfigAware(baseDir, []string{baseDir}, manifests)
-	assert.NoError(t, err)
-	return frs, cleanup
 }
 
 const commandUpdatedEchoConfigFile = `---
@@ -148,7 +172,7 @@ commandUpdated:
 `
 
 func TestCommandUpdatedConfigFile(t *testing.T) {
-	frs, cleanup := setup(t, commandUpdatedEchoConfigFile)
+	frs, _, cleanup := setup(t, nil, config{fluxyaml: commandUpdatedEchoConfigFile})
 	defer cleanup()
 	ctx := context.Background()
 	resources, err := frs.GetAllResourcesByID(ctx)
@@ -193,7 +217,7 @@ patchUpdated:
 `
 
 func TestPatchUpdatedConfigFile(t *testing.T) {
-	frs, cleanup := setup(t, patchUpdatedEchoConfigFile)
+	frs, _, cleanup := setup(t, nil, config{fluxyaml: patchUpdatedEchoConfigFile})
 	defer cleanup()
 	ctx := context.Background()
 	resources, err := frs.GetAllResourcesByID(ctx)
@@ -266,7 +290,7 @@ commandUpdated: # <-- because this is commandUpdated, patchFile is ignored
 // update operation results in an error, rather than a silent failure
 // to make any changes.
 func TestMistakenConfigFile(t *testing.T) {
-	frs, cleanup := setup(t, mistakenConf)
+	frs, _, cleanup := setup(t, nil, config{fluxyaml: mistakenConf})
 	defer cleanup()
 
 	deploymentID := resource.MustParseID("default:deployment/helloworld")
@@ -275,4 +299,89 @@ func TestMistakenConfigFile(t *testing.T) {
 	ctx := context.Background()
 	err := frs.SetWorkloadContainerImage(ctx, deploymentID, "greeter", ref)
 	assert.Error(t, err)
+}
+
+const duplicateGeneration = `
+version: 1
+commandUpdated:
+  generators:
+  - command: |
+     echo "apiVersion: v1
+     kind: Namespace
+     metadata:
+       name: demo
+     ---
+     apiVersion: extensions/v1beta1
+     kind: Deployment
+     metadata:
+       name: helloworld
+     spec:
+       template:
+         metadata:
+           labels:
+             name: helloworld
+         spec:
+           containers:
+           - name: greeter
+             image: quay.io/weaveworks/helloworld:master-a000001
+     ---
+     apiVersion: v1
+     kind: Namespace
+     metadata:
+       name: demo
+     "
+`
+
+func TestDuplicateDetection(t *testing.T) {
+	// this one has the same resource twice in the generated manifests
+	conf, _, cleanup := setup(t, nil, config{fluxyaml: duplicateGeneration})
+	defer cleanup()
+
+	res, err := conf.GetAllResourcesByID(context.Background())
+	assert.Nil(t, res)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "duplicate")
+}
+
+// A de-indented version of the deployment manifest echoed in the
+// patchUpdatedEchoConfigFile above, to be written to a file.
+const helloManifest = `
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: helloworld
+spec:
+  template:
+    metadata:
+      labels:
+       name: helloworld
+    spec:
+      containers:
+      - name: greeter
+        image: quay.io/weaveworks/helloworld:master-a000001
+`
+
+func TestDuplicateInFiles(t *testing.T) {
+	// this one tests that a manifest that's in a file as well as generated is detected as a duplicate
+	frs, baseDir, cleanup := setup(t, []string{".", "echo"}, config{path: "echo", fluxyaml: patchUpdatedEchoConfigFile})
+	defer cleanup()
+	ioutil.WriteFile(filepath.Join(baseDir, "manifest.yaml"), []byte(helloManifest), 0666)
+
+	res, err := frs.GetAllResourcesByID(context.Background())
+	assert.Nil(t, res)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "duplicate")
+}
+
+func TestDuplicateInGenerators(t *testing.T) {
+	// this one tests that a manifest that's generated by two different generator configs
+	frs, _, cleanup := setup(t, []string{"echo1", "echo2"},
+		config{path: "echo1", fluxyaml: patchUpdatedEchoConfigFile},
+		config{path: "echo2", fluxyaml: patchUpdatedEchoConfigFile})
+	defer cleanup()
+
+	res, err := frs.GetAllResourcesByID(context.Background())
+	assert.Nil(t, res)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "duplicate")
 }

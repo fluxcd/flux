@@ -158,10 +158,18 @@ func ParseMultidoc(multidoc []byte, source string) (map[string]KubeManifest, err
 		// contained resources we are after.
 		if list, ok := obj.(*List); ok {
 			for _, item := range list.Items {
-				objs[item.ResourceID().String()] = item
+				id := item.ResourceID().String()
+				if _, ok := objs[id]; ok {
+					return nil, fmt.Errorf(`duplicate definition of '%s' (in %s)`, id, source)
+				}
+				objs[id] = item
 			}
 		} else {
-			objs[obj.ResourceID().String()] = obj
+			id := obj.ResourceID().String()
+			if _, ok := objs[id]; ok {
+				return nil, fmt.Errorf(`duplicate definition of '%s' (in %s)`, id, source)
+			}
+			objs[id] = obj
 		}
 	}
 
