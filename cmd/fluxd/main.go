@@ -197,7 +197,11 @@ func main() {
 	fs.MarkDeprecated("registry-poll-interval", "changed to --automation-interval, use that instead")
 
 	var kubeConfig *string
-	{
+	kubeConfigEnv, hasKubeConfigEnv := os.LookupEnv("KUBE_CONFIG")
+	
+	if hasKubeConfigEnv {
+		kubeConfig = &kubeConfigEnv
+	} else {
 		// Set the default kube config
 		if home := homeDir(); home != "" {
 			kubeConfig = fs.String("kube-config", filepath.Join(home, ".kube", "config"), "the absolute path of the k8s config file.")
