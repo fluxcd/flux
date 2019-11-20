@@ -146,7 +146,7 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 			imageCreds := make(registry.ImageCreds)
 			for _, workload := range workloads {
 				logger := log.With(c.logger, "resource", resource.MakeID(workload.GetNamespace(), kind, workload.GetName()))
-				mergeCredentials(logger.Log, c.includeImage, c.client, ns, workload.podTemplate, imageCreds, seenCreds)
+				mergeCredentials(logger.Log, c.includeImage, c.client, workload.GetNamespace(), workload.podTemplate, imageCreds, seenCreds)
 			}
 
 			// Merge creds
