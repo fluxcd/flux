@@ -75,7 +75,7 @@ The CircleCI script runs builds for tags, which push Docker images and upload bi
 
 8. [Create a release in GitHub](https://github.com/fluxcd/flux/releases/new)
 
-    Use a tag name as explained above; semver for the Flux daemon, `helm-` then the semver for the Helm operator.
+    Use a tag using the semver of the release (e.g. `1.8.1`).
 
     Copy and paste the changelog entry. You may need to remove newlines that have been inserted by your editor, so that it wraps nicely.
 
