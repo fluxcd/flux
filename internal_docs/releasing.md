@@ -54,7 +54,7 @@ The CircleCI script runs builds for tags, which push Docker images and upload bi
 
 5. Consider updating the deploy manifest examples and the Helm chart.
 
-    The example manifests are in [deploy](./deploy/) and [deploy-helm](./deploy-helm/). Check the changes included in the release, to see if arguments, volume mounts, etc., have changed.
+    The example manifests are in [deploy](./deploy/). Check the changes included in the release, to see if arguments, volume mounts, etc., have changed.
 
     Read on, for how to publish a new Helm chart version.
 
