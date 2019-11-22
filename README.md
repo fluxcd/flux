@@ -66,6 +66,7 @@ container images and config changes are propagated to the cluster.
 - [karriere tutor GmbH](https://www.karrieretutor.de)
 - [Limejump](https://limejump.com)
 - [loveholidays](https://www.loveholidays.com/)
+- [LUNAR](https://www.lunarway.com/)
 - [Mettle](https://mettle.co.uk)
 - [Omise](https://www.omise.co)
 - [Payout](https://payout.one)
