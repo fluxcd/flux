@@ -19,8 +19,8 @@ spec:
   template:
     metadata:
       annotations:
-      {{- if .Values.annotations }}
-      {{- .Values.annotations | toYaml | trimSuffix "\n" | nindent 8 }}
+      {{- if .Values.memcached.annotations }}
+      {{- .Values.memcached.annotations | toYaml | trimSuffix "\n" | nindent 8 }}
       {{- end }}
       labels:
         app: {{ template "flux.name" . }}-memcached
