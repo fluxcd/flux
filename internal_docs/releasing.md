@@ -12,9 +12,9 @@ Much of this is automated, but it needs a human to turn the wheel.
 
 ## Overview
 
-The Flux daemon and the Helm operator have separate releases, and use different branches and tags. Flux daemon releases use just a semver version, like `1.8.1`, and the Helm operator uses the prefix "helm", e.g., `helm-0.5.0`.
+Flux releases use a branch named after their semver version, like `1.8.1`.
 
-Each minor version has its own "release series" branch, from which patch releases will be put together, called e.g., `release/1.8.x`, or for the Helm operator, `release/helm-0.5.x`.
+Each minor version has its own "release series" branch, from which patch releases will be put together, called e.g., `release/1.8.x`.
 
 The CircleCI script runs builds for tags, which push Docker images and upload binaries. This is triggered by creating a release in GitHub, which will create the tag.
 
@@ -26,7 +26,7 @@ The CircleCI script runs builds for tags, which push Docker images and upload bi
 
 **Preparing the release PR**
 
-1. If the release is a new minor version, create a "release series" branch and push it to GitHub.
+1. If the release is a new minor (or major) version, create a "release series" branch and push it to GitHub.
 
     Depending on what is to be included in the release, you may need to pick a point from which branch that is not HEAD of master. But usually, it will be HEAD of master.
 
@@ -46,10 +46,7 @@ The CircleCI script runs builds for tags, which push Docker images and upload bi
 
     If this is _not_ the first release on this branch, you will need to either merge master, or cherry-pick commits from master, to get the things you want in the release.
 
-4. Put an entry into the changelog
-
-    For the Flux daemon, it's `CHANGELOG.md`; for the Helm operator, it's `CHANGELOG-helmop.md`. Follow the format established, and commit your
-change.
+4. Add an entry for the new release in the `CHANGELOG.md` file
 
     If you cherry-picked commits, remember to only mention those changes.
 
@@ -57,7 +54,12 @@ change.
 
 5. Consider updating the deploy manifest examples and the Helm chart.
 
-    The example manifests are in [deploy](./deploy/) and [deploy-helm](./deploy-helm/). Check the changes included in the release, to see if arguments, volume mounts, etc., have changed.
+    The example manifests are generated from template manifests at
+    [pkg/install/templates](../pkg/install/templates), bump the Flux image tag
+    version and run `make generate-deploy`.
+
+    Check the changes included in the release, to see if arguments, volume
+    mounts, etc., have changed.
 
     Read on, for how to publish a new Helm chart version.
 
@@ -73,7 +75,7 @@ change.
 
 8. [Create a release in GitHub](https://github.com/fluxcd/flux/releases/new)
 
-    Use a tag name as explained above; semver for the Flux daemon, `helm-` then the semver for the Helm operator.
+    Use a tag using the semver of the release (e.g. `1.8.1`).
 
     Copy and paste the changelog entry. You may need to remove newlines that have been inserted by your editor, so that it wraps nicely.
 

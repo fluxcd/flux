@@ -1,3 +1,132 @@
+## 1.16.0 (2019-11-22)
+
+This is a feature release with minor new features. New flags
+`--manifest-generation` and `--read-only` have been added to
+`fluxctl install`.
+
+This release also incorporates a few fixes and enhacements. Namely:
+ * The pressure on the Kubernetes API server has been reduced when
+   Flux operates in all namespaces.
+ * The error handling of manifest generation has been improved.
+
+Additionally, the end-to-end testing infrastructure has been rewritten and
+numerous new end-to-end tests have been added.
+
+### Fixes
+
+- Exclude the metrics APIs from resource discovery [fluxcd/flux#2606][]
+- Parse image refs in HelmReleases with >2 elements [fluxcd/flux#2620][]
+- Ignore timestamp labels during sorting and release of images [fluxcd/flux#2594][]
+- Security: Stop showing value of `GIT_AUTHKEY` in the `fluxctl` output [fluxcd/flux#2549][]
+
+### Enhacements
+
+- Improve experience with `.flux.yaml` files
+  fluxcd/flux#{[2565][fluxcd/flux#2565], [2603][fluxcd/flux#2603],
+  [2604][fluxcd/flux#2604]}
+- Performance: Reduce pressure on Kubernetes' API server when Flux operates on
+  all namespaces fluxcd/flux#{[2520][fluxcd/flux#2520],
+  [2539][fluxcd/flux#2539], [2622][fluxcd/flux#2622]}
+- Add manifest generation flag to `fluctl install` command [fluxcd/flux#2583][]
+- Add a read-only flag to `fluxctl install` command [fluxcd/flux#2530][]
+- Create Prometheus metric for flux manifest errors [fluxcd/flux#2535][]
+
+### Maintenance and Documentation
+
+- Rewrite end-to-end test infrastructure and add numerous new end-to-end tests
+  fluxcd/flux#{[2543][fluxcd/flux#2543], [2552][fluxcd/flux#2552],
+  [2559][fluxcd/flux#2559], [2560][fluxcd/flux#2560], [2562][fluxcd/flux#2562],
+  [2567][fluxcd/flux#2567], [2569][fluxcd/flux#2569], [2572][fluxcd/flux#2572],
+  [2574][fluxcd/flux#2574], [2575][fluxcd/flux#2575], [2576][fluxcd/flux#2576],
+  [2577][fluxcd/flux#2577], [2579][fluxcd/flux#2579], [2581][fluxcd/flux#2581],
+  [2587][fluxcd/flux#2587], [2596][fluxcd/flux#2596], [2597][fluxcd/flux#2597],
+  [2598][fluxcd/flux#2598]}
+- Bump alpine to 3.10 [fluxcd/flux#2609][]
+- Break code generation cycle [fluxcd/flux#2525][]
+- Fix indents in `.flux.yaml` example [fluxcd/flux#2607][]
+- Remove redundant return code [fluxcd/flux#2585][]
+- Remove replace directives in `go.mod` [fluxcd/flux#2590][]
+- Support unwrapping `NotReadyError` [fluxcd/flux#2617][]
+- Fix incorrect use of `strings.Trim()` [fluxcd/flux#2527][]
+- Add Cybrary, bimspot.io, Limejump and Yad2 as production users to `README.md`
+  fluxcd/flux#{[2592][fluxcd/flux#2592], [2499][fluxcd/flux#2499],
+  [2503][fluxcd/flux#2503], [2509][fluxcd/flux#2509]}
+- Clarify use of pre-release versions by semver [fluxcd/flux#2582][]
+- Fix some steps in README.md to install flux by helm [fluxcd/flux#2532][]
+- Fix command in fluxyaml config example [fluxcd/flux#2531][]
+- Docs: fix namespace in `kubectl logs` example [fluxcd/flux#2526][]
+- Document sync-state and git-readonly daemon flags [fluxcd/flux#2511][]
+- Update FAQ advice on using ignore annotation [fluxcd/flux#2502][]
+- Fix typo in guide index docs [fluxcd/flux#2506][]
+- Fix link to flux-kustomize-example [fluxcd/flux#2497][]
+
+### Thanks
+
+Thanks to @2opremio, @at-ishikawa, @bboreham, @beautytiger, @carnott-snap,
+@denysvitali, @ducksecops, @erdii, @eriadam, @gsf, @hiddeco, @idobry, @jmymy,
+@mbellgb, @mosesyou, @mpashka, @palemtnrider, @sebikul, @squaremo, @srueg,
+@stefanprodan, @translucens, @vic3lord and @waseem-h for their contributions
+to this release!
+
+[fluxcd/flux#2622]: https://github.com/fluxcd/flux/pull/2622
+[fluxcd/flux#2620]: https://github.com/fluxcd/flux/pull/2620
+[fluxcd/flux#2617]: https://github.com/fluxcd/flux/pull/2617
+[fluxcd/flux#2609]: https://github.com/fluxcd/flux/pull/2609
+[fluxcd/flux#2607]: https://github.com/fluxcd/flux/pull/2607
+[fluxcd/flux#2606]: https://github.com/fluxcd/flux/pull/2606
+[fluxcd/flux#2604]: https://github.com/fluxcd/flux/pull/2604
+[fluxcd/flux#2603]: https://github.com/fluxcd/flux/pull/2603
+[fluxcd/flux#2599]: https://github.com/fluxcd/flux/pull/2599
+[fluxcd/flux#2598]: https://github.com/fluxcd/flux/pull/2598
+[fluxcd/flux#2597]: https://github.com/fluxcd/flux/pull/2597
+[fluxcd/flux#2596]: https://github.com/fluxcd/flux/pull/2596
+[fluxcd/flux#2594]: https://github.com/fluxcd/flux/pull/2594
+[fluxcd/flux#2592]: https://github.com/fluxcd/flux/pull/2592
+[fluxcd/flux#2590]: https://github.com/fluxcd/flux/pull/2590
+[fluxcd/flux#2587]: https://github.com/fluxcd/flux/pull/2587
+[fluxcd/flux#2585]: https://github.com/fluxcd/flux/pull/2585
+[fluxcd/flux#2583]: https://github.com/fluxcd/flux/pull/2583
+[fluxcd/flux#2582]: https://github.com/fluxcd/flux/pull/2582
+[fluxcd/flux#2581]: https://github.com/fluxcd/flux/pull/2581
+[fluxcd/flux#2579]: https://github.com/fluxcd/flux/pull/2579
+[fluxcd/flux#2577]: https://github.com/fluxcd/flux/pull/2577
+[fluxcd/flux#2576]: https://github.com/fluxcd/flux/pull/2576
+[fluxcd/flux#2575]: https://github.com/fluxcd/flux/pull/2575
+[fluxcd/flux#2574]: https://github.com/fluxcd/flux/pull/2574
+[fluxcd/flux#2573]: https://github.com/fluxcd/flux/pull/2573
+[fluxcd/flux#2572]: https://github.com/fluxcd/flux/pull/2572
+[fluxcd/flux#2569]: https://github.com/fluxcd/flux/pull/2569
+[fluxcd/flux#2567]: https://github.com/fluxcd/flux/pull/2567
+[fluxcd/flux#2566]: https://github.com/fluxcd/flux/pull/2566
+[fluxcd/flux#2565]: https://github.com/fluxcd/flux/pull/2565
+[fluxcd/flux#2562]: https://github.com/fluxcd/flux/pull/2562
+[fluxcd/flux#2560]: https://github.com/fluxcd/flux/pull/2560
+[fluxcd/flux#2559]: https://github.com/fluxcd/flux/pull/2559
+[fluxcd/flux#2552]: https://github.com/fluxcd/flux/pull/2552
+[fluxcd/flux#2549]: https://github.com/fluxcd/flux/pull/2549
+[fluxcd/flux#2543]: https://github.com/fluxcd/flux/pull/2543
+[fluxcd/flux#2542]: https://github.com/fluxcd/flux/pull/2542
+[fluxcd/flux#2539]: https://github.com/fluxcd/flux/pull/2539
+[fluxcd/flux#2535]: https://github.com/fluxcd/flux/pull/2535
+[fluxcd/flux#2532]: https://github.com/fluxcd/flux/pull/2532
+[fluxcd/flux#2531]: https://github.com/fluxcd/flux/pull/2531
+[fluxcd/flux#2530]: https://github.com/fluxcd/flux/pull/2530
+[fluxcd/flux#2527]: https://github.com/fluxcd/flux/pull/2527
+[fluxcd/flux#2526]: https://github.com/fluxcd/flux/pull/2526
+[fluxcd/flux#2525]: https://github.com/fluxcd/flux/pull/2525
+[fluxcd/flux#2520]: https://github.com/fluxcd/flux/pull/2520
+[fluxcd/flux#2511]: https://github.com/fluxcd/flux/pull/2511
+[fluxcd/flux#2509]: https://github.com/fluxcd/flux/pull/2509
+[fluxcd/flux#2506]: https://github.com/fluxcd/flux/pull/2506
+[fluxcd/flux#2503]: https://github.com/fluxcd/flux/pull/2503
+[fluxcd/flux#2502]: https://github.com/fluxcd/flux/pull/2502
+[fluxcd/flux#2500]: https://github.com/fluxcd/flux/pull/2500
+[fluxcd/flux#2499]: https://github.com/fluxcd/flux/pull/2499
+[fluxcd/flux#2497]: https://github.com/fluxcd/flux/pull/2497
+[fluxcd/flux#2495]: https://github.com/fluxcd/flux/pull/2495
+[fluxcd/flux#2493]: https://github.com/fluxcd/flux/pull/2493
+[fluxcd/flux#2492]: https://github.com/fluxcd/flux/pull/2492
+
 ## 1.15.0 (2019-10-02)
 
 This feature release adds secure support for Git over HTTPS, updates
@@ -1664,4 +1793,3 @@ Initial semver release.
 -   Refactored registry code and improved coverage
 
 See https://github.com/weaveworks/flux/milestone/7?closed=1 for full details.
-
