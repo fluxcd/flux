@@ -12,9 +12,9 @@ Much of this is automated, but it needs a human to turn the wheel.
 
 ## Overview
 
-The Flux daemon and the Helm operator have separate releases, and use different branches and tags. Flux daemon releases use just a semver version, like `1.8.1`, and the Helm operator uses the prefix "helm", e.g., `helm-0.5.0`.
+Flux releases use a branch named after their semver version, like `1.8.1`.
 
-Each minor version has its own "release series" branch, from which patch releases will be put together, called e.g., `release/1.8.x`, or for the Helm operator, `release/helm-0.5.x`.
+Each minor version has its own "release series" branch, from which patch releases will be put together, called e.g., `release/1.8.x`.
 
 The CircleCI script runs builds for tags, which push Docker images and upload binaries. This is triggered by creating a release in GitHub, which will create the tag.
 
@@ -26,7 +26,7 @@ The CircleCI script runs builds for tags, which push Docker images and upload bi
 
 **Preparing the release PR**
 
-1. If the release is a new minor version, create a "release series" branch and push it to GitHub.
+1. If the release is a new minor (or major) version, create a "release series" branch and push it to GitHub.
 
     Depending on what is to be included in the release, you may need to pick a point from which branch that is not HEAD of master. But usually, it will be HEAD of master.
 
@@ -46,10 +46,7 @@ The CircleCI script runs builds for tags, which push Docker images and upload bi
 
     If this is _not_ the first release on this branch, you will need to either merge master, or cherry-pick commits from master, to get the things you want in the release.
 
-4. Put an entry into the changelog
-
-    For the Flux daemon, it's `CHANGELOG.md`; for the Helm operator, it's `CHANGELOG-helmop.md`. Follow the format established, and commit your
-change.
+4. Put an entry into the `CHANGELOG.md`
 
     If you cherry-picked commits, remember to only mention those changes.
 
