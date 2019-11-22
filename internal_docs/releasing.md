@@ -46,7 +46,7 @@ The CircleCI script runs builds for tags, which push Docker images and upload bi
 
     If this is _not_ the first release on this branch, you will need to either merge master, or cherry-pick commits from master, to get the things you want in the release.
 
-4. Put an entry into the `CHANGELOG.md`
+4. Add an entry for the new release in the `CHANGELOG.md` file
 
     If you cherry-picked commits, remember to only mention those changes.
 
