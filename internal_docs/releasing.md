@@ -48,6 +48,11 @@ The CircleCI script runs builds for tags, which push Docker images and upload bi
 
 4. Add an entry for the new release in the `CHANGELOG.md` file
 
+    Use `go run internal_docs/generate_changelog_entry/main.go` to generate
+    an initial version of the entry. Then you should refine it and edit it
+    (i.e. adding a description the release, coalescing pull requests, adding
+    pull requests in the right sections ... ).
+
     If you cherry-picked commits, remember to only mention those changes.
 
     To compile a list of people (GitHub usernames) to thank, you can use a script (if you have access to weaveworks/dx) or peruse the commits/PRs merged/issues since the last release. There's no exact way to do it. Be generous.
