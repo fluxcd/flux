@@ -46,17 +46,17 @@ func main() {
 
 	fromSHA1, _, err := client.Repositories.GetCommitSHA1(ctx, gitHubOrg, gitHubRepo, *from, "")
 	if err != nil {
-		log.Fatalf("cannot obtain SHA1 of %q: %s", from)
+		log.Fatalf("cannot obtain SHA1 of %q: %s", *from, err)
 	}
 	toSHA1, _, err := client.Repositories.GetCommitSHA1(ctx, gitHubOrg, gitHubRepo, to, "")
 	if err != nil {
-		log.Fatalf("cannot obtain SHA1 of %q: %s", from)
+		log.Fatalf("cannot obtain SHA1 of %q: %s", to, err)
 	}
 
 	// Make sure that the "from" revision is behing "to" and obtain the number of commits, for the progess bar
 	comparison, _, err := client.Repositories.CompareCommits(ctx, gitHubOrg, gitHubRepo, toSHA1, fromSHA1)
 	if err != nil {
-		log.Fatalf("cannot compare commits from %q and to %q: %s", from, to, err)
+		log.Fatalf("cannot compare commits from %q and to %q: %s", *from, to, err)
 	}
 	if comparison.GetStatus() != "behind" {
 		log.Fatalf("'from' revision (%s) is not behind 'to' revision (%s)", *from, to)
