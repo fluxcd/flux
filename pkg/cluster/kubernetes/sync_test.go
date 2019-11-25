@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	helmopfake "github.com/fluxcd/helm-operator/pkg/client/clientset/versioned/fake"
 	"github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
@@ -30,6 +29,7 @@ import (
 	kresource "github.com/fluxcd/flux/pkg/cluster/kubernetes/resource"
 	"github.com/fluxcd/flux/pkg/resource"
 	"github.com/fluxcd/flux/pkg/sync"
+	helmopfake "github.com/fluxcd/helm-operator/pkg/client/clientset/versioned/fake"
 )
 
 const (
@@ -363,10 +363,10 @@ metadata:
 	}
 
 	test := func(t *testing.T, kube *Cluster, defs, expectedAfterSync string, expectErrors bool) {
-		saved := getDefaultNamespace
-		getDefaultNamespace = func() (string, error) { return defaultTestNamespace, nil }
-		defer func() { getDefaultNamespace = saved }()
-		namespacer, err := NewNamespacer(kube.client.coreClient.Discovery())
+		saved := getKubeconfigDefaultNamespace
+		getKubeconfigDefaultNamespace = func() (string, error) { return defaultTestNamespace, nil }
+		defer func() { getKubeconfigDefaultNamespace = saved }()
+		namespacer, err := NewNamespacer(kube.client.coreClient.Discovery(), "")
 		if err != nil {
 			t.Fatal(err)
 		}
