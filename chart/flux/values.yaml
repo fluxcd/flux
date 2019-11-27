@@ -234,7 +234,7 @@ memcached:
   enabled: true
   hostnameOverride:
   repository: memcached
-  tag: 1.5.15
+  tag: 1.5.20
   pullSecret:
   createClusterIP: true
   verbose: false
