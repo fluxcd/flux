@@ -5,33 +5,47 @@ instead of having to include them in your git repo as YAML files. For
 example, you can use `kustomize` to patch a common set of resources to
 suit a particular environment.
 
-## Setting manifest generation up
-
 Manifest generation is controlled by the flags given to `fluxd`, and
 `.flux.yaml` files in your git repo.
 
-To enable it, pass the command-line flag `--manifest-generation=true`
-to `fluxd`.
+To enable it, you will need to
 
-For each path supplied with the flag `--git-path` (or `.` if none are
-supplied),
+ 1. pass the command-line flag `--manifest-generation=true`
+to `fluxd`.
+ 2. put at least one `.flux.yaml` file in the git repository.
+
+Where to put `.flux.yaml`, and what should be in it, are described in
+the sections following.
+
+## Setting manifest generation up
+
+The command-line flag `--git-path` (which can be given multiple
+values) marks a "target path" within the git repository in which to
+find manifests. If `--git-path` is not supplied, the top of the git
+repository is assumed to be the sole target path.
+
+Without manifest generation, fluxd will look for YAML files under each
+target path.
+
+With manifest generation **enabled**, fluxd will look for processing
+instructions in a file `.flux.yaml`, which can be located _at_ the
+target path, or in a directory _above_ it in the git repository.
 
  - if a `.flux.yaml` file is found, it is used **instead** of looking
-   for YAML files;
+   for YAML files, and no other files are examined for that target
+   path;
 
  - if no `.flux.yaml` file is found, the usual behaviour of looking
-   for YAML files is used.
+   for YAML files is adopted for that target path.
 
-The manifests from all the `--git-path` values -- read from YAML files
-or generated -- are combined before applying to the cluster. If
-duplicates are detected, an error is logged and the sync is abandoned.
+The manifests from all the target paths -- read from YAML files or
+generated -- are combined before applying to the cluster. If
+duplicates are detected, an error is logged and fluxd will abandon the
+attempt to apply manifests to the cluster.
 
-A `.flux.yaml` file can be _at_ the path mentioned, or in a directory
-_above_ it in the git repo. Here are some examples:
+Here are some examples:
 
-```sh
-# show normal files _and_ .flux.yaml
-flux-kustomization-example$ tree -a -P .flux.yaml -P '*' -I .git
+```
 .
 ├── base
 │   ├── demo-ns.yaml
@@ -40,12 +54,10 @@ flux-kustomization-example$ tree -a -P .flux.yaml -P '*' -I .git
 │   ├── podinfo-hpa.yaml
 │   └── podinfo-svc.yaml
 ├── .flux.yaml
-├── LICENSE
 ├── production
 │   ├── flux-patch.yaml
 │   ├── kustomization.yaml
 │   └── replicas-patch.yaml
-├── README.md
 └── staging
     ├── flux-patch.yaml
     └── kustomization.yaml
@@ -53,14 +65,16 @@ flux-kustomization-example$ tree -a -P .flux.yaml -P '*' -I .git
 
 In this case, say you started `fluxd` with `--git-path=staging`, it
 would find `.flux.yaml` in the top directory and use that to generate
-manifests.  The files and directories (if there were any) in
-`staging/` are ignored, in favour of the instructions given in the
-`.flux.yaml` file.
+manifests.  The other files and directories (if there were any) in
+`staging/` are not examined by fluxd, in favour of following the
+instructions given in the `.flux.yaml` file.
 
-In this modified example,
+This layout could also be used with `--git-path=production`.
 
-```sh
-flux-kustomization-example$ tree -a -P .flux.yaml -P '*' -I .git
+In this modified example, the `.flux.yaml` file has been moved under
+`staging/`:
+
+```
 .
 ├── base
 │   ├── demo-ns.yaml
@@ -68,25 +82,23 @@ flux-kustomization-example$ tree -a -P .flux.yaml -P '*' -I .git
 │   ├── podinfo-dep.yaml
 │   ├── podinfo-hpa.yaml
 │   └── podinfo-svc.yaml
-├── LICENSE
 ├── production
 │   ├── flux-patch.yaml
-│   ├── .flux.yaml
 │   ├── kustomization.yaml
 │   └── replicas-patch.yaml
-├── README.md
 └── staging
     ├── flux-patch.yaml
+    ├── .flux.yaml
     └── kustomization.yaml
 ```
 
-… the `.flux.yaml` file is under `production/`, so it will _only_
-take effect for `--git-path=production`.
+… since the `.flux.yaml` file is now under `staging/`, it will still
+take effect for `--git-path=staging`. However:
 
-Using `--git-path=staging` would **not produce a usable
+Using `--git-path=production` would **not produce a usable
 configuration**, because without an applicable `.flux.yaml`, the files
-under `staging/` would be treated as plain Kubernetes manifests, which
-they are plainly not.
+under `production/` would be treated as plain Kubernetes manifests,
+which they are plainly not.
 
 Note also that the configuration file would **not** take effect for
 `--git-path=.` (i.e., the top directory), because manifest generation
@@ -95,8 +107,9 @@ will not look in subdirectories for a `.flux.yaml` file.
 ## How to construct a .flux.yaml file
 
 `.flux.yaml` files come in two varieties: "patch-updated", and
-"command-updated". These refer to the way in which automated updates
-are applied to files in the repo:
+"command-updated". These refer to the way in which [automated
+updates](./automated-image-update.md) are applied to files in the
+repo:
 
  - when patch-updated, fluxd will keep updates in its own patch file,
    which it applies to the generated manifests before applying to the
@@ -136,7 +149,7 @@ stream, before being applied.
 Much of the time, it will only be necessary to supply one command to
 be run.
 
-The commands will be run with the `--git-path` being processed as a
+The commands will be run with the target path being processed as a
 working directory -- which is not necessarily the same directory in
 which the `.flux.yaml` file was found. [See below](#execution-context)
 for more details on the execution context in which commands are run.
@@ -144,7 +157,8 @@ for more details on the execution context in which commands are run.
 ### Using patch-updated configuration
 
 A patch-updated configuration generates manifests using commands, and
-records updates in a patch file.
+records updates as a set of [strategic merge][strategic-merge] patches
+in a file.
 
 For example, when an automated image upgrade is run, fluxd will do
 this:
@@ -168,9 +182,12 @@ patchUpdated:
 ```
 
 The `generators` field is explained just above. The `patchFile` field
-gives a path, relative to the `--git-path` value, in which to record
-patches. `fluxd` will create the file if necessary, and commit any
-changes it makes to git.
+gives a path, relative to the target path, in which to record
+patches. `fluxd` will create or update the file when needed, and
+commit any changes it makes to git.
+
+> Note: at present, it is necessary to manually remove patches that
+> refer to deleted manifests. See [issue #2428][#2428]
 
 ### Using command-updated configuration
 
@@ -210,8 +227,7 @@ several times.
 
 `generators` and `updaters` are run in a POSIX shell inside the fluxd
 container. This means that the executables mentioned in commands must
-be available in the [Flux container
-image](https://github.com/fluxcd/flux/blob/master/docker/Dockerfile.flux).
+be available in the [Flux container image][flux-dockerfile].
 
 Flux currently includes `kustomize` and basic Unix shell tools. If the
 tools in the Flux image are not sufficient for your use case, you can
@@ -235,10 +251,11 @@ repository with this structure:
 └──── [...]
 ```
 
-The commands in `.flux.yaml` will be executed with their working
+… the commands in `.flux.yaml` will be executed with their working
 directory set to `staging`.
 
-In addition, `updaters` are given arguments via environment variables:
+In addition, commands from `updaters` are given arguments via
+environment variables, when executed:
 
  * `FLUX_WORKLOAD`: the workload to be updated. Its format is
   `<namespace>:<kind>/<name>` (e.g. `default:deployment/foo`). For
@@ -266,3 +283,7 @@ minute. If you run into errors like `error executing generator
 command: context deadline exceeded`, you can increase the timeout with
 the `--sync-timeout` fluxd command flag or the `sync.timeout` Helm
 chart option.
+
+[#2428]: https://github.com/fluxcd/flux/issues/2428
+[flux-dockerfile]: https://github.com/fluxcd/flux/blob/master/docker/Dockerfile.flux
+[strategic-merge]: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-api-machinery/strategic-merge-patch.md
