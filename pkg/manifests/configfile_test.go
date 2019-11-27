@@ -26,6 +26,14 @@ version: 1
 patchUpdated:
   generators: []
 `,
+		"more than one": `
+version: 1
+patchUpdated:
+  generators: []
+  patchFile: patch.yaml
+commandUpdated:
+  generators: []
+`,
 
 		"duff generator": `
 version: 1
@@ -60,6 +68,11 @@ version: 1
 patchUpdated:
   generators: []
   patchFile: foo.yaml
+`,
+
+		"minimal files (the only kind)": `
+version: 1
+files: {}
 `,
 	} {
 		t.Run(name, func(t *testing.T) {

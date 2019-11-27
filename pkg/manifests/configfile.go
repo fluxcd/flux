@@ -62,6 +62,12 @@ oneOf:
           type: array
           items: { '$ref': '#/definitions/command' }
       additionalProperties: false
+- required: ['version', 'files']
+  properties:
+    version: { '$ref': '#/definitions/version' }
+    files:
+      additionalProperties: false
+  additionalProperties: false
 `
 
 func mustCompileConfigSchema() *jsonschema.Schema {
@@ -90,6 +96,7 @@ type ConfigFile struct {
 	// Only one of the following should be set simultaneously
 	CommandUpdated *CommandUpdated `json:"commandUpdated,omitempty"`
 	PatchUpdated   *PatchUpdated   `json:"patchUpdated,omitempty"`
+	Files          *Files          `json:"files,omitempty"`
 
 	// These are supplied, and can't be calculated from each other
 	configPath         string // the absolute path to the .flux.yaml
@@ -136,6 +143,16 @@ type PolicyUpdater struct {
 type PatchUpdated struct {
 	Generators []Generator `json:"generators"`
 	PatchFile  string      `json:"patchFile,omitempty"`
+}
+
+// Files represents a config in which the directory should be treated
+// as containing YAML files -- in other words, the normal mode which
+// looks for YAML files, and records changes by writing them back to
+// the original file.
+//
+// This can be used as a reset switch for a `--git-path`, if there's a
+// .flux.yaml higher in the directory structure.
+type Files struct {
 }
 
 func ParseConfigFile(fileBytes []byte, result *ConfigFile) error {
