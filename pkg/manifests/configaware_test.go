@@ -262,7 +262,7 @@ spec:
 
 const mistakenConf = `
 version: 1
-commandUpdated: # <-- because this is commandUpdated, patchFile is ignored
+commandUpdated:
   generators:
     - command: |
        echo "apiVersion: extensions/v1beta1
@@ -283,7 +283,6 @@ commandUpdated: # <-- because this is commandUpdated, patchFile is ignored
        kind: Namespace
        metadata:
          name: demo"
-  patchFile: patchfile.yaml
 `
 
 // This tests that when using a config with no update commands, and
