@@ -76,6 +76,9 @@ spec:
       - name: {{ .Values.helmOperator.configureRepositories.cacheVolumeName | quote }}
         emptyDir: {}
       {{- end }}
+      {{- if .Values.helmOperator.extraVolumes }}
+{{ toYaml .Values.helmOperator.extraVolumes | indent 6 }}
+      {{- end }}
       containers:
       - name: flux-helm-operator
         image: "{{ .Values.helmOperator.repository }}:{{ .Values.helmOperator.tag }}"
@@ -116,6 +119,9 @@ spec:
           readOnly: true
         - name: {{ .Values.helmOperator.configureRepositories.cacheVolumeName | quote }}
           mountPath: /var/fluxd/helm/repository/cache
+        {{- end }}
+        {{- if .Values.helmOperator.extraVolumeMounts }}
+{{ toYaml .Values.helmOperator.extraVolumeMounts | indent 8 }}
         {{- end }}
         args:
         {{- if .Values.logFormat }}
