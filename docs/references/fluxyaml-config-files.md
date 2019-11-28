@@ -24,8 +24,8 @@ values) marks a "target path" within the git repository in which to
 find manifests. If `--git-path` is not supplied, the top of the git
 repository is assumed to be the sole target path.
 
-Without manifest generation, fluxd will look for YAML files under each
-target path.
+Without manifest generation, fluxd will recursively walk the
+directories under each target path, to look for YAML files.
 
 With manifest generation **enabled**, fluxd will look for processing
 instructions in a file `.flux.yaml`, which can be located _at_ the
