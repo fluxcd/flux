@@ -64,17 +64,12 @@ users: []
 	defer os.Unsetenv("KUBECONFIG")
 	coreClient := makeFakeClient()
 
-	ns, err := getDefaultNamespace()
+	ns, err := getKubeconfigDefaultNamespace()
 	if err != nil {
 		t.Fatal("cannot get default namespace")
 	}
 	if ns != "namespace" {
 		t.Fatal("unexpected default namespace", ns)
-	}
-
-	nser, err := NewNamespacer(coreClient.Discovery())
-	if err != nil {
-		t.Fatal(err)
 	}
 
 	const defs = `---
@@ -101,7 +96,11 @@ metadata:
 		t.Fatal(err)
 	}
 
-	assertEffectiveNamespace := func(id, expected string) {
+	defaultNser, err := NewNamespacer(coreClient.Discovery(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertEffectiveNamespace := func(nser namespaceViaDiscovery, id, expected string) {
 		res, ok := manifests[id]
 		if !ok {
 			t.Errorf("manifest for %q not found", id)
@@ -117,7 +116,17 @@ metadata:
 		}
 	}
 
-	assertEffectiveNamespace("foo-ns:deployment/hasNamespace", "foo-ns")
-	assertEffectiveNamespace("<cluster>:deployment/noNamespace", "namespace")
-	assertEffectiveNamespace("spurious:namespace/notNamespaced", "")
+	assertEffectiveNamespace(*defaultNser, "foo-ns:deployment/hasNamespace", "foo-ns")
+	assertEffectiveNamespace(*defaultNser, "<cluster>:deployment/noNamespace", "namespace")
+	assertEffectiveNamespace(*defaultNser, "spurious:namespace/notNamespaced", "")
+
+	overrideNser, err := NewNamespacer(coreClient.Discovery(), "foo-override")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertEffectiveNamespace(*overrideNser, "foo-ns:deployment/hasNamespace", "foo-ns")
+	assertEffectiveNamespace(*overrideNser, "<cluster>:deployment/noNamespace", "foo-override")
+	assertEffectiveNamespace(*overrideNser, "spurious:namespace/notNamespaced", "")
+
 }

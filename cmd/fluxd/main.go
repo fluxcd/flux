@@ -18,7 +18,6 @@ import (
 	"syscall"
 	"time"
 
-	helmopclient "github.com/fluxcd/helm-operator/pkg/client/clientset/versioned"
 	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
@@ -51,6 +50,7 @@ import (
 	"github.com/fluxcd/flux/pkg/remote"
 	"github.com/fluxcd/flux/pkg/ssh"
 	fluxsync "github.com/fluxcd/flux/pkg/sync"
+	helmopclient "github.com/fluxcd/helm-operator/pkg/client/clientset/versioned"
 )
 
 var version = "unversioned"
@@ -170,10 +170,11 @@ func main() {
 		k8sSecretDataKey         = fs.String("k8s-secret-data-key", "identity", "data key holding the private SSH key within the k8s secret")
 
 		// k8s-scope settings
-		k8sNamespaceWhitelist    = fs.StringSlice("k8s-namespace-whitelist", []string{}, "restrict the view of the cluster to the namespaces listed. All namespaces are included if this is not set")
-		k8sAllowNamespace        = fs.StringSlice("k8s-allow-namespace", []string{}, "restrict all operations to the provided namespaces")
+		k8sNamespaceWhitelist = fs.StringSlice("k8s-namespace-whitelist", []string{}, "restrict the view of the cluster to the namespaces listed. All namespaces are included if this is not set")
+		k8sAllowNamespace     = fs.StringSlice("k8s-allow-namespace", []string{}, "restrict all operations to the provided namespaces")
+		k8sDefaultNamespace   = fs.String("k8s-default-namespace", "", "the namespace to use for resources where a namespace is not specified")
 
-		k8sVerbosity             = fs.Int("k8s-verbosity", 0, "klog verbosity level")
+		k8sVerbosity = fs.Int("k8s-verbosity", 0, "klog verbosity level")
 
 		// SSH key generation
 		sshKeyBits   = optionalVar(fs, &ssh.KeyBitsValue{}, "ssh-keygen-bits", "-b argument to ssh-keygen (default unspecified)")
@@ -502,7 +503,7 @@ func main() {
 		imageCreds = k8sInst.ImagesToFetch
 		// There is only one way we currently interpret a repo of
 		// files as manifests, and that's as Kubernetes yamels.
-		namespacer, err := kubernetes.NewNamespacer(discoClientset)
+		namespacer, err := kubernetes.NewNamespacer(discoClientset, *k8sDefaultNamespace)
 		if err != nil {
 			logger.Log("err", err)
 			os.Exit(1)

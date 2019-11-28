@@ -23,21 +23,28 @@ type namespaceViaDiscovery struct {
 }
 
 // NewNamespacer creates an implementation of Namespacer
-func NewNamespacer(d discovery.DiscoveryInterface) (*namespaceViaDiscovery, error) {
-	fallback, err := getDefaultNamespace()
+// If not empty `defaultNamespaceOverride` is used as the namespace when
+// a resource doesn't have a namespace specified. If empty the namespace
+// from the context in the KUBECONFIG is used, otherwise the "default"
+// namespace is used mimicking kubectl behavior
+func NewNamespacer(d discovery.DiscoveryInterface, defaultNamespaceOverride string) (*namespaceViaDiscovery, error) {
+	if defaultNamespaceOverride != "" {
+		return &namespaceViaDiscovery{fallbackNamespace: defaultNamespaceOverride, disco: d}, nil
+	}
+	kubeconfigDefaultNamespace, err := getKubeconfigDefaultNamespace()
 	if err != nil {
 		return nil, err
 	}
-	return &namespaceViaDiscovery{fallbackNamespace: fallback, disco: d}, nil
+	if kubeconfigDefaultNamespace != "" {
+		return &namespaceViaDiscovery{fallbackNamespace: kubeconfigDefaultNamespace, disco: d}, nil
+	}
+	return &namespaceViaDiscovery{fallbackNamespace: defaultFallbackNamespace, disco: d}, nil
 }
 
-// getDefaultNamespace returns the fallback namespace used by the
-// when a namespaced resource doesn't have one specified. This is
-// used when syncing to anticipate the identity of a resource in the
-// cluster given the manifest from a file (which may be missing the
-// namespace).
+// getKubeconfigDefaultNamespace returns the namespace specified
+// for the current config in KUBECONFIG
 // A variable is used for mocking in tests.
-var getDefaultNamespace = func() (string, error) {
+var getKubeconfigDefaultNamespace = func() (string, error) {
 	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		clientcmd.NewDefaultClientConfigLoadingRules(),
 		&clientcmd.ConfigOverrides{},
@@ -51,7 +58,7 @@ var getDefaultNamespace = func() (string, error) {
 		return c.Namespace, nil
 	}
 
-	return defaultFallbackNamespace, nil
+	return "", nil
 }
 
 // effectiveNamespace yields the namespace that would be used for this
