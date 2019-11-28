@@ -1,3 +1,19 @@
+## 0.16.0 (2019-11-28)
+
+### Improvements
+
+ - Updated Flux to `1.16.0`
+   [fluxcd/flux#2639](https://github.com/fluxcd/flux/pull/2639)
+ - Allow `git.verifySignature` to be `"false"`
+   [fluxcd/flux#2573](https://github.com/fluxcd/flux/pull/2573)
+ - Update the automation interval flag in the chart
+   [fluxcd/flux#2551](https://github.com/fluxcd/flux/pull/2551)
+
+### Bug fixes
+
+ - Fix memcached PSP
+   [fluxcd/flux#2542](https://github.com/fluxcd/flux/pull/2542)
+
 ## 0.15.0 (2019-10-07)
 
 **Note** The Helm Operator options will be **removed** from this chart in the next major release.
