@@ -227,14 +227,21 @@ several times.
 
 `generators` and `updaters` are run in a POSIX shell inside the fluxd
 container. This means that the executables mentioned in commands must
-be available in the [Flux container image][flux-dockerfile].
+be available in the running fluxd container.
 
 Flux currently includes `kustomize` and basic Unix shell tools. If the
-tools in the Flux image are not sufficient for your use case, you can
-include new tools in your own Flux-based image or, if the tools are
-popular enough, Flux maintainers can add them to the Flux image
-(please create an issue). In the future it may be possibly to specify
-an container image for each command.
+tools in the Flux image are not sufficient for your use case, you have
+some options:
+
+ - build your own custom image based on the [Flux
+   image][flux-dockerfile] that includes the tooling you need, and run
+   that image instead of `fluxcd.io/flux`;
+ - copy files from an `initContainer` into a volume shared by the flux
+   container, within the deployment.
+
+In the future it may be possibly to specify an container image for
+each command, rather than relying on the tooling being in the
+filesystem.
 
 The working directory (also known as CWD) of the `command`s executed
 from a `.flux.yaml` file will be set to the target path, i.e., the
