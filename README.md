@@ -62,6 +62,7 @@ container images and config changes are propagated to the cluster.
 - [HMCTS](https://www.gov.uk/government/organisations/hm-courts-and-tribunals-service)
 - [IBM Cloudant](https://www.ibm.com/cloud/cloudant)
 - [Improwised Technologies](https://www.improwised.com/)
+- [Infabode](https://infabode.com)
 - [iQmetrix](https://www.iqmetrix.com)
 - [karriere tutor GmbH](https://www.karrieretutor.de)
 - [Limejump](https://limejump.com)
