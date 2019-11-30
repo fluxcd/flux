@@ -52,7 +52,7 @@ if ! kubectl version > /dev/null 2>&1; then
   echo '>>> Loading images into the Kind cluster(s)'
   seq 1 "${E2E_KIND_CLUSTER_NUM}" | parallel -- kind --name "${KIND_CLUSTER_PREFIX}_{}" load docker-image 'docker.io/fluxcd/flux:latest'
   if [ "${E2E_KIND_CLUSTER_NUM}" -gt 1 ]; then
-    BATS_EXTRA_ARGS="--jobs=${E2E_KIND_CLUSTER_NUM}"
+    BATS_EXTRA_ARGS="--jobs ${E2E_KIND_CLUSTER_NUM}"
   fi
 fi
 
