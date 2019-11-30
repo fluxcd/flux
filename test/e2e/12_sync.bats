@@ -1,13 +1,13 @@
 #!/usr/bin/env bats
 
-load lib/env
-load lib/install
-load lib/poll
-load lib/defer
-
 clone_dir=""
 
 function setup() {
+  load lib/env
+  load lib/install
+  load lib/poll
+  load lib/defer
+
   kubectl create namespace "$FLUX_NAMESPACE"
   # Install flux and the git server, allowing external access
   install_git_srv git_srv_result
