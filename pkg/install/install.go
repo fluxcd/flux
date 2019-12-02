@@ -26,6 +26,7 @@ type TemplateParameters struct {
 	Namespace          string
 	ManifestGeneration bool
 	AdditionalFluxArgs []string
+	TargetOpenShift    bool
 }
 
 func FillInTemplates(params TemplateParameters) (map[string][]byte, error) {
