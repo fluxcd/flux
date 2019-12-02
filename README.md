@@ -75,6 +75,7 @@ container images and config changes are propagated to the cluster.
 - [Rakuten](https://rakuten.com)
 - [Replicated](https://replicated.com)
 - [Rungway](https://rungway.com)
+- [Sage AI Labs](https://www.sage.com)
 - [Starbucks](https://www.starbucks.com/)
 - [Troii](https://troii.com/)
 - [Under Armour](https://www.underarmour.com)
