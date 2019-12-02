@@ -110,7 +110,7 @@ directory it will be made available for use by Flux.
    to a Kubernetes secret with `--export-secret-keys <key id>`:
 
    ```sh
-   $ gpg --export-secret-keys 700D397C988079BFF0DDAFED6A7436E8790F8689 |
+   $ gpg --export-secret-keys --armor 700D397C988079BFF0DDAFED6A7436E8790F8689 |
      kubectl create secret generic flux-gpg-signing-key --from-file=flux.asc=/dev/stdin --dry-run -o yaml
    apiVersion: v1
    data:
