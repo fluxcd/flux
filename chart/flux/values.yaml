@@ -100,6 +100,8 @@ serviceAccount:
   # The name of the service account to use.
   # If not set and create is true, a name is generated using the fullname template
   name:
+  # Annotations for the Service Account
+  annotations: {}
 
 # If create is `false` and no name is given, Flux and the Helm
 # Operator will be restricted to the namespace where they are

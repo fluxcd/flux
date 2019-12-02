@@ -204,6 +204,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `rbac.pspEnabled`                                 | `false`                                              | If `true`, create and use a restricted pod security policy for Flux pod(s)
 | `serviceAccount.create`                           | `true`                                               | If `true`, create a new service account
 | `serviceAccount.name`                             | `flux`                                               | Service account to be used
+| `serviceAccount.annotations`                      | ``                                                   | Additional Service Account annotations
 | `clusterRole.create`                              | `true`                                               | If `false`, Flux and the Helm Operator will be restricted to the namespace where they are deployed
 | `service.type`                                    | `ClusterIP`                                          | Service type to be used (exposing the Flux API outside of the cluster is not advised)
 | `service.port`                                    | `3030`                                               | Service port to be used
