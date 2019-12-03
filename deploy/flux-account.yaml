@@ -36,3 +36,4 @@ subjects:
   - kind: ServiceAccount
     name: flux
     namespace: flux
+
