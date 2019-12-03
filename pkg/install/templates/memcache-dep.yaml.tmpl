@@ -30,7 +30,7 @@ spec:
         ports:
         - name: clients
           containerPort: 11211
-{{ if not .TargetOpenShift}}
+{{ if not .OpenShiftTarget}}
         securityContext:
           runAsUser: 11211
           runAsGroup: 11211
