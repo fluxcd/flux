@@ -40,6 +40,9 @@ func findPullRequestsInCommits(ctx context.Context, ghClient *github.Client, git
 	for _, commit := range commits {
 		commitProcessHook()
 		pullRequestListOptions := &github.PullRequestListOptions{}
+		// Note: Unfortunately this will return all the PRs whose head branch contains the commit
+		// (i.e. not just the PR which incorporates the commit to the base repo).
+		// We deal with this by discarding duplicates.
 		prsForCommit, _, err := ghClient.PullRequests.ListPullRequestsWithCommit(ctx,
 			gitHubOrg, gitHubRepo, commit.GetSHA(), pullRequestListOptions)
 		if err != nil {
