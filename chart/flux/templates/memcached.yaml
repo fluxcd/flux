@@ -18,6 +18,10 @@ spec:
       release: {{ .Release.Name }}
   template:
     metadata:
+      {{- if .Values.memcached.annotations }}
+      annotations:
+      {{- .Values.memcached.annotations | toYaml | trimSuffix "\n" | nindent 8 }}
+      {{- end }}
       labels:
         app: {{ template "flux.name" . }}-memcached
         release: {{ .Release.Name }}
