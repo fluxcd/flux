@@ -12,7 +12,7 @@ func testFillInTemplates(t *testing.T, expectedManifestCount int, params Templat
 	assert.NoError(t, err)
 	assert.Len(t, manifests, expectedManifestCount)
 	for fileName, contents := range manifests {
-		validationResults, err := kubeval.Validate(contents)
+		validationResults, err := kubeval.Validate(contents, config)
 		assert.NoError(t, err)
 		for _, result := range validationResults {
 			if len(result.Errors) > 0 {

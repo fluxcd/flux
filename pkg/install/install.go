@@ -56,7 +56,9 @@ func FillInTemplates(params TemplateParameters) (map[string][]byte, error) {
 		if err := manifestTemplate.Execute(out, params); err != nil {
 			return fmt.Errorf("cannot execute template for embedded file %q: %s", info.Name(), err)
 		}
-		result[strings.TrimSuffix(info.Name(), ".tmpl")] = out.Bytes()
+		if out.Len() > 0 {
+			result[strings.TrimSuffix(info.Name(), ".tmpl")] = out.Bytes()
+		}
 		return nil
 	})
 	if err != nil {
