@@ -9,7 +9,7 @@ explain workarounds.
 If you notice that Flux takes tens of seconds or minutes to get
 through each sync, while you can apply the same manifests very quickly
 by hand, you may be running into this issue:
-https://github.com/fluxcd/flux/issues/1422
+[fluxcd/flux#1422](https://github.com/fluxcd/flux/issues/1422).
 
 Briefly, the problem is that mounting a volume into `$HOME/.kube`
 effectively disables `kubectl`'s caching, which makes it much much
