@@ -48,10 +48,10 @@ The CircleCI script runs builds for tags, which push Docker images and upload bi
 
 4. Add an entry for the new release in the `CHANGELOG.md` file
 
-    Use `go run internal_docs/generate_release_changelog/main.go` to generate
-    an initial version of the entry. Then you should refine it and edit it
-    (i.e. adding a description the release, coalescing pull requests, adding
-    pull requests in the right sections ... ).
+    Use `go run internal/cmd/changelog/main.go` to generate an initial version
+    of the entry. Then you should refine it and edit it (i.e. adding a
+    description the release, coalescing pull requests, adding pull requests in
+    the right sections ... ).
 
     If you cherry-picked commits, remember to only mention those changes.
 
