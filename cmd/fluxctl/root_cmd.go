@@ -94,6 +94,7 @@ func (opts *rootOpts) Command() *cobra.Command {
 		newIdentity(opts).Command(),
 		newSync(opts).Command(),
 		newInstall().Command(),
+		newBuild().Command(),
 	)
 
 	return cmd
@@ -102,9 +103,7 @@ func (opts *rootOpts) Command() *cobra.Command {
 func (opts *rootOpts) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
 	// skip port forward for certain commands
 	switch cmd.Use {
-	case "version":
-		fallthrough
-	case "install":
+	case "version", "install", "build":
 		return nil
 	}
 
