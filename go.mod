@@ -10,12 +10,14 @@ require (
 	github.com/Masterminds/semver v1.4.2
 	github.com/aws/aws-sdk-go v1.19.11
 	github.com/bradfitz/gomemcache v0.0.0-20190329173943-551aad21a668
+	github.com/cheggaaa/pb/v3 v3.0.2
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/evanphx/json-patch v4.1.0+incompatible
 	github.com/fluxcd/helm-operator v1.0.0-rc2
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-kit/kit v0.9.0
 	github.com/golang/gddo v0.0.0-20190312205958-5a2505f3dbf0
+	github.com/google/go-github/v28 v28.1.1
 	github.com/gorilla/mux v1.7.1
 	github.com/gorilla/websocket v1.4.0
 	github.com/imdario/mergo v0.3.7
@@ -35,6 +37,7 @@ require (
 	github.com/weaveworks/common v0.0.0-20190410110702-87611edc252e
 	github.com/weaveworks/go-checkpoint v0.0.0-20170503165305-ebbb8b0518ab
 	github.com/whilp/git-urls v0.0.0-20160530060445-31bac0d230fa
+	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
 	golang.org/x/sys v0.0.0-20190801041406-cbf593c0f2f3
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 	gopkg.in/yaml.v2 v2.2.2
