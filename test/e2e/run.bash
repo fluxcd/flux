@@ -29,7 +29,7 @@ function install_kind() {
   chmod +x "${FLUX_ROOT_DIR}/test/bin/kind"
 }
 
-# Create multiple Kind clusters and run jobs in parlallel?
+# Create multiple Kind clusters and run jobs in parallel?
 # Let users specify how many, e.g. with E2E_KIND_CLUSTER_NUM=3 make e2e
 if [ -n "$CI" ]; then
   # Use four Kind clusters when running the tests in CircleCI
