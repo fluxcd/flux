@@ -10,3 +10,8 @@ KNOWN_HOSTS=$(cat "${FIXTURES_DIR}/known_hosts")
 export KNOWN_HOSTS
 GITCONFIG=$(cat "${FIXTURES_DIR}/gitconfig")
 export GITCONFIG
+
+# Wire the test to the right cluster when tests are run in parallel
+if eval [ -n '$KUBECONFIG_SLOT_'"${BATS_JOB_SLOT}" ]; then
+  eval export KUBECONFIG='$KUBECONFIG_SLOT_'"${BATS_JOB_SLOT}"
+fi

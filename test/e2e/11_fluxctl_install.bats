@@ -1,10 +1,10 @@
 #!/usr/bin/env bats
 
-load lib/env
-load lib/install
-load lib/poll
-
 function setup() {
+  load lib/env
+  load lib/install
+  load lib/poll
+
   kubectl create namespace "$FLUX_NAMESPACE"
   install_git_srv
   install_flux_with_fluxctl

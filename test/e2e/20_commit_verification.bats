@@ -1,12 +1,12 @@
 #!/usr/bin/env bats
 
-load lib/env
-load lib/gpg
-load lib/install
-load lib/poll
-load lib/defer
-
 function setup() {
+  load lib/env
+  load lib/gpg
+  load lib/install
+  load lib/poll
+  load lib/defer
+
   kubectl create namespace "${FLUX_NAMESPACE}"
 
   # Create a temporary GNUPGHOME

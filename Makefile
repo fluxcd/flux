@@ -5,7 +5,7 @@ SUDO := $(shell docker info > /dev/null 2> /dev/null || echo "sudo")
 
 TEST_FLAGS?=
 
-BATS_VERSION := 1.1.0
+BATS_COMMIT := 3a1c2f28be260f8687ff83183cef4963faabedd6
 SHELLCHECK_VERSION := 0.7.0
 SHFMT_VERSION := 2.6.4
 
@@ -135,12 +135,13 @@ cache/%/shfmt-$(SHFMT_VERSION):
 	mkdir -p cache/$*
 	curl --fail -L -o $@ "https://github.com/mvdan/sh/releases/download/v$(SHFMT_VERSION)/shfmt_v$(SHFMT_VERSION)_`echo $* | tr - _`"
 
-test/e2e/bats: cache/bats-v$(BATS_VERSION).tar.gz
+test/e2e/bats: cache/bats-core-$(BATS_COMMIT).tar.gz
 	mkdir -p $@
 	tar -C $@ --strip-components 1 -xzf $< 
 
-cache/bats-v$(BATS_VERSION).tar.gz:
-	curl --fail -L -o $@ https://github.com/bats-core/bats-core/archive/v$(BATS_VERSION).tar.gz
+cache/bats-core-$(BATS_COMMIT).tar.gz:
+	# Use 2opremio's fork until https://github.com/bats-core/bats-core/pull/255 is merged
+	curl --fail -L -o $@ https://github.com/2opremio/bats-core/archive/$(BATS_COMMIT).tar.gz
 
 $(GOBIN)/fluxctl: $(FLUXCTL_DEPS) $(GENERATED_TEMPLATES_FILE)
 	go install ./cmd/fluxctl

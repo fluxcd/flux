@@ -1,12 +1,12 @@
 #!/usr/bin/env bats
 
-load lib/defer
-load lib/env
-load lib/gpg
-load lib/install
-load lib/poll
-
 function setup() {
+  load lib/defer
+  load lib/env
+  load lib/gpg
+  load lib/install
+  load lib/poll
+
   kubectl create namespace "${FLUX_NAMESPACE}" &> /dev/null
 
   # Install the git server, allowing external access

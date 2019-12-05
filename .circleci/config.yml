@@ -61,6 +61,7 @@ jobs:
     working_directory: /home/circleci/go/src/github.com/fluxcd/flux
     machine:
       image: ubuntu-1604:201903-01
+    resource_class: large
     environment:
       GO_VERSION: 1.13.1
       # We don't need a GOPATH but CircleCI defines it, so we override it
@@ -90,7 +91,10 @@ jobs:
             sudo killall apt-get || true
 
             sudo apt-get update
-            sudo apt-get install -y git rng-tools memcached
+            sudo apt-get install -y git rng-tools memcached parallel
+            # avoid needing to invoke parallel with --will-cite,
+            # see e.g see https://bugs.launchpad.net/ubuntu/+source/parallel/+bug/1779764
+            mkdir -p "$HOME/.parallel" && touch "$HOME/.parallel/will-cite"
             git version
             docker version
       - restore_cache:
