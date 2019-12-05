@@ -13,7 +13,7 @@ function setup() {
   export GIT_SSH_COMMAND="${git_srv_result[0]}"
   # Teardown the created port-forward to gitsrv.
   defer kill "${git_srv_result[1]}"
-  install_flux_with_fluxctl "13_sync_gc"
+  install_flux_with_fluxctl "21_sync_gc"
 }
 
 @test "Sync with garbage collection test" {

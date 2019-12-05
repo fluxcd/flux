@@ -199,7 +199,7 @@ config3: configuration3`
 				t.Fatal(err)
 			}
 			test.params.ConfigFileContent = configContent
-			manifests := testFillInTemplates(t, test.params)
+			manifests := testFillInTemplates(t, 6, test.params)
 			for fileName, contents := range manifests {
 				if fileName == test.configFileName {
 					assert.Contains(t, string(contents), test.configFileNameCheck)

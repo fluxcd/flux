@@ -30,7 +30,7 @@ function setup() {
   # shellcheck disable=SC2034
   template_values['REGISTRY_SERVICE_IP']="$REGISTRY_SERVICE_IP"
   # Intentionally reuse the setup from the release_image test
-  install_flux_with_fluxctl '14_release_image' 'template_values'
+  install_flux_with_fluxctl '50_release_image' 'template_values'
 }
 
 @test "Fluxctl list-workloads and list-images" {

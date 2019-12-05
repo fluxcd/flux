@@ -33,7 +33,7 @@ function setup() {
   local -A template_values
   # shellcheck disable=SC2034
   template_values['REGISTRY_SERVICE_IP']="$REGISTRY_SERVICE_IP"
-  install_flux_with_fluxctl '14_release_image' 'template_values'
+  install_flux_with_fluxctl '50_release_image' 'template_values'
 }
 
 @test "Image releases" {

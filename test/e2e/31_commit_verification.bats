@@ -22,7 +22,7 @@ function setup() {
 
   # Install the git server with signed init commit,
   # allowing external access
-  install_git_srv git_srv_result 20_gpg/gitsrv
+  install_git_srv git_srv_result 30_gpg/gitsrv
 
   # Install Flux with the GPG key, and commit verification enabled
   local -A template_values
@@ -30,7 +30,7 @@ function setup() {
   template_values['FLUX_GPG_KEY_ID']="$gpg_key"
   # shellcheck disable=SC2034
   template_values['FLUX_GIT_VERIFY_SIGNATURES']="true"
-  install_flux_with_fluxctl '20_gpg/flux' 'template_values'
+  install_flux_with_fluxctl '30_gpg/flux' 'template_values'
 
   # shellcheck disable=SC2154
   git_ssh_cmd="${git_srv_result[0]}"
@@ -90,7 +90,7 @@ function setup() {
   template_values['FLUX_GPG_KEY_ID']="$gpg_key"
   # shellcheck disable=SC2034
   template_values['FLUX_GIT_VERIFY_SIGNATURES']="true"
-  install_flux_with_fluxctl '20_gpg/flux' 'template_values'
+  install_flux_with_fluxctl '30_gpg/flux' 'template_values'
 
   # Wait for Flux to report that it sees an invalid commit
   poll_until_true 'invalid GPG signature log' "kubectl logs -n ${FLUX_NAMESPACE} deploy/flux | grep -q -e 'found invalid GPG signature for commit'"

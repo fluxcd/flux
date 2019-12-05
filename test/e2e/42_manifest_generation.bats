@@ -8,12 +8,12 @@ function setup() {
 
   kubectl create namespace "$FLUX_NAMESPACE"
   # Install flux and the git server, allowing external access
-  install_git_srv git_srv_result "22_manifest_generation/gitsrv"
+  install_git_srv git_srv_result "42_manifest_generation/gitsrv"
   # shellcheck disable=SC2154
   export GIT_SSH_COMMAND="${git_srv_result[0]}"
   # Teardown the created port-forward to gitsrv.
   defer kill "${git_srv_result[1]}"
-  install_flux_with_fluxctl "22_manifest_generation/flux"
+  install_flux_with_fluxctl "42_manifest_generation/flux"
 }
 
 @test "Basic sync and editing" {

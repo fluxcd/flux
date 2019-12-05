@@ -31,7 +31,7 @@ function setup() {
   template_values['FLUX_GPG_KEY_ID']="$gpg_key"
   # shellcheck disable=SC2034
   template_values['FLUX_GIT_VERIFY_SIGNATURES']="false"
-  install_flux_with_fluxctl '20_gpg/flux' 'template_values'
+  install_flux_with_fluxctl '30_gpg/flux' 'template_values'
 }
 
 @test "Git sync tag is signed" {
