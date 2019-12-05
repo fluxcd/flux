@@ -42,7 +42,7 @@ if ! kubectl version > /dev/null 2>&1; then
   install_kind
 
   echo '>>> Creating Kind Kubernetes cluster(s)'
-  seq 1 "${E2E_KIND_CLUSTER_NUM}" | parallel -- kind create cluster --name "${KIND_CLUSTER_PREFIX}-{}" --wait 5m
+  seq 1 "${E2E_KIND_CLUSTER_NUM}" | time parallel -- kind create cluster --name "${KIND_CLUSTER_PREFIX}-{}" --wait 5m
   for I in $(seq 1 "${E2E_KIND_CLUSTER_NUM}"); do
     defer kind --name "${KIND_CLUSTER_PREFIX}-${I}" delete cluster > /dev/null 2>&1 || true
     # Wire tests with the right cluster based on their BATS_JOB_SLOT env variable
@@ -50,7 +50,7 @@ if ! kubectl version > /dev/null 2>&1; then
   done
 
   echo '>>> Loading images into the Kind cluster(s)'
-  seq 1 "${E2E_KIND_CLUSTER_NUM}" | parallel -- kind --name "${KIND_CLUSTER_PREFIX}-{}" load docker-image 'docker.io/fluxcd/flux:latest'
+  seq 1 "${E2E_KIND_CLUSTER_NUM}" | time parallel -- kind --name "${KIND_CLUSTER_PREFIX}-{}" load docker-image 'docker.io/fluxcd/flux:latest'
   if [ "${E2E_KIND_CLUSTER_NUM}" -gt 1 ]; then
     BATS_EXTRA_ARGS="--jobs ${E2E_KIND_CLUSTER_NUM}"
   fi
