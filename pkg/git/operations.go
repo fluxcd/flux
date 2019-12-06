@@ -27,7 +27,7 @@ var exemptedTraceCommands = []string{
 // Env vars that are allowed to be inherited from the OS
 var allowedEnvVars = []string{
 	// these are for people using (no) proxies
-	"http_proxy", "https_proxy", "no_proxy", "GIT_PROXY_COMMAND",
+	"http_proxy", "https_proxy", "no_proxy", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "GIT_PROXY_COMMAND",
 	// these are needed for GPG to find its files
 	"HOME", "GNUPGHOME",
 	// these for the git-secrets helper
