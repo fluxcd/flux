@@ -53,6 +53,7 @@ fluxctl install --config-file ./flux-config.yaml -o ./flux/
 	cmd.Flags().BoolVar(&opts.params.GitReadOnly, "git-readonly", false, "Tell flux it has readonly access to the repo")
 	cmd.Flags().BoolVar(&opts.params.ManifestGeneration, "manifest-generation", false, "Whether to enable manifest generation")
 	cmd.Flags().StringVar(&opts.params.Namespace, "namespace", "", "Cluster namespace in which to install Flux")
+
 	cmd.Flags().BoolVar(&opts.params.RegistryDisableScanning, "registry-disable-scanning", false, "do not scan container image registries to fill in the registry cache")
 	cmd.Flags().BoolVar(&opts.params.AddSecurityContext, "add-security-context", true, "Ensure security context information is added to the pod specs. Defaults to 'true'")
 
@@ -83,7 +84,7 @@ func (opts *installOpts) RunE(cmd *cobra.Command, args []string) error {
 	if opts.configFile != "" {
 		viper.SetConfigFile(opts.configFile)
 		if err := viper.ReadInConfig(); err != nil {
-			return err
+			return fmt.Errorf("unable to read config at %s (possibly a missing file extension, try .yaml or .json): %s", opts.configFile, err)
 		}
 	}
 	viper.BindPFlags(cmd.Flags())

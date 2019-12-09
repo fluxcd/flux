@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+const ConfigPath = "/etc/fluxd/conf"
 const ConfigName = "flux-config"
 
 type Config struct {

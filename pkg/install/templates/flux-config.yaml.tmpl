@@ -4,7 +4,12 @@
 # If .ConfigAsConfigMap is set to true, the configuration is created
 # as a ConfigMap, otherwise it is created as a Secret.
 apiVersion: v1
-kind: {{ if .ConfigAsConfigMap }}ConfigMap{{ else }}Secret{{ end }}
+{{ if .ConfigAsConfigMap -}}
+kind: ConfigMap
+{{- else -}}
+kind: Secret
+type: Opaque
+{{- end }}
 metadata:
   name: flux-config
   {{ if .Namespace -}}

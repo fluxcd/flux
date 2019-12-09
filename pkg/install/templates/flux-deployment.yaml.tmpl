@@ -68,12 +68,12 @@ spec:
       # configuration is assumed to be a ConfigMap, otherwise it is assumed
       # to be a Secret.
       {{- if .ConfigAsConfigMap }}
-      - name: flux-config-volume
+      - name: flux-config
         configMap:
           name: flux-config
       {{- end -}}
       {{- if (not .ConfigAsConfigMap) }}
-      - name: flux-config-volume
+      - name: flux-config
         secret:
           secretName: flux-config
       {{- end -}}
@@ -137,8 +137,8 @@ spec:
 
         {{ if .ConfigFileContent -}}
         # mounts the config volume from above into the container
-        - name: flux-config-volume
-          mountPath: /etc/fluxd
+        - name: flux-config
+          mountPath: /etc/fluxd/conf
         {{- end }}
 
         # Include this if you want to supply HTTP basic auth credentials for git
