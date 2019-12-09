@@ -5,6 +5,9 @@ instead of having to include them in your git repo as YAML files. For
 example, you can use `kustomize` to patch a common set of resources to
 suit a particular environment.
 
+> Note: For a full, self-contained example of Flux generating manifests
+> with `kustomize` you can go to [https://github.com/fluxcd/flux-kustomize-example](https://github.com/fluxcd/flux-kustomize-example)
+
 Manifest generation is controlled by the flags given to `fluxd`, and
 `.flux.yaml` files in your git repo.
 
