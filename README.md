@@ -52,6 +52,7 @@ container images and config changes are propagated to the cluster.
 - [Avisi](https://avisi.nl)
 - [Babylon Health](https://www.babylonhealth.com/)
 - [bimspot](https://bimspot.io)
+- [Canva](https://www.canva.com/)
 - [CLVR Cloud Ltd](https://clvr.cloud)
 - [College of William & Mary](https://www.wm.edu)
 - [Control Plane](https://control-plane.io)
