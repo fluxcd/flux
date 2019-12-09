@@ -261,6 +261,10 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `memcached.tolerations`                           | `[]`                                                 | Tolerations properties for the memcached deployment
 | `kube.config`                                     | [See values.yaml](/chart/flux/values.yaml#L151-L165) | Override for kubectl default config in the Flux pod(s).
 | `prometheus.enabled`                              | `false`                                              | If enabled, adds prometheus annotations to Flux and helmOperator pod(s)
+| `prometheus.serviceMonitor.create`                | `false`                                              | Set to true if using the Prometheus Operator
+| `prometheus.serviceMonitor.interval`              | ``                                                   | Interval at which metrics should be scraped
+| `prometheus.serviceMonitor.namespace`             | ``                                                   | The namespace where the ServiceMonitor is deployed
+| `prometheus.serviceMonitor.additionalLabels`      | `{}`                                                 | Additional labels to add to the ServiceMonitor
 | `syncGarbageCollection.enabled`                   | `false`                                              | If enabled, fluxd will delete resources that it created, but are no longer present in git (see [garbage collection](/docs/references/garbagecollection.md))
 | `syncGarbageCollection.dry`                       | `false`                                              | If enabled, fluxd won't delete any resources, but log the garbage collection output (see [garbage collection](/docs/references/garbagecollection.md))
 | `manifestGeneration`                              | `false`                                              | If enabled, fluxd will look for `.flux.yaml` and run Kustomize or other manifest generators

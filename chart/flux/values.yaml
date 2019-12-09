@@ -295,6 +295,13 @@ extraEnvs: []
 
 prometheus:
   enabled: false
+  serviceMonitor:
+    # Enables ServiceMonitor creation for the Prometheus Operator
+    create: false
+    interval:
+    scrapeTimeout:
+    namespace:
+    additionalLabels: {}
 
 syncGarbageCollection:
   enabled: false
