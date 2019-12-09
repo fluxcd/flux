@@ -13,7 +13,7 @@ function setup() {
   export GIT_SSH_COMMAND="${git_srv_result[0]}"
   # Teardown the created port-forward to gitsrv.
   defer kill "${git_srv_result[1]}"
-  install_flux_with_fluxctl "42_manifest_generation/flux"
+  install_flux_with_fluxctl "42_manifest_generation/flux" ''
 }
 
 @test "Basic sync and editing" {

@@ -1,5 +1,5 @@
 bases:
-- "../../base/flux"
+- "./base"
 patchesJson6902:
 - target:
     group: apps

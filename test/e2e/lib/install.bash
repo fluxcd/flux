@@ -49,26 +49,41 @@ function uninstall_flux_with_helm() {
 
 fluxctl_install_cmd="fluxctl install --git-url=ssh://git@gitsrv/git-server/repos/cluster.git --git-email=foo"
 
+# This installs flux by running `fluxctl install` to produce generic
+# installation files, then patching them (or adding other bits) with
+# kustomize.
 function install_flux_with_fluxctl() {
-  kustomization_dir=${1:-base/flux}
+  kustomization_dir=${1}
   key_values_varname=${2}
+  shift 2
+
   kubectl -n "${FLUX_NAMESPACE}" create configmap flux-known-hosts --from-file="${E2E_DIR}/fixtures/known_hosts"
   local kustomtmp
   kustomtmp="$(mktemp -d)"
   defer rm -rf "'${kustomtmp}'"
-  mkdir -p "${kustomtmp}/base/flux"
-  # This generates the base manifests, which we'll then patch with a kustomization
-  echo ">>> writing base configuration to ${kustomtmp}/base/flux" >&3
-  $fluxctl_install_cmd --namespace "${FLUX_NAMESPACE}" -o "${kustomtmp}/base/flux"
+
   # Everything goes into one directory, but not everything is
   # necessarily used by the kustomization
-  cp -R "${E2E_DIR}"/fixtures/kustom/* "${kustomtmp}/"
+  mkdir -p "${kustomtmp}/${kustomization_dir}/base"
+  cp -R "${E2E_DIR}/fixtures/kustom/${kustomization_dir}"/* "${kustomtmp}/${kustomization_dir}/"
+  cp -R "${E2E_DIR}/fixtures/kustom/base/flux"/* "${kustomtmp}/${kustomization_dir}/base/"
+
+  # This generates the base manifests, which we'll then patch with a kustomization
+  echo ">>> writing base configuration to ${kustomtmp}/${kustomization_dir}/base/" >&3
+  $fluxctl_install_cmd --namespace "${FLUX_NAMESPACE}" -o "${kustomtmp}/${kustomization_dir}/base/" "$@"
+
   if [ -n "$key_values_varname" ]; then
     fill_in_place_recursively "$key_values_varname" "${kustomtmp}"
   fi
+
   kubectl apply -f "$HELMRELEASE_CRD_URL"
-  kubectl apply -k "${kustomtmp}/${kustomization_dir}" >&3
-  kubectl -n "${FLUX_NAMESPACE}" rollout status -w --timeout=30s deployment/flux
+  kubectl apply -k "${kustomtmp}/${kustomization_dir}/" >&3
+  kubectl -n "${FLUX_NAMESPACE}" rollout status -w --timeout=30s deployment/flux ||
+    (
+      kubectl -n "${FLUX_NAMESPACE}" describe deployment/flux
+      kubectl -n "${FLUX_NAMESPACE}" logs deployment/flux
+      false
+    )
 }
 
 function uninstall_flux_with_fluxctl() {

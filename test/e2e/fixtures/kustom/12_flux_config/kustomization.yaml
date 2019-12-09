@@ -1,0 +1,6 @@
+bases:
+- "./base"
+resources:
+# although this file ends up in the base configuration, this is not
+# mentioned by the base kustomization, so it must be included here
+- "./base/flux-config.yaml"

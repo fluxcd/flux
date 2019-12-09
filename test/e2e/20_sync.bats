@@ -16,7 +16,7 @@ function setup() {
   # Teardown the created port-forward to gitsrv and restore Git settings.
   defer kill "${git_srv_result[1]}"
 
-  install_flux_with_fluxctl
+  install_flux_with_fluxctl '00_default' ''
 
   # Clone the repo
   clone_dir="$(mktemp -d)"

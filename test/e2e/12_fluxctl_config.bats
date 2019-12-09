@@ -7,16 +7,20 @@ function setup() {
 
   kubectl create namespace "$FLUX_NAMESPACE"
   install_git_srv
-  install_flux_with_fluxctl '00_default' ''
+  tmp_config=$(mktemp -d)
+  defer rm -rf "$tmp_config"
+  touch "${tmp_config}/flux.yaml"
+  install_flux_with_fluxctl '12_flux_config' '' --config-file="${tmp_config}/flux.yaml"
 }
 
-@test "'fluxctl install' smoke test" {
+@test "'fluxctl install --config-file=...' smoke test" {
   # Test that the resources from https://github.com/fluxcd/flux-get-started are deployed
   poll_until_true 'namespace demo' 'kubectl describe ns/demo'
   poll_until_true 'workload podinfo' 'kubectl -n demo describe deployment/podinfo'
 }
 
 function teardown() {
+  run_deferred
   # Although the namespace delete below takes care of removing most Flux
   # elements, the global resources will not be removed without this.
   uninstall_flux_with_fluxctl
