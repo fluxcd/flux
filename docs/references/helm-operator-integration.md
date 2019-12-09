@@ -64,7 +64,7 @@ values:
 These can appear at the top level (immediately under `values:`), or in
 a subsection (under a key, itself under `values:`). Other values
 may be mixed in arbitrarily. Here's an example of a values section
-that specifies two images, along with some other configuration:
+that specifies two images:
 
 ```yaml
 values:
@@ -88,15 +88,15 @@ If Flux does not automatically detect your image, it is possible to
 map the image paths by alias with YAML dot notation annotations. An
 alias overrules a detected image.
 
-The following annotations are available, you need to at least specify
-the `repository.fluxcd.io` annotation:
+The following annotations are available, and `repository.fluxcd.io`
+is required for any of these to take effect.
 
-| Annotation                    |                  |
-|-------------------------------|------------------|
-|`registry.fludcd.io/<alias>`   | `sub.reg`        |
-| `repository.fluxcd.io/<alias>`| `sub.repo`       |
-| `tag.fluxcd.io/<alias>`       | `sub.tag`        |
-| `filter.fluxcd.io/<alias>`    | `glob: master-*` |
+| Annotation                         |                  | Required? |
+|------------------------------------|------------------|   :---:   |
+| **`repository.fluxcd.io/<alias>`** | `sub.repo`       |     ✅    |
+| `registry.fluxcd.io/<alias>`       | `sub.reg`        |           |
+| `tag.fluxcd.io/<alias>`            | `sub.tag`        |           |
+| `filter.fluxcd.io/<alias>`         | `glob: master-*` |           |
 
 Two images specified in a `HelmRelease` as an example:
 
@@ -125,7 +125,7 @@ spec:
         tag: version
 ```
 
-#### Filter
+#### Filters (deprecated)
 
 You can use the [same annotations](fluxctl.md) in
 the `HelmRelease` as you would for a Deployment or other workload,
