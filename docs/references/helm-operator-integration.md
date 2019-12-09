@@ -91,14 +91,14 @@ alias overrules a detected image.
 The following annotations are available, and `repository.fluxcd.io`
 is required for any of these to take effect.
 
-| Annotation                         |                  | Required? |
+| Annotation                         | Value            | Required? |
 |------------------------------------|------------------|   :---:   |
 | **`repository.fluxcd.io/<alias>`** | `sub.repo`       |     ✅    |
 | `registry.fluxcd.io/<alias>`       | `sub.reg`        |           |
 | `tag.fluxcd.io/<alias>`            | `sub.tag`        |           |
 | `filter.fluxcd.io/<alias>`         | `glob: master-*` |           |
 
-Two images specified in a `HelmRelease` as an example:
+The following example `HelmRelease` specifies two images:
 
 ```yaml
 metadata:
@@ -106,7 +106,7 @@ metadata:
     # image and tag
     repository.fluxcd.io/app: appImage
     tag.fluxcd.io/app: appTag
-    filter.tag/app: 'glob: *'
+    filter.fluxcd.io/app: 'glob: *'
     # nested image with registry and tag
     registry.fluxcd.io/submarine: sub.marinesystem.reg
     repository.fluxcd.io/submarine: sub.marinesystem.img
@@ -125,7 +125,7 @@ spec:
         tag: version
 ```
 
-#### Filters (deprecated)
+#### Filters
 
 You can use the [same annotations](fluxctl.md) in
 the `HelmRelease` as you would for a Deployment or other workload,
@@ -142,7 +142,7 @@ kind: HelmRelease
 metadata:
   annotations:
     fluxcd.io/automated: "true"
-    fluxcd.io/tag.chart-image: semver:~4.0
+    filter.fluxcd.io/chart-image: semver:~4.0
 spec:
   values:
     image:
@@ -157,8 +157,8 @@ kind: HelmRelease
 metadata:
   annotations:
     fluxcd.io/automated: "true"
-    fluxcd.io/tag.prometheus: semver:~2.3
-    fluxcd.io/tag.alertmanager: glob:v0.15.*
+    filter.fluxcd.io/prometheus: semver:~2.3
+    filter.fluxcd.io/alertmanager: glob:v0.15.*
     filter.fluxcd.io/nats: regex:^0.6.*
 spec:
   values:
