@@ -82,7 +82,6 @@ func TestWorkloadContainerUpdates(t *testing.T) {
 			default:
 				testUpdateWorkloadImagePath(t, c)
 			}
-			t.Parallel()
 		})
 	}
 }
