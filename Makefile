@@ -71,7 +71,7 @@ SHFMT_WRITE_CMD := test/bin/shfmt -i 2 -sr -w
 lint-e2e: test/bin/shfmt test/bin/shellcheck
 	@# shfmt is not compatible with .bats files, so we preprocess them to turn '@test's into functions
 	for I in $(E2E_BATS_FILES); do \
-	  ( cat "$$I" | sed 's%@test.*%test() {%' | $(SHFMT_DIFF_CMD) ) || ( echo "Please correct the diff for file $$I"; exit 1 ); \
+	  ( cat "$$I" | sed 's%@test.*%test() {%' | $(SHFMT_DIFF_CMD) ) || { echo "Please correct the diff for file $$I"; exit 1; }; \
 	done
 	$(SHFMT_DIFF_CMD) $(E2E_BASH_FILES) || ( echo "Please run '$(SHFMT_WRITE_CMD) $(E2E_BASH_FILES)'"; exit 1 )
 	test/bin/shellcheck $(E2E_BASH_FILES) $(E2E_BATS_FILES)
