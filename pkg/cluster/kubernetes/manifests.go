@@ -108,7 +108,7 @@ func (m *manifests) setEffectiveNamespaces(manifests map[string]kresource.KubeMa
 }
 
 func (m *manifests) LoadManifests(baseDir string, paths []string) (map[string]resource.Resource, error) {
-	manifests, err := kresource.Load(baseDir, paths)
+	manifests, err := kresource.Load(baseDir, paths, true)
 	if err != nil {
 		return nil, err
 	}

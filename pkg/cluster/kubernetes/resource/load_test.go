@@ -269,7 +269,7 @@ func TestLoadSome(t *testing.T) {
 	if err := testfiles.WriteTestFiles(dir); err != nil {
 		t.Fatal(err)
 	}
-	objs, err := Load(dir, []string{dir})
+	objs, err := Load(dir, []string{dir}, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -300,7 +300,7 @@ func TestChartTracker(t *testing.T) {
 		if f == "garbage" {
 			continue
 		}
-		if m, err := Load(dir, []string{fq}); err != nil || len(m) == 0 {
+		if m, err := Load(dir, []string{fq}, false); err != nil || len(m) == 0 {
 			t.Errorf("Load returned 0 objs, err=%v", err)
 		}
 	}
@@ -319,7 +319,7 @@ func TestChartTracker(t *testing.T) {
 	}
 	for _, f := range chartfiles {
 		fq := filepath.Join(dir, f)
-		if m, err := Load(dir, []string{fq}); err != nil || len(m) != 0 {
+		if m, err := Load(dir, []string{fq}, false); err != nil || len(m) != 0 {
 			t.Errorf("%q not ignored as a chart should be", f)
 		}
 	}
