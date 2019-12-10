@@ -8,16 +8,6 @@ adopt-info: fluxctl
 base: core18
 
 parts:
-  launcher:
-    source: snap/local
-    source-type: local
-    plugin: dump
-    organize:
-      '*': bin/
-    override-stage: |
-      cd $SNAPCRAFT_PART_INSTALL
-      chmod +x bin/fluxctl-launch
-      snapcraftctl stage
   fluxctl:
     source: .
     override-pull: |
@@ -50,13 +40,10 @@ parts:
     stage:
       - -bin/fluxd
       - -bin/helm-operator
-    organize:
-      bin/fluxctl: bin/fluxctl.real
-    after: [launcher]
 
 apps:
   fluxctl:
-    command: bin/fluxctl-launch
+    command: bin/fluxctl
     plugs:
     - network
     - network-bind
