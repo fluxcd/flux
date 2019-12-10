@@ -44,6 +44,3 @@ parts:
 apps:
   fluxctl:
     command: bin/fluxctl
-    plugs:
-    - network
-    - network-bind
