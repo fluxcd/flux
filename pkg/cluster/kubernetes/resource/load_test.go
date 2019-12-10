@@ -2,6 +2,7 @@ package resource
 
 import (
 	"bytes"
+	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -9,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/fluxcd/flux/pkg/cluster/kubernetes/testfiles"
+	"github.com/fluxcd/flux/pkg/gpg/gpgtest"
 	"github.com/fluxcd/flux/pkg/resource"
 )
 
@@ -324,4 +326,39 @@ func TestChartTracker(t *testing.T) {
 		}
 	}
 
+}
+
+func TestLoadSomeWithSopsNoneEncrypted(t *testing.T) {
+	dir, cleanup := testfiles.TempDir(t)
+	defer cleanup()
+	if err := testfiles.WriteTestFiles(dir); err != nil {
+		t.Fatal(err)
+	}
+	objs, err := Load(dir, []string{dir}, true)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(objs) != len(testfiles.ResourceMap) {
+		t.Errorf("expected %d objects from %d files, got result:\n%#v", len(testfiles.ResourceMap), len(testfiles.Files), objs)
+	}
+}
+
+func TestLoadSomeWithSopsAllEncrypted(t *testing.T) {
+	gpgHome, gpgCleanup := gpgtest.ImportGPGKey(t, testfiles.TestPrivateKey)
+	defer gpgCleanup()
+	os.Setenv("GNUPGHOME", gpgHome)
+	defer os.Unsetenv("GNUPGHOME")
+
+	dir, cleanup := testfiles.TempDir(t)
+	defer cleanup()
+	if err := testfiles.WriteSopsEncryptedTestFiles(dir); err != nil {
+		t.Fatal(err)
+	}
+	objs, err := Load(dir, []string{dir}, true)
+	if err != nil {
+		t.Error(err)
+	}
+	for expected := range testfiles.EncryptedResourceMap {
+		assert.NotNil(t, objs[expected.String()], "expected to find %s in manifest map after decryption", expected)
+	}
 }
