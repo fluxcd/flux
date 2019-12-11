@@ -43,9 +43,7 @@ function setup() {
   fluxctl --k8s-fwd-ns "${FLUX_NAMESPACE}" sync
 
   poll_until_equals "podinfo deployment removed" "[]" "kubectl get deploy -n demo -o\"jsonpath={['items']}\""
-  git pull -f --tags >&3
-  sync_tag_hash=$(git rev-list -n 1 flux)
-  [ "$sync_tag_hash" = "$head_hash" ]
+  poll_until_equals "sync tag" "$head_hash" 'git pull -f --tags > /dev/null 2>&1; git rev-list -n 1 flux'
 }
 
 function teardown() {
