@@ -9,7 +9,9 @@ function setup() {
   install_git_srv
   tmp_config=$(mktemp -d)
   defer rm -rf "$tmp_config"
-  touch "${tmp_config}/flux.yaml"
+  cat > "${tmp_config}/flux.yaml" << EOF
+flux-config-version: v1
+EOF
   install_flux_with_fluxctl '12_flux_config' '' --config-file="${tmp_config}/flux.yaml"
 }
 

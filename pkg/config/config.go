@@ -4,13 +4,22 @@
 package config
 
 import (
+	"fmt"
 	"time"
 )
 
 const ConfigPath = "/etc/fluxd/conf"
 const ConfigName = "flux-config"
+const FluxConfigVersion = "v1"
 
 type Config struct {
+	// This is expected to be present in a config file (and will not
+	// correspond to a flag). The value determines how the config file
+	// is interpreted: for now, if it is not equal to
+	// FluxConfigVersion above, it is considered an invalid
+	// configuration.
+	ConfigVersion string `mapstructure:"flux-config-version"`
+
 	LogFormat     string `mapstructure:"log-format"`
 	Listen        string `mapstructure:"listen"`
 	ListenMetrics string `mapstructure:"listen-metrics"`
@@ -74,4 +83,11 @@ type Config struct {
 	Token                    string        `mapstructure:"token"`
 	RPCTimeout               time.Duration `mapstructure:"rpc-timeout"`
 	DockerConfig             string        `mapstructure:"docker-config"`
+}
+
+func (c Config) IsValid() error {
+	if c.ConfigVersion != FluxConfigVersion {
+		return fmt.Errorf("config file is expected to include `flux-config-version: %s` to mark it as a Flux config", FluxConfigVersion)
+	}
+	return nil
 }

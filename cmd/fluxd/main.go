@@ -255,7 +255,7 @@ func main() {
 	}
 
 	viper.SetConfigName(config.ConfigName)
-	viper.AddConfigPath("/etc/fluxd/")
+	viper.AddConfigPath(config.ConfigPath)
 
 	// If there's no config file, fine. If there IS a config file, but it's garbage, we need to exit(>0).
 	if err := viper.ReadInConfig(); err != nil {
@@ -266,13 +266,18 @@ func main() {
 			os.Exit(2)
 		}
 	} else {
-		fmt.Fprintf(os.Stderr, "using configuration at %s, with command-line overrides\n", viper.ConfigFileUsed())
+		fmt.Fprintf(os.Stderr, "Error: using configuration at %s, with command-line overrides\n", viper.ConfigFileUsed())
 	}
 	// Bind Viper to the pflags defined above
 	viper.BindPFlags(fs)
 
 	var config config.Config
 	viper.Unmarshal(&config)
+
+	if err = config.IsValid(); viper.ConfigFileUsed() != "" && err != nil {
+		fmt.Fprintf(os.Stderr, "found config file at %s but it is not valid: %s\n", viper.ConfigFileUsed(), err.Error())
+		os.Exit(2)
+	}
 
 	// --- From this point, we can just consult the config struct for values ---
 
