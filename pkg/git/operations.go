@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -98,19 +99,26 @@ func add(ctx context.Context, workingDir, path string) error {
 // (being able to `clone` is an adequate check that we can read the
 // upstream).
 func checkPush(ctx context.Context, workingDir, upstream, branch string) error {
-	// --force just in case we fetched the tag from upstream when cloning
-	args := []string{"tag", "--force", CheckPushTag}
+	// we need to pseudo randomize the tag we use for the write check
+	// as multiple Flux instances can perform the check simultaneously
+	// for different branches, causing commit reference conflicts
+	b := make([]byte, 5)
+	if _, err := rand.Read(b); err != nil {
+		return err
+	}
+	pseudoRandPushTag := fmt.Sprintf("%s-%x", CheckPushTagPrefix, b)
+	args := []string{"tag", pseudoRandPushTag}
 	if branch != "" {
 		args = append(args, branch)
 	}
 	if err := execGitCmd(ctx, args, gitCmdConfig{dir: workingDir}); err != nil {
 		return errors.Wrap(err, "tag for write check")
 	}
-	args = []string{"push", "--force", upstream, "tag", CheckPushTag}
+	args = []string{"push", upstream, "tag", pseudoRandPushTag}
 	if err := execGitCmd(ctx, args, gitCmdConfig{dir: workingDir}); err != nil {
 		return errors.Wrap(err, "attempt to push tag")
 	}
-	return deleteTag(ctx, workingDir, CheckPushTag, upstream)
+	return deleteTag(ctx, workingDir, pseudoRandPushTag, upstream)
 }
 
 // deleteTag deletes the given git tag

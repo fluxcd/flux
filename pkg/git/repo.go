@@ -15,7 +15,7 @@ const (
 	defaultInterval = 5 * time.Minute
 	defaultTimeout  = 20 * time.Second
 
-	CheckPushTag = "flux-write-check"
+	CheckPushTagPrefix = "flux-write-check"
 )
 
 var (
