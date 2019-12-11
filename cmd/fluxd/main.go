@@ -254,11 +254,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Configure viper to check for a environment variables or a config file;
-	// environment variables will override config file variables
-	viper.SetEnvPrefix("FLUXD")
-	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
-	viper.AutomaticEnv()
 	viper.SetConfigName(config.ConfigName)
 	viper.AddConfigPath("/etc/fluxd/")
 
@@ -285,12 +280,8 @@ func main() {
 	// whether a flag has been supplied, is broken:
 	// https://github.com/spf13/viper/pull/331. So we have to proceed
 	// by other means.
-	envOnly := viper.New()
-	envOnly.SetEnvPrefix("FLUXD")
-	envOnly.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
-	envOnly.AutomaticEnv()
 	isSet := func(flag string) bool {
-		return fs.Changed(flag) || viper.InConfig(flag) || envOnly.IsSet(flag)
+		return fs.Changed(flag) || viper.InConfig(flag)
 	}
 
 	// Explicitly initialize klog to enable stderr logging,
