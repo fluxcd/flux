@@ -186,7 +186,7 @@ func TestUpdatePolicies(t *testing.T) {
 		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			cLocal := c // Use copy to avoid races between parallel tests
+			cLocal := c // Use copy to avoid races between the parallel tests and the loop
 			t.Parallel()
 			caseIn := templToString(t, annotationsTemplate, cLocal.in)
 			caseOut := templToString(t, annotationsTemplate, cLocal.out)
