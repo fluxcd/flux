@@ -59,7 +59,7 @@ realclean: clean
 	rm -rf ./cache
 
 test: test/bin/helm test/bin/kubectl test/bin/kustomize $(GENERATED_TEMPLATES_FILE)
-	PATH="${PWD}/bin:${PWD}/test/bin:${PATH}" go test ${TEST_FLAGS} $(shell go list ./... | grep -v "^github.com/fluxcd/flux/vendor" | sort -u)
+	PATH="${PWD}/bin:${PWD}/test/bin:${PATH}" go test ${TEST_FLAGS} $(shell go list ./... | sort -u)
 
 e2e: lint-e2e test/bin/helm test/bin/kubectl test/e2e/bats $(GOBIN)/fluxctl build/.flux.done
 	PATH="${PWD}/test/bin:${PATH}" CURRENT_OS_ARCH=$(CURRENT_OS_ARCH) test/e2e/run.bash
