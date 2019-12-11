@@ -76,11 +76,13 @@ func TestWorkloadContainerUpdates(t *testing.T) {
 		{"initContainer", case15resource, case15containers, case15image, case15, case15out, emptyContainerImageMap},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			switch c.imageAnnotations {
+			localC := c // to avoid races between the parallel tests
+			t.Parallel()
+			switch localC.imageAnnotations {
 			case emptyContainerImageMap:
-				testUpdateWorkloadContainer(t, c)
+				testUpdateWorkloadContainer(t, localC)
 			default:
-				testUpdateWorkloadImagePath(t, c)
+				testUpdateWorkloadImagePath(t, localC)
 			}
 		})
 	}
