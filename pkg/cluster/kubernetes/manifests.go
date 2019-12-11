@@ -37,6 +37,7 @@ type manifests struct {
 	namespacer       namespacer
 	logger           log.Logger
 	resourceWarnings map[string]struct{}
+	sopsEnabled      bool
 }
 
 func NewManifests(ns namespacer, logger log.Logger) *manifests {
@@ -44,6 +45,16 @@ func NewManifests(ns namespacer, logger log.Logger) *manifests {
 		namespacer:       ns,
 		logger:           logger,
 		resourceWarnings: map[string]struct{}{},
+		sopsEnabled:      false,
+	}
+}
+
+func NewSopsManifests(ns namespacer, logger log.Logger) *manifests {
+	return &manifests{
+		namespacer:       ns,
+		logger:           logger,
+		resourceWarnings: map[string]struct{}{},
+		sopsEnabled:      true,
 	}
 }
 
@@ -108,7 +119,7 @@ func (m *manifests) setEffectiveNamespaces(manifests map[string]kresource.KubeMa
 }
 
 func (m *manifests) LoadManifests(baseDir string, paths []string) (map[string]resource.Resource, error) {
-	manifests, err := kresource.Load(baseDir, paths)
+	manifests, err := kresource.Load(baseDir, paths, m.sopsEnabled)
 	if err != nil {
 		return nil, err
 	}

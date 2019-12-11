@@ -10,6 +10,30 @@ import (
 	"github.com/fluxcd/flux/pkg/cluster/kubernetes/testfiles"
 )
 
+// ImportGPGKey imports a gpg key into a temporary home directory. It returns
+// the gpg home directory and a cleanup function to be called after the caller
+// is finished with this key.
+func ImportGPGKey(t *testing.T, key string) (string, func()){
+	newDir, cleanup := testfiles.TempDir(t)
+
+	cmd := exec.Command("gpg", "--homedir", newDir, "--import", "--")
+
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		cleanup()
+		t.Fatal(err)
+	}
+	io.WriteString(stdin, key)
+	stdin.Close()
+
+	if err := cmd.Run(); err != nil {
+		cleanup()
+		t.Fatal(err)
+	}
+
+	return newDir, cleanup
+}
+
 // GPGKey creates a new, temporary GPG home directory and a public/private key
 // pair. It returns the GPG home directory, the ID of the created key, and a
 // cleanup function to be called after the caller is finished with this key.
