@@ -110,7 +110,8 @@ jobs:
           keys:
             - go-mod-{{ checksum "go.mod" }}
             - go-mod-
-      - run: make test TEST_FLAGS="-race -tags integration -timeout 60s"
+      # Note that the test timeout is per Go package
+      - run: make test TEST_FLAGS="-race -tags integration -timeout 5m"
       - run: make check-generated
       - run: make all
       - run: make e2e
