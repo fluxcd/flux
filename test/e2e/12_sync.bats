@@ -31,12 +31,9 @@ function setup() {
   poll_until_true 'workload podinfo' 'kubectl -n demo describe deployment/podinfo'
 
   # Check the sync tag
-  git pull -f --tags
-  local sync_tag_hash
-  sync_tag_hash=$(git rev-list -n 1 flux)
   local head_hash
   head_hash=$(git rev-list -n 1 HEAD)
-  [ "$head_hash" = "$sync_tag_hash" ]
+  poll_until_equals "sync tag" "$head_hash" 'git pull -f --tags > /dev/null 2>&1; git rev-list -n 1 flux'
 
   # Add a change, wait for it to happen and check the sync tag again
   sed -i'.bak' 's%stefanprodan/podinfo:.*%stefanprodan/podinfo:3.1.5%' "${clone_dir}/workloads/podinfo-dep.yaml"
@@ -44,9 +41,8 @@ function setup() {
   head_hash=$(git rev-list -n 1 HEAD)
   git push >&3
   poll_until_equals "podinfo image" "stefanprodan/podinfo:3.1.5" "kubectl get pod -n demo -l app=podinfo -o\"jsonpath={['items'][0]['spec']['containers'][0]['image']}\""
-  git pull -f --tags
-  sync_tag_hash=$(git rev-list -n 1 flux)
-  [ "$head_hash" = "$sync_tag_hash" ]
+  poll_until_equals "sync tag" "$head_hash" 'git pull -f --tags > /dev/null 2>&1; git rev-list -n 1 flux'
+
 }
 
 @test "Sync fails on duplicate resource" {
