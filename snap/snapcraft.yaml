@@ -3,21 +3,11 @@ summary: fluxctl talks to Flux and helps you deploy your code
 description: |
   fluxctl talks to your Flux instance and exposes all its
   functionality to an easy to use command line interface.
-confinement: strict
+confinement: classic
 adopt-info: fluxctl
 base: core18
 
 parts:
-  launcher:
-    source: snap/local
-    source-type: local
-    plugin: dump
-    organize:
-      '*': bin/
-    override-stage: |
-      cd $SNAPCRAFT_PART_INSTALL
-      chmod +x bin/fluxctl-launch
-      snapcraftctl stage
   fluxctl:
     source: .
     override-pull: |
@@ -50,22 +40,7 @@ parts:
     stage:
       - -bin/fluxd
       - -bin/helm-operator
-    organize:
-      bin/fluxctl: bin/fluxctl.real
-    after: [launcher]
-
-plugs:
-  kube-config:
-    interface: personal-files
-    read:
-    - $HOME/.kube
-    - $HOME/.minikube
-    - $HOME/.config/k3d  # hard-coded $XDG_CONFIG_HOME for the common case
 
 apps:
   fluxctl:
-    command: bin/fluxctl-launch
-    plugs:
-    - kube-config
-    - network
-    - network-bind
+    command: bin/fluxctl
