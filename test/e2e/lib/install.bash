@@ -109,7 +109,11 @@ function install_git_srv() {
   local_port=$(echo "$local_port" | sed 's%.*:\([0-9]*\).*%\1%')
   local ssh_cmd="ssh -o UserKnownHostsFile=/dev/null  -o StrictHostKeyChecking=no -i $gen_dir/id_rsa -p $local_port"
   # Wait for the git server to be ready
-  GIT_SSH_COMMAND="${ssh_cmd}" poll_until_true 'gitsrv to be ready' 'git ls-remote ssh://git@localhost/git-server/repos/cluster.git master > /dev/null'
+  local check_gitsrv_cmd='git ls-remote ssh://git@localhost/git-server/repos/cluster.git master > /dev/null'
+  GIT_SSH_COMMAND="${ssh_cmd}" poll_until_true 'gitsrv to be ready' "${check_gitsrv_cmd}" || {
+    kubectl -n "${FLUX_NAMESPACE}" logs deployment/gitsrv
+    exit 1
+  }
 
   if [ -n "$external_access_result_var" ]; then
     # return the ssh command needed for git, and the PID of the port-forwarding PID into a variable of choice
