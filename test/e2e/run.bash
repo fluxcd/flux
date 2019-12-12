@@ -10,7 +10,7 @@ FLUX_ROOT_DIR="$(git rev-parse --show-toplevel)"
 E2E_DIR="${FLUX_ROOT_DIR}/test/e2e"
 CACHE_DIR="${FLUX_ROOT_DIR}/cache/$CURRENT_OS_ARCH"
 
-KIND_VERSION="v0.5.1"
+KIND_VERSION="v0.6.1"
 KIND_CACHE_PATH="${CACHE_DIR}/kind-$KIND_VERSION"
 KIND_CLUSTER_PREFIX=flux-e2e
 BATS_EXTRA_ARGS=""
@@ -31,10 +31,6 @@ function install_kind() {
 
 # Create multiple Kind clusters and run jobs in parallel?
 # Let users specify how many, e.g. with E2E_KIND_CLUSTER_NUM=3 make e2e
-if [ -n "$CI" ]; then
-  # Use four Kind clusters when running the tests in CircleCI
-  E2E_KIND_CLUSTER_NUM=4
-fi
 E2E_KIND_CLUSTER_NUM=${E2E_KIND_CLUSTER_NUM:-1}
 
 # Check if there is a kubernetes cluster running, otherwise use Kind
@@ -42,11 +38,13 @@ if ! kubectl version > /dev/null 2>&1; then
   install_kind
 
   echo '>>> Creating Kind Kubernetes cluster(s)'
-  seq 1 "${E2E_KIND_CLUSTER_NUM}" | time parallel -- kind create cluster --name "${KIND_CLUSTER_PREFIX}-{}" --wait 5m
+  KIND_CONFIG_PREFIX="${HOME}/.kube/kind-config-${KIND_CLUSTER_PREFIX}"
+  seq 1 "${E2E_KIND_CLUSTER_NUM}" | time parallel -- env KUBECONFIG="${KIND_CONFIG_PREFIX}-{}" kind create cluster --name "${KIND_CLUSTER_PREFIX}-{}" --wait 5m
   for I in $(seq 1 "${E2E_KIND_CLUSTER_NUM}"); do
     defer kind --name "${KIND_CLUSTER_PREFIX}-${I}" delete cluster > /dev/null 2>&1 || true
+    defer rm -rf "${KIND_CONFIG_PREFIX}-${I}"
     # Wire tests with the right cluster based on their BATS_JOB_SLOT env variable
-    eval export KUBECONFIG_SLOT_"${I}"="$(kind --name="${KIND_CLUSTER_PREFIX}-${I}" get kubeconfig-path)"
+    eval export "KUBECONFIG_SLOT_${I}=${KIND_CONFIG_PREFIX}-${I}"
   done
 
   echo '>>> Loading images into the Kind cluster(s)'

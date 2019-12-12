@@ -8,10 +8,10 @@ TEST_FLAGS?=
 BATS_COMMIT := 3a1c2f28be260f8687ff83183cef4963faabedd6
 SHELLCHECK_VERSION := 0.7.0
 SHFMT_VERSION := 2.6.4
+HELM_VERSION := 2.16.0
 
 include docker/kubectl.version
 include docker/kustomize.version
-include docker/helm.version
 include docker/sops.version
 
 # NB default target architecture is amd64. If you would like to try the
@@ -121,10 +121,9 @@ cache/%/kustomize-$(KUSTOMIZE_VERSION): docker/kustomize.version
 	curl --fail -L -o $@ "https://github.com/kubernetes-sigs/kustomize/releases/download/v$(KUSTOMIZE_VERSION)/kustomize_$(KUSTOMIZE_VERSION)_`echo $* | tr - _`"
 	[ $* != "linux-amd64" ] || echo "$(KUSTOMIZE_CHECKSUM)  $@" | shasum -a 256 -c
 
-cache/%/helm-$(HELM_VERSION): docker/helm.version
+cache/%/helm-$(HELM_VERSION):
 	mkdir -p cache/$*
 	curl --fail -L -o cache/$*/helm-$(HELM_VERSION).tar.gz "https://storage.googleapis.com/kubernetes-helm/helm-v$(HELM_VERSION)-$*.tar.gz"
-	[ $* != "linux-$(ARCH)" ] || echo "$(HELM_CHECKSUM_$(ARCH))  cache/$*/helm-$(HELM_VERSION).tar.gz" | shasum -a 256 -c
 	tar -m -C ./cache -xzf cache/$*/helm-$(HELM_VERSION).tar.gz $*/helm
 	mv cache/$*/helm $@
 
