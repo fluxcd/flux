@@ -22,12 +22,8 @@ function uninstall_tiller() {
 }
 
 function install_flux_with_helm() {
-  local create_crds='true'
-  if kubectl get crd fluxhelmreleases.helm.integrations.flux.weave.works helmreleases.flux.weave.works > /dev/null 2>&1; then
-    # CRDs existed, don't try to create them
-    echo 'CRDs existed, setting helmOperator.createCRD=false'
-    create_crds='false'
-  fi
+
+  kubectl apply -f https://raw.githubusercontent.com/fluxcd/helm-operator/v1.0.0-rc4/deploy/flux-helm-release-crd.yaml
 
   helm install --name flux --wait \
     --namespace "${FLUX_NAMESPACE}" \
@@ -39,9 +35,6 @@ function install_flux_with_helm() {
     --set git.config.secretName=gitconfig \
     --set git.config.enabled=true \
     --set-string git.config.data="${GITCONFIG}" \
-    --set helmOperator.create=true \
-    --set helmOperator.git.secretName=flux-git-deploy \
-    --set helmOperator.createCRD="${create_crds}" \
     --set registry.excludeImage=* \
     --set-string ssh.known_hosts="${KNOWN_HOSTS}" \
     "${FLUX_ROOT_DIR}/chart/flux"
@@ -49,7 +42,7 @@ function install_flux_with_helm() {
 
 function uninstall_flux_with_helm() {
   helm delete --purge flux > /dev/null 2>&1
-  kubectl delete crd helmreleases.flux.weave.works > /dev/null 2>&1
+  kubectl delete crd helmreleases.fluxcd.io > /dev/null 2>&1
 }
 
 fluxctl_install_cmd="fluxctl install --git-url=ssh://git@gitsrv/git-server/repos/cluster.git --git-email=foo"
