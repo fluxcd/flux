@@ -1,3 +1,97 @@
+## 1.17.0 (2019-12-16)
+
+This feature release adds support for encrypted manifests with
+[SOPS](https://github.com/mozilla/sops) and includes the `sops`
+binary in the Flux container.
+
+When supplying the `--sops` flag to `fluxd`, it will decrypt SOPS-encrypted
+manifest files before syncing them. Provide decryption keys in the same way
+as providing them for `sops` the binary, for example with
+`--git-gpg-key-import`. The full description of how to supply sops with a key
+can be found in the [SOPS documentation](https://github.com/mozilla/sops#usage).
+Be aware that manifests generated with `.flux.yaml` files are not decrypted.
+Instead, make sure to output cleartext manifests by explicitly invoking the 
+`sops` binary included in the Flux container.
+
+This release also adds the new `fluxd` flag `--k8s-default-namespace`
+which overrides the namespace used for manifests which omit it.
+
+### Enhacements
+
+- Add support for SOPS [fluxcd/flux#2580][]
+- Add `--k8s-default-namespace` flag to override default namespace
+  [fluxcd/flux#2625][]
+- Upgrade aws-sdk-go to support IRSA (IAM Roles for Service Accounts) [fluxcd/flux#2664][]
+- Propagate uppercase proxy env variables to git command [fluxcd/flux#2665][]
+
+### Fixes
+
+- Avoid collisions when checking whether the Git repo can be written to
+  [fluxcd/flux#2684][]
+
+### Maintenance and Documentation
+
+- Parallelize end-to-end tests and some unit tests
+  fluxcd/flux{[#2647][fluxcd/flux#2647], [#2681][fluxcd/flux#2681],
+  [#2682][fluxcd/flux#2682]}
+- Considerably reduce the impact of flakey unit and end-to-end tests
+  fluxcd/flux{[#2688][fluxcd/flux#2688], [#2685][fluxcd/flux#2685],
+  [#2687][fluxcd/flux#2687], [#2679][fluxcd/flux#2679],
+  [#2675][fluxcd/flux#2675], [#2675][fluxcd/flux#2675]}
+- Add program to generate changelog release entries [fluxcd/flux#2626][]
+- Change snap confinement to classic [fluxcd/flux#2529][]
+- Fix shfmt return-code check when linting end-to-end tests [fluxcd/flux#2673][]
+- Update memcached image to 1.5.20 [fluxcd/flux#2637][]
+- Update docs on annotations in HelmReleases [fluxcd/flux#2670][]
+- Docs: Add early link pointing to kustomize example [fluxcd/flux#2666][]
+- Docs: include gpg's --armor option on export [fluxcd/flux#2653][]
+- Fix link in troubleshooting docs [fluxcd/flux#2658][]
+- Simplify fluxyaml reference [fluxcd/flux#2634][]
+- Docs: update helm chart release steps [fluxcd/flux#2641][]
+- Add Canva, Infabode, LUNAR, Sage AI Labs and Workable as users of
+  Flux in production
+  fluxcd/flux{[#2667][fluxcd/flux#2667], [#2644][fluxcd/flux#2644],
+  [#2630][fluxcd/flux#2630], [#2654][fluxcd/flux#2654],
+  [#2680][fluxcd/flux#2680]}
+
+### Thanks
+
+Thanks to @2opremio, @Crevil, @PaulFarver, @aackerman, @aaparmeggiani,
+@adusumillipraveen, @alastairs, @dholbach, @groodt, @gtseres-workable,
+@hiddeco, @kaspernissen, @moshloop, @squaremo and @stefansedich for their
+contributions to this release.
+
+[fluxcd/flux#2688]: https://github.com/fluxcd/flux/pull/2688
+[fluxcd/flux#2687]: https://github.com/fluxcd/flux/pull/2687
+[fluxcd/flux#2685]: https://github.com/fluxcd/flux/pull/2685
+[fluxcd/flux#2684]: https://github.com/fluxcd/flux/pull/2684
+[fluxcd/flux#2682]: https://github.com/fluxcd/flux/pull/2682
+[fluxcd/flux#2681]: https://github.com/fluxcd/flux/pull/2681
+[fluxcd/flux#2680]: https://github.com/fluxcd/flux/pull/2680
+[fluxcd/flux#2679]: https://github.com/fluxcd/flux/pull/2679
+[fluxcd/flux#2675]: https://github.com/fluxcd/flux/pull/2675
+[fluxcd/flux#2674]: https://github.com/fluxcd/flux/pull/2674
+[fluxcd/flux#2673]: https://github.com/fluxcd/flux/pull/2673
+[fluxcd/flux#2670]: https://github.com/fluxcd/flux/pull/2670
+[fluxcd/flux#2667]: https://github.com/fluxcd/flux/pull/2667
+[fluxcd/flux#2666]: https://github.com/fluxcd/flux/pull/2666
+[fluxcd/flux#2665]: https://github.com/fluxcd/flux/pull/2665
+[fluxcd/flux#2664]: https://github.com/fluxcd/flux/pull/2664
+[fluxcd/flux#2658]: https://github.com/fluxcd/flux/pull/2658
+[fluxcd/flux#2654]: https://github.com/fluxcd/flux/pull/2654
+[fluxcd/flux#2653]: https://github.com/fluxcd/flux/pull/2653
+[fluxcd/flux#2647]: https://github.com/fluxcd/flux/pull/2647
+[fluxcd/flux#2644]: https://github.com/fluxcd/flux/pull/2644
+[fluxcd/flux#2641]: https://github.com/fluxcd/flux/pull/2641
+[fluxcd/flux#2637]: https://github.com/fluxcd/flux/pull/2637
+[fluxcd/flux#2634]: https://github.com/fluxcd/flux/pull/2634
+[fluxcd/flux#2630]: https://github.com/fluxcd/flux/pull/2630
+[fluxcd/flux#2628]: https://github.com/fluxcd/flux/pull/2628
+[fluxcd/flux#2626]: https://github.com/fluxcd/flux/pull/2626
+[fluxcd/flux#2625]: https://github.com/fluxcd/flux/pull/2625
+[fluxcd/flux#2580]: https://github.com/fluxcd/flux/pull/2580
+[fluxcd/flux#2529]: https://github.com/fluxcd/flux/pull/2529
+
 ## 1.16.0 (2019-11-22)
 
 This is a feature release with minor new features. New flags
