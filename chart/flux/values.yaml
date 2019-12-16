@@ -9,84 +9,13 @@ logFormat: fmt
 
 image:
   repository: docker.io/fluxcd/flux
-  tag: 1.16.0
+  tag: 1.17.0
   pullPolicy: IfNotPresent
   pullSecret:
 
 service:
   type: ClusterIP
   port: 3030
-
-helmOperator:
-  replicaCount: 1
-  create: false
-  createCRD: false
-  repository: docker.io/fluxcd/helm-operator
-  tag: 0.10.1
-  pullPolicy: IfNotPresent
-  pullSecret:
-  # Limit the operator scope to a single namespace
-  allowNamespace:
-  # Update dependencies for charts
-  updateChartDeps: true
-  # Log the diff when a chart release diverges
-  logReleaseDiffs: false
-  # Interval at which to check for changed charts
-  chartsSyncInterval: "3m"
-  # (Experimental) amount of workers processing releases
-  workers:
-
-  # Tiller settings
-
-  # If a hostname or IP is given here, that will be combined with the
-  # tillerPort and used for connecting to Tiller. Otherwise, the
-  # cluster-ip of the `tiller-deploy` service in .tillerNamespace is
-  # looked up.
-  tillerHost:
-  tillerPort: 44134
-  tillerNamespace: kube-system
-  tls:
-    secretName: "helm-client-certs"
-    verify: false
-    enable: false
-    keyFile: "tls.key"
-    certFile: "tls.crt"
-    caContent: ""
-    hostname: ""
-  # Mount repositories.yaml configuration in a volume
-  configureRepositories:
-    enable: false
-    volumeName: repositories-yaml
-    secretName: flux-helm-repositories
-    cacheVolumeName: repositories-cache
-    repositories:
-      # - name: bitnami
-      #   url: https://charts.bitnami.com
-      #   username:
-      #   password:
-  # Override Flux git settings
-  git:
-    pollInterval: ""
-    timeout: ""
-    # generate a SSH key named identity: ssh-keygen -q -N "" -f ./identity
-    # create a Kubernetes secret: kubectl -n flux create secret generic helm-ssh --from-file=./identity
-    # delete the private key: rm ./identity
-    # add ./identity.pub as a read-only deployment key in your Git repo where the charts are
-    # set the secret name (helm-ssh) below
-    secretName: ""
-  # Additional environment variables to set
-  extraEnvs: []
-  # extraEnvs:
-  #   - name: FOO
-  #     value: bar
-  nodeSelector: {}
-  annotations: {}
-  tolerations: []
-  affinity: {}
-  resources:
-    requests:
-      cpu: 50m
-      memory: 64Mi
 
 rbac:
   # Specifies whether RBAC resources should be created
