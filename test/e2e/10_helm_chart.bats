@@ -18,7 +18,6 @@ function setup() {
   # Test that the resources from https://github.com/fluxcd/flux-get-started are deployed
   poll_until_true 'namespace demo' 'kubectl describe ns/demo'
   poll_until_true 'workload podinfo' 'kubectl -n demo describe deployment/podinfo'
-  poll_until_true 'mongodb HelmRelease' 'kubectl -n demo describe helmrelease/mongodb'
 }
 
 function teardown() {
