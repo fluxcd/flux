@@ -1,3 +1,21 @@
+## 1.0.0 (2019-12-16)
+
+**Note** The Helm Operator manifests have been **removed** from this chart.
+Please see the [install instruction](https://github.com/fluxcd/helm-operator/tree/master/chart/helm-operator)
+for Helm Operator v1.0.0. To keep using the same SSH key as Flux see the docs
+[here](https://github.com/fluxcd/helm-operator/tree/master/chart/helm-operator#use-fluxs-git-deploy-key).
+The upgrade procedure for `HelmReleases` from `v1beta1` to `v1` can be found
+[here](https://docs.fluxcd.io/projects/helm-operator/en/latest/guides/upgrading-to-ga.html).
+
+### Improvements
+
+ - Updated Flux to `1.17.0`
+   [fluxcd/flux#2693](https://github.com/fluxcd/flux/pull/2693)
+ - Add a ServiceMonitor template
+   [fluxcd/flux#2668](https://github.com/fluxcd/flux/pull/2668)
+ - Update the automation interval flag in the chart
+   [fluxcd/flux#2551](https://github.com/fluxcd/flux/pull/2551)
+
 ## 0.16.0 (2019-11-28)
 
 ### Improvements
