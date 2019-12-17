@@ -70,6 +70,7 @@ container images and config changes are propagated to the cluster.
 - [loveholidays](https://www.loveholidays.com/)
 - [LUNAR](https://www.lunarway.com/)
 - [Mettle](https://mettle.co.uk)
+- [Mintel](https://www.mintel.com)
 - [Omise](https://www.omise.co)
 - [Payout](https://payout.one)
 - [Qordoba](https://qordoba.com)
