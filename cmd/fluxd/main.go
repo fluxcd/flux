@@ -120,7 +120,7 @@ func main() {
 		gitSetAuthor = fs.Bool("git-set-author", false, "if set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.")
 		gitLabel     = fs.String("git-label", "", "label to keep track of sync progress; overrides both --git-sync-tag and --git-notes-ref")
 		gitSecret    = fs.Bool("git-secret", false, `if set, git-secret will be run on every git checkout. A gpg key must be imported using  --git-gpg-key-import or by mounting a keyring containing it directly`)
-		sopsEnabled  = fs.Bool("sops", false, `if set, decrypt sops-encrypted manifest files with sops before applying them. Be aware that manifests generated with .flux.yaml are not automatically decrypted. Provide decryption keys in the same way you would provide them for the sops binary`)
+		sopsEnabled  = fs.Bool("sops", false, `if set, decrypt SOPS-encrypted manifest files with before syncing them. Provide decryption keys in the same way you would provide them for the sops binary. Be aware that manifests generated with .flux.yaml are not automatically decrypted`)
 		// Old git config; still used if --git-label is not supplied, but --git-label is preferred.
 		gitSyncTag     = fs.String("git-sync-tag", defaultGitSyncTag, fmt.Sprintf("tag to use to mark sync progress for this cluster (only relevant when --sync-state=%s)", fluxsync.GitTagStateMode))
 		gitNotesRef    = fs.String("git-notes-ref", defaultGitNotesRef, "ref to use for keeping commit annotations in git notes")
