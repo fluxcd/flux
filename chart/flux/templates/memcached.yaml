@@ -51,8 +51,9 @@ spec:
 {{ toYaml .Values.memcached.resources | indent 10 }}
         securityContext:
 {{ toYaml .Values.memcached.securityContext | indent 10 }}
-    {{- with .Values.memcached.nodeSelector }}
       nodeSelector:
+        beta.kubernetes.io/os: linux
+      {{- with .Values.memcached.nodeSelector }}
 {{ toYaml . | indent 8 }}
     {{- end }}
     {{- with .Values.memcached.affinity }}
