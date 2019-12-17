@@ -18,6 +18,8 @@ spec:
       labels:
         name: flux
     spec:
+      nodeSelector:
+        beta.kubernetes.io/os: linux
       serviceAccountName: flux
       volumes:
       - name: git-key

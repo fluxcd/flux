@@ -16,6 +16,8 @@ spec:
       labels:
         name: memcached
     spec:
+      nodeSelector:
+        beta.kubernetes.io/os: linux
       containers:
       - name: memcached
         image: memcached:1.5.20
