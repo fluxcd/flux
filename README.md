@@ -50,6 +50,7 @@ container images and config changes are propagated to the cluster.
 - [Apester](https://apester.com)
 - [ArangoDB Oasis](https://arangodb.com/managed-service)
 - [Avisi](https://avisi.nl)
+- [B3i](https://b3i.tech/)
 - [Babylon Health](https://www.babylonhealth.com/)
 - [bimspot](https://bimspot.io)
 - [Canva](https://www.canva.com/)
