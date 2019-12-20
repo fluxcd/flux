@@ -251,3 +251,14 @@ initContainers: {}
 
 # Additional containers to be added to the flux pod.
 extraContainers: []
+
+# Host aliases to be added to the Flux pod - see < - ip: <https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/>
+hostAliases: {}
+# - ip: "127.0.0.1"
+#    hostnames:
+#    - "foo.local"
+#    - "bar.local"
+#  - ip: "10.1.2.3"
+#    hostnames:
+#    - "foo.remote"
+#    - "bar.remote"
