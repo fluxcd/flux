@@ -2,7 +2,7 @@ FROM alpine:3.10
 
 WORKDIR /home/flux
 
-RUN apk add --no-cache openssh-client ca-certificates tini 'git>=2.12.0' 'gnutls>=3.6.7' gnupg gawk socat
+RUN apk add --no-cache openssh-client ca-certificates tini 'git>=2.12.0' 'gnutls>=3.6.7' gnupg gawk socat make sed
 RUN apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/testing git-secret
 
 # Add git hosts to known hosts file so we can use
@@ -48,7 +48,9 @@ ENV PATH=/bin:/usr/bin:/usr/local/bin:/usr/lib/kubeyaml
 #   https://github.com/gliderlabs/docker-alpine/issues/367#issuecomment-354316460
 RUN [ ! -e /etc/nsswitch.conf ] && echo 'hosts: files dns' > /etc/nsswitch.conf
 COPY ./kubeconfig /root/.kube/config
-COPY ./fluxd /usr/local/bin/
+
+#COPY ./fluxd /usr/local/bin/
+COPY --from=fluxcd/flux:1.17.0 /usr/local/bin/fluxd /usr/local/bin/fluxd
 
 ARG BUILD_DATE
 ARG VCS_REF
