@@ -16,6 +16,7 @@ type workloadListOpts struct {
 	*rootOpts
 	namespace     string
 	allNamespaces bool
+	containerName string
 }
 
 func newWorkloadList(parent *rootOpts) *workloadListOpts {
@@ -32,6 +33,7 @@ func (opts *workloadListOpts) Command() *cobra.Command {
 	}
 	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "", "Confine query to namespace")
 	cmd.Flags().BoolVarP(&opts.allNamespaces, "all-namespaces", "a", false, "Query across all namespaces")
+	cmd.Flags().StringVarP(&opts.containerName, "container", "c", "", "Filter workloads by container name")
 	return cmd
 }
 
@@ -52,6 +54,10 @@ func (opts *workloadListOpts) RunE(cmd *cobra.Command, args []string) error {
 	workloads, err := opts.API.ListServices(ctx, ns)
 	if err != nil {
 		return err
+	}
+
+	if opts.containerName != "" {
+		workloads = filterByContainerName(workloads, opts.containerName)
 	}
 
 	sort.Sort(workloadStatusByName(workloads))
@@ -100,4 +106,17 @@ func policies(s v6.ControllerStatus) string {
 	}
 	sort.Strings(ps)
 	return strings.Join(ps, ",")
+}
+
+// Extract workloads having its container name equal to containerName
+func filterByContainerName(workloads []v6.ControllerStatus, containerName string) (filteredWorkloads []v6.ControllerStatus) {
+    for _, workload := range workloads {
+        if len(workload.Containers) > 0 {
+			c := workload.Containers[0]
+			if c.Name == containerName {
+				filteredWorkloads = append(filteredWorkloads, workload)
+			}
+		}
+    }
+    return
 }
