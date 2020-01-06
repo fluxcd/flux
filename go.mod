@@ -6,7 +6,6 @@ go 1.13
 replace github.com/docker/distribution => github.com/2opremio/distribution v0.0.0-20190419185413-6c9727e5e5de
 
 require (
-	github.com/Azure/go-autorest v12.2.0+incompatible
 	github.com/Jeffail/gabs v1.4.0
 	github.com/Masterminds/semver v1.4.2
 	github.com/aws/aws-sdk-go v1.27.0
@@ -50,3 +49,6 @@ require (
 	k8s.io/helm v2.13.1+incompatible
 	k8s.io/klog v0.3.3
 )
+
+// fix sops/v3/azkv ambiguous import
+replace github.com/Azure/go-autorest => github.com/Azure/go-autorest v12.2.0+incompatible
