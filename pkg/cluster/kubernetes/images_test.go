@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"encoding/base64"
+	"fmt"
 	"testing"
 
 	"github.com/ryanuber/go-glob"
@@ -13,7 +14,8 @@ import (
 	"github.com/fluxcd/flux/pkg/registry"
 )
 
-func noopLog(...interface{}) error {
+func noopLog(e ...interface{}) error {
+	fmt.Println(e...)
 	return nil
 }
 
@@ -76,6 +78,44 @@ func TestMergeCredentials(t *testing.T) {
 	c := creds[ref.Name]
 	hosts := c.Hosts()
 	assert.ElementsMatch(t, []string{"docker.io", "quay.io"}, hosts)
+}
+
+func TestMergeCredentials_SameSecretSameNameDifferentNamespace(t *testing.T) {
+	ns1, ns2, secretName := "foo-ns", "bar-ns", "pull-secretname"
+	saName := "service-account"
+	ref, _ := image.ParseRef("foo/bar:tag")
+	spec := apiv1.PodTemplateSpec{
+		Spec: apiv1.PodSpec{
+			ServiceAccountName: saName,
+			ImagePullSecrets: []apiv1.LocalObjectReference{
+				{Name: secretName},
+			},
+			Containers: []apiv1.Container{
+				{Name: "container1", Image: ref.String()},
+			},
+		},
+	}
+
+	clientset := fake.NewSimpleClientset(
+		makeServiceAccount(ns1, saName, []string{secretName}),
+		makeServiceAccount(ns2, saName, []string{secretName}),
+		makeImagePullSecret(ns1, secretName, "docker.io"),
+		makeImagePullSecret(ns2, secretName, "quay.io"))
+	client := ExtendedClient{coreClient: clientset}
+
+	creds := registry.ImageCreds{}
+
+	pullImageSecretCache := make(map[string]registry.Credentials)
+	mergeCredentials(noopLog, func(imageName string) bool { return true },
+		client, ns1, spec, creds, pullImageSecretCache)
+	mergeCredentials(noopLog, func(imageName string) bool { return true },
+		client, ns2, spec, creds, pullImageSecretCache)
+	// check that we accumulated some credentials
+	assert.Contains(t, creds, ref.Name)
+	c := creds[ref.Name]
+	hosts := c.Hosts()
+	// Make sure we get the host from the second secret
+	assert.ElementsMatch(t, []string{"quay.io"}, hosts)
 }
 
 func TestMergeCredentials_ImageExclusion(t *testing.T) {
