@@ -622,6 +622,8 @@ func (d *Daemon) GitRepoConfig(ctx context.Context, regenerate bool) (v6.GitConf
 	}
 
 	origin := d.Repo.Origin()
+	// Sanitize the URL before sharing it
+	origin.URL = origin.SafeURL()
 	status, _ := d.Repo.Status()
 	path := ""
 	if len(d.GitConfig.Paths) > 0 {
