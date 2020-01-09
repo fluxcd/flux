@@ -60,7 +60,7 @@ containers which aren't explicitly named.
 	AddOutputFlags(cmd, &opts.outputOpts)
 	AddCauseFlags(cmd, &opts.cause)
 	flags := cmd.Flags()
-	flags.StringVarP(&opts.namespace, "namespace", "n", getKubeConfigContextNamespace("default"), "Workload namespace")
+	flags.StringVarP(&opts.namespace, "namespace", "n", "", "Workload namespace")
 	flags.StringVarP(&opts.workload, "workload", "w", "", "Workload to modify")
 	flags.StringVar(&opts.tagAll, "tag-all", "", "Tag filter pattern to apply to all containers")
 	flags.StringSliceVar(&opts.tags, "tag", nil, "Tag filter container/pattern pairs")
@@ -98,7 +98,8 @@ func (opts *workloadPolicyOpts) RunE(cmd *cobra.Command, args []string) error {
 		return newUsageError("lock and unlock both specified")
 	}
 
-	resourceID, err := resource.ParseIDOptionalNamespace(opts.namespace, opts.workload)
+	ns := getKubeConfigContextNamespaceOrDefault(opts.namespace, "default", opts.Context)
+	resourceID, err := resource.ParseIDOptionalNamespace(ns, opts.workload)
 	if err != nil {
 		return err
 	}

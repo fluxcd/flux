@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/fluxcd/flux/pkg/api/v6"
+	v6 "github.com/fluxcd/flux/pkg/api/v6"
 	"github.com/fluxcd/flux/pkg/policy"
 )
 
@@ -30,7 +30,7 @@ func (opts *workloadListOpts) Command() *cobra.Command {
 		Example: makeExample("fluxctl list-workloads"),
 		RunE:    opts.RunE,
 	}
-	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", getKubeConfigContextNamespace("default"), "Confine query to namespace")
+	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "", "Confine query to namespace")
 	cmd.Flags().BoolVarP(&opts.allNamespaces, "all-namespaces", "a", false, "Query across all namespaces")
 	return cmd
 }
@@ -40,13 +40,16 @@ func (opts *workloadListOpts) RunE(cmd *cobra.Command, args []string) error {
 		return errorWantedNoArgs
 	}
 
+	var ns string
 	if opts.allNamespaces {
-		opts.namespace = ""
+		ns = ""
+	} else {
+		ns = getKubeConfigContextNamespaceOrDefault(opts.namespace, "default", opts.Context)
 	}
 
 	ctx := context.Background()
 
-	workloads, err := opts.API.ListServices(ctx, opts.namespace)
+	workloads, err := opts.API.ListServices(ctx, ns)
 	if err != nil {
 		return err
 	}
