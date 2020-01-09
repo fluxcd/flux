@@ -17,6 +17,9 @@ service:
   type: ClusterIP
   port: 3030
 
+# Specifies which namespaces flux should have access to
+allowedNamespaces: []
+
 rbac:
   # Specifies whether RBAC resources should be created
   create: true
@@ -32,10 +35,9 @@ serviceAccount:
   # Annotations for the Service Account
   annotations: {}
 
-# If create is `false` and no name is given, Flux and the Helm
-# Operator will be restricted to the namespace where they are
-# deployed, and the kubeconfig default context will be set to that
-# namespace.
+# If create is `false` and no name is given, Flux will be restricted to 
+# namespaces listed in allowedNamespaces and the namespace where it is
+# deployed, and the kubeconfig default context will be set to that namespace.
 clusterRole:
   create: true
   # The name of a cluster role to bind to; if not set and create is

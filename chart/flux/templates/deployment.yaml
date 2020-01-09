@@ -175,7 +175,7 @@ spec:
           {{- end }}
           args:
           {{- if not .Values.clusterRole.create }}
-          - --k8s-allow-namespace={{ .Release.Namespace }}
+          - --k8s-allow-namespace={{ join "," (append .Values.allowedNamespaces .Release.Namespace) }}
           {{- end}}
           {{- if .Values.logFormat }}
           - --log-format={{ .Values.logFormat }}

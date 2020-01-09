@@ -106,7 +106,7 @@ type Cluster struct {
 	syncErrors   map[resource.ID]error
 	muSyncErrors sync.RWMutex
 
-	allowedNamespaces []string
+	allowedNamespaces map[string]struct{}
 	loggedAllowedNS   map[string]bool // to keep track of whether we've logged a problem with seeing an allowed namespace
 
 	imageExcludeList []string
@@ -114,7 +114,7 @@ type Cluster struct {
 }
 
 // NewCluster returns a usable cluster.
-func NewCluster(client ExtendedClient, applier Applier, sshKeyRing ssh.KeyRing, logger log.Logger, allowedNamespaces []string, imageExcludeList []string) *Cluster {
+func NewCluster(client ExtendedClient, applier Applier, sshKeyRing ssh.KeyRing, logger log.Logger, allowedNamespaces map[string]struct{}, imageExcludeList []string) *Cluster {
 	c := &Cluster{
 		client:            client,
 		applier:           applier,
@@ -304,7 +304,7 @@ func (c *Cluster) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
 func (c *Cluster) getAllowedAndExistingNamespaces(ctx context.Context) ([]string, error) {
 	if len(c.allowedNamespaces) > 0 {
 		nsList := []string{}
-		for _, name := range c.allowedNamespaces {
+		for name, _ := range c.allowedNamespaces {
 			if err := ctx.Err(); err != nil {
 				return nil, err
 			}
@@ -350,12 +350,8 @@ func (c *Cluster) IsAllowedResource(id resource.ID) bool {
 		namespaceToCheck = name
 	}
 
-	for _, allowedNS := range c.allowedNamespaces {
-		if namespaceToCheck == allowedNS {
-			return true
-		}
-	}
-	return false
+	_, ok := c.allowedNamespaces[namespaceToCheck]
+	return ok
 }
 
 type yamlThroughJSON struct {

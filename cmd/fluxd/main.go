@@ -493,7 +493,10 @@ func main() {
 
 		client := kubernetes.MakeClusterClientset(clientset, dynamicClientset, fhrClientset, hrClientset, discoClientset)
 		kubectlApplier := kubernetes.NewKubectl(kubectl, restClientConfig)
-		allowedNamespaces := append(*k8sNamespaceWhitelist, *k8sAllowNamespace...)
+		allowedNamespaces := make(map[string]struct{})
+		for _, n := range append(*k8sNamespaceWhitelist, *k8sAllowNamespace...) {
+			allowedNamespaces[n] = struct{}{}
+		}
 		k8sInst := kubernetes.NewCluster(client, kubectlApplier, sshKeyRing, logger, allowedNamespaces, *registryExcludeImage)
 		k8sInst.GC = *syncGC
 		k8sInst.DryGC = *dryGC
