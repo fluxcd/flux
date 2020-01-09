@@ -67,7 +67,7 @@ func (t *genericMockRoundTripper) calledURL(method string) (u *url.URL) {
 func testArgs(t *testing.T, args []string, shouldErr bool, errMsg string) *genericMockRoundTripper {
 	svc := newMockService()
 	releaseClient := newWorkloadRelease(mockServiceOpts(svc))
-	getKubeConfigContextNamespace = func(s string) string { return s }
+	getKubeConfigContextNamespace = func(s string, c string) string { return s }
 
 	// Run fluxctl release
 	cmd := releaseClient.Command()

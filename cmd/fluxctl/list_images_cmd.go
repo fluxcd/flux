@@ -8,8 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/fluxcd/flux/pkg/api/v10"
-	"github.com/fluxcd/flux/pkg/api/v6"
+	v10 "github.com/fluxcd/flux/pkg/api/v10"
+	v6 "github.com/fluxcd/flux/pkg/api/v6"
 	"github.com/fluxcd/flux/pkg/registry"
 	"github.com/fluxcd/flux/pkg/resource"
 	"github.com/fluxcd/flux/pkg/update"
@@ -36,7 +36,7 @@ func (opts *imageListOpts) Command() *cobra.Command {
 		Example: makeExample("fluxctl list-images --namespace default --workload=deployment/foo"),
 		RunE:    opts.RunE,
 	}
-	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", getKubeConfigContextNamespace(""), "Namespace")
+	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "", "Namespace")
 	cmd.Flags().StringVarP(&opts.workload, "workload", "w", "", "Show images for this workload")
 	cmd.Flags().IntVarP(&opts.limit, "limit", "l", 10, "Number of images to show (0 for all)")
 
@@ -51,10 +51,10 @@ func (opts *imageListOpts) RunE(cmd *cobra.Command, args []string) error {
 	if len(args) != 0 {
 		return errorWantedNoArgs
 	}
-
+	ns := getKubeConfigContextNamespaceOrDefault(opts.namespace, "default", opts.Context)
 	imageOpts := v10.ListImagesOptions{
 		Spec:      update.ResourceSpecAll,
-		Namespace: opts.namespace,
+		Namespace: ns,
 	}
 	// Backwards compatibility with --controller until we remove it
 	switch {
@@ -64,7 +64,7 @@ func (opts *imageListOpts) RunE(cmd *cobra.Command, args []string) error {
 		opts.workload = opts.controller
 	}
 	if len(opts.workload) > 0 {
-		id, err := resource.ParseIDOptionalNamespace(opts.namespace, opts.workload)
+		id, err := resource.ParseIDOptionalNamespace(ns, opts.workload)
 		if err != nil {
 			return err
 		}
