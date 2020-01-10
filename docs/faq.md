@@ -317,8 +317,6 @@ the change to git:
 ```
 
 To stop ignoring these annotated resources, you simply remove the annotation from the manifests in git.
-A live example can be seen
-[here](https://github.com/stefanprodan/openfaas-flux/blob/master/secrets/openfaas-token.yaml).
 
 Flux will ignore any resource that has the annotation _either_ in git, or in the cluster itself;
 sometimes it may be easier to annotate a *running resource in the cluster* as opposed to committing
