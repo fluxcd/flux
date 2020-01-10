@@ -232,9 +232,9 @@ several times.
 container. This means that the executables mentioned in commands must
 be available in the running fluxd container.
 
-Flux currently includes `kustomize` and basic Unix shell tools. If the
-tools in the Flux image are not sufficient for your use case, you have
-some options:
+Flux currently includes `kustomize`, `sops` and basic Unix shell tools.
+If the tools in the Flux image are not sufficient for your use case,
+you have some options:
 
  - build your own custom image based on the [Flux
    image][flux-dockerfile] that includes the tooling you need, and run
@@ -242,7 +242,7 @@ some options:
  - copy files from an `initContainer` into a volume shared by the flux
    container, within the deployment.
 
-In the future it may be possibly to specify an container image for
+In the future it may be possible to specify an container image for
 each command, rather than relying on the tooling being in the
 filesystem.
 
