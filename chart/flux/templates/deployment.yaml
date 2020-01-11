@@ -252,6 +252,9 @@ spec:
           {{- if .Values.token }}
           - --connect=wss://cloud.weave.works/api/flux
           - --token={{ .Values.token }}
+          {{- if .Values.connect }}
+          - --connect={{ .Values.connect }}
+          {{- end }}
           {{- end }}
           {{- if and .Values.syncGarbageCollection.enabled (not .Values.syncGarbageCollection.dry) }}
           - --sync-garbage-collection={{ .Values.syncGarbageCollection.enabled }}
@@ -277,7 +280,7 @@ spec:
       dnsConfig:
 {{ toYaml .Values.dnsConfig | indent 8 }}
 {{- end }}
-      nodeSelector: 
+      nodeSelector:
         beta.kubernetes.io/os: linux
       {{- with .Values.nodeSelector }}
 {{ toYaml . | indent 8 }}

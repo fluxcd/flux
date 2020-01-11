@@ -198,6 +198,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `dnsPolicy`                                       | ``                                                   | Pod DNS policy
 | `dnsConfig`                                       | ``                                                   | Pod DNS config
 | `token`                                           | `None`                                               | Weave Cloud service token
+| `connect`                                         | `None`                                               | Address of upstream service to connect to
 | `extraEnvs`                                       | `[]`                                                 | Extra environment variables for the Flux pod(s)
 | `env.secretName`                                  | ``                                                   | Name of the secret that contains environment variables which should be defined in the Flux container (using `envFrom`)
 | `rbac.create`                                     | `true`                                               | If `true`, create and use RBAC resources

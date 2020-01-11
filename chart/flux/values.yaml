@@ -3,6 +3,8 @@
 # Weave Cloud service token
 token: ""
 
+connect: ""
+
 replicaCount: 1
 
 logFormat: fmt
@@ -35,7 +37,7 @@ serviceAccount:
   # Annotations for the Service Account
   annotations: {}
 
-# If create is `false` and no name is given, Flux will be restricted to 
+# If create is `false` and no name is given, Flux will be restricted to
 # namespaces listed in allowedNamespaces and the namespace where it is
 # deployed, and the kubeconfig default context will be set to that namespace.
 clusterRole:
