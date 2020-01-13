@@ -1,3 +1,16 @@
+## 1.17.1 (2020-01-13)
+
+This is a minor security patch release fixing a problem with the scoping
+of `imagePullSecret`s and removing git-URL HTTPS credentials server-side.
+
+### Fixes
+
+- Correctly scope imagePullSecrets by their namespace [fluxcd/flux#2728][]
+- Sanitize Git remote URLs on the server side [fluxcd/flux#2726][]
+
+[fluxcd/flux#2726]: https://github.com/fluxcd/flux/pull/2726
+[fluxcd/flux#2728]: https://github.com/fluxcd/flux/pull/2728
+
 ## 1.17.0 (2019-12-16)
 
 This feature release adds support for encrypted manifests with
