@@ -1,9 +1,0 @@
-{{- if .Values.helmOperator.configureRepositories.repositories -}}
-apiVersion: v1
-kind: Secret
-metadata:
-  name: {{ .Values.helmOperator.configureRepositories.secretName }}
-type: Opaque
-data:
-  repositories.yaml: {{ include "flux.customRepositories" . | b64enc }}
-{{- end -}}

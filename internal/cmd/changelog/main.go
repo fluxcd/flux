@@ -196,7 +196,7 @@ func main() {
 	gitHubOrg := pflag.String("gh-org", "fluxcd", "GitHub organization of the repository for which to generate the changelog entry")
 	gitHubRepo := pflag.String("gh-repo", "flux", "GitHub repository for which to generate the changelog entry")
 	excludeLabelStrings := pflag.StringSlice("exclude-labels", []string{"helm-chart"}, "Exclude pull requests tagged with any of these labels")
-	sectionSpecStrings := pflag.StringSlice("section-spec", []string{"bug:Fixes", "enhacement:Enhacement", "docs:Documentation"}, "`label:Title` section specifications. `label:Title` indicates to create a section with `Title` in which to include all the pull requests tagged with label `label`")
+	sectionSpecStrings := pflag.StringSlice("section-spec", []string{"bug:Fixes", "enhacement:Enhancements", "docs:Documentation"}, "`label:Title` section specifications. `label:Title` indicates to create a section with `Title` in which to include all the pull requests tagged with label `label`")
 	pflag.Parse()
 
 	token := os.Getenv("GITHUB_TOKEN")
