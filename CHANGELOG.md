@@ -10,7 +10,7 @@ of `imagePullSecret`s and removing git-URL HTTPS credentials server-side.
 
 ### Thanks
 
-Thanks to @2opremio, @hidde and @bootc for contributing to this release.
+Thanks to @2opremio, @hiddeco and @bootc for contributing to this release.
 
 
 [fluxcd/flux#2726]: https://github.com/fluxcd/flux/pull/2726
