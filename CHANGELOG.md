@@ -29,7 +29,7 @@ Instead, make sure to output cleartext manifests by explicitly invoking the
 This release also adds the new `fluxd` flag `--k8s-default-namespace`
 which overrides the namespace used for manifests which omit it.
 
-### Enhacements
+### Enhancements
 
 - Add support for SOPS [fluxcd/flux#2580][]
 - Add `--k8s-default-namespace` flag to override default namespace
@@ -126,7 +126,7 @@ numerous new end-to-end tests have been added.
 - Ignore timestamp labels during sorting and release of images [fluxcd/flux#2594][]
 - Security: Stop showing value of `GIT_AUTHKEY` in the `fluxctl` output [fluxcd/flux#2549][]
 
-### Enhacements
+### Enhancements
 
 - Improve experience with `.flux.yaml` files
   fluxcd/flux#{[2565][fluxcd/flux#2565], [2603][fluxcd/flux#2603],
