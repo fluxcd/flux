@@ -8,6 +8,11 @@ of `imagePullSecret`s and removing git-URL HTTPS credentials server-side.
 - Correctly scope imagePullSecrets by their namespace [fluxcd/flux#2728][]
 - Sanitize Git remote URLs on the server side [fluxcd/flux#2726][]
 
+### Thanks
+
+Thanks to @2opremio, @hidde and @bootc for contributing to this release.
+
+
 [fluxcd/flux#2726]: https://github.com/fluxcd/flux/pull/2726
 [fluxcd/flux#2728]: https://github.com/fluxcd/flux/pull/2728
 
