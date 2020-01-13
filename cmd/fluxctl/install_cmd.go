@@ -46,7 +46,7 @@ fluxctl install --git-url 'git@github.com:<your username>/flux-get-started' | ku
 		"Tell flux it has readonly access to the repo")
 	cmd.Flags().BoolVar(&opts.ManifestGeneration, "manifest-generation", false,
 		"Whether to enable manifest generation")
-	cmd.Flags().StringVar(&opts.Namespace, "namespace", getKubeConfigContextNamespace("default"),
+	cmd.Flags().StringVar(&opts.Namespace, "namespace", "",
 		"Cluster namespace where to install flux")
 	cmd.Flags().StringVarP(&opts.outputDir, "output-dir", "o", "", "a directory in which to write individual manifests, rather than printing to stdout")
 
@@ -64,6 +64,7 @@ func (opts *installOpts) RunE(cmd *cobra.Command, args []string) error {
 	if opts.GitEmail == "" {
 		return fmt.Errorf("please supply a valid --git-email argument")
 	}
+	opts.TemplateParameters.Namespace = getKubeConfigContextNamespaceOrDefault(opts.Namespace, "default", "")
 	manifests, err := install.FillInTemplates(opts.TemplateParameters)
 	if err != nil {
 		return err

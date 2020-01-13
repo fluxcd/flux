@@ -224,6 +224,7 @@ Available Commands:
   version        Output the version of fluxctl
 
 Flags:
+      --context string                  The kubeconfig context to use
   -h, --help                            help for fluxctl
       --k8s-fwd-labels stringToString   Labels used to select the fluxd pod a port forward should be created for. You can also set the environment variable FLUX_FORWARD_LABELS (default [app=flux])
       --k8s-fwd-ns string               Namespace in which fluxd is running, for creating a port forward to access the API. No port forward will be created if a URL or token is given. You can also set the environment variable FLUX_FORWARD_NAMESPACE (default "default")
