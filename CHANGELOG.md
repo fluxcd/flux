@@ -1,3 +1,21 @@
+## 1.17.1 (2020-01-13)
+
+This is a minor security patch release fixing a problem with the scoping
+of `imagePullSecret`s and removing git-URL HTTPS credentials server-side.
+
+### Fixes
+
+- Correctly scope imagePullSecrets by their namespace [fluxcd/flux#2728][]
+- Sanitize Git remote URLs on the server side [fluxcd/flux#2726][]
+
+### Thanks
+
+Thanks to @2opremio, @hiddeco and @bootc for contributing to this release.
+
+
+[fluxcd/flux#2726]: https://github.com/fluxcd/flux/pull/2726
+[fluxcd/flux#2728]: https://github.com/fluxcd/flux/pull/2728
+
 ## 1.17.0 (2019-12-16)
 
 This feature release adds support for encrypted manifests with
@@ -16,7 +34,7 @@ Instead, make sure to output cleartext manifests by explicitly invoking the
 This release also adds the new `fluxd` flag `--k8s-default-namespace`
 which overrides the namespace used for manifests which omit it.
 
-### Enhacements
+### Enhancements
 
 - Add support for SOPS [fluxcd/flux#2580][]
 - Add `--k8s-default-namespace` flag to override default namespace
@@ -113,7 +131,7 @@ numerous new end-to-end tests have been added.
 - Ignore timestamp labels during sorting and release of images [fluxcd/flux#2594][]
 - Security: Stop showing value of `GIT_AUTHKEY` in the `fluxctl` output [fluxcd/flux#2549][]
 
-### Enhacements
+### Enhancements
 
 - Improve experience with `.flux.yaml` files
   fluxcd/flux#{[2565][fluxcd/flux#2565], [2603][fluxcd/flux#2603],
