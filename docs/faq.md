@@ -155,6 +155,11 @@ To work around exceptional cases, you can mount a docker config into
 the Flux container. See the argument `--docker-config` in [the daemon
 arguments reference](references/daemon.md).
 
+For ECR, if you are using Kiam, you need to whitelist the following API routes:
+```
+--whitelist-route-regexp=(/latest/meta-data/placement/availability-zone|/latest/dynamic/instance-identity/document)
+```
+
 See also
 [Why are my images not showing up in the list of images?](#why-are-my-images-not-showing-up-in-the-list-of-images)
 
