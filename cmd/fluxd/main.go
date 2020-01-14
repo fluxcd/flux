@@ -71,6 +71,8 @@ const (
 	defaultGitSkipMessage = "\n\n[ci skip]"
 
 	RequireECR = "ecr"
+
+	k8sInClusterSecretsBaseDir = "/var/run/secrets/kubernetes.io"
 )
 
 var (
@@ -165,7 +167,7 @@ func main() {
 		registryRequire = fs.StringSlice("registry-require", nil, fmt.Sprintf(`exit with an error if auto-authentication with any of the given registries is not possible (possible values: {%s})`, strings.Join(RequireValues, ",")))
 
 		// k8s-secret backed ssh keyring configuration
-		k8sInCluster             = fs.Bool("k8s-in-cluster", true, "set this to true if fluxd is deployed as a container inside Kubernetes")
+		_                        = fs.Bool("k8s-in-cluster", true, "set this to true if fluxd is deployed as a container inside Kubernetes")
 		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "name of the k8s secret used to store the private SSH key")
 		k8sSecretVolumeMountPath = fs.String("k8s-secret-volume-mount-path", "/etc/fluxd/ssh", "mount location of the k8s secret storing the private SSH key")
 		k8sSecretDataKey         = fs.String("k8s-secret-data-key", "identity", "data key holding the private SSH key within the k8s secret")
@@ -197,6 +199,7 @@ func main() {
 	fs.MarkDeprecated("registry-cache-expiry", "no longer used; cache entries are expired adaptively according to how often they change")
 	fs.MarkDeprecated("k8s-namespace-whitelist", "changed to --k8s-allow-namespace, use that instead")
 	fs.MarkDeprecated("registry-poll-interval", "changed to --automation-interval, use that instead")
+	fs.MarkDeprecated("k8s-in-cluster", "no longer used")
 
 	var kubeConfig *string
 	{
@@ -207,6 +210,7 @@ func main() {
 			kubeConfig = fs.String("kube-config", "", "the absolute path of the k8s config file.")
 		}
 	}
+	fs.MarkDeprecated("kube-config", "please use the KUBECONFIG environment variable instead")
 
 	// Explicitly initialize klog to enable stderr logging,
 	// and parse our own flags.
@@ -385,20 +389,19 @@ func main() {
 
 	var restClientConfig *rest.Config
 	{
-		if *k8sInCluster {
-			logger.Log("msg", "using in cluster config to connect to the cluster")
-			restClientConfig, err = rest.InClusterConfig()
-			if err != nil {
-				logger.Log("err", err)
-				os.Exit(1)
-			}
-		} else {
+		var err error
+		if *kubeConfig != "" {
 			logger.Log("msg", fmt.Sprintf("using kube config: %q to connect to the cluster", *kubeConfig))
 			restClientConfig, err = clientcmd.BuildConfigFromFlags("", *kubeConfig)
-			if err != nil {
-				logger.Log("err", err)
-				os.Exit(1)
-			}
+		} else {
+			restClientConfig, err = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+				clientcmd.NewDefaultClientConfigLoadingRules(),
+				&clientcmd.ConfigOverrides{},
+			).ClientConfig()
+		}
+		if err != nil {
+			logger.Log("err", err)
+			os.Exit(1)
 		}
 		restClientConfig.QPS = 50.0
 		restClientConfig.Burst = 100
@@ -447,8 +450,10 @@ func main() {
 		}
 		clusterVersion = "kubernetes-" + serverVersion.GitVersion
 
-		if *k8sInCluster && !httpGitURL {
-			namespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+		fileinfo, err := os.Stat(k8sInClusterSecretsBaseDir)
+		isInCluster := err != nil && fileinfo.IsDir()
+		if isInCluster && !httpGitURL {
+			namespace, err := ioutil.ReadFile(filepath.Join(k8sInClusterSecretsBaseDir, "serviceaccount/namespace"))
 			if err != nil {
 				logger.Log("err", err)
 				os.Exit(1)
