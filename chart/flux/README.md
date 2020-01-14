@@ -210,7 +210,8 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `service.type`                                    | `ClusterIP`                                          | Service type to be used (exposing the Flux API outside of the cluster is not advised)
 | `service.port`                                    | `3030`                                               | Service port to be used
 | `sync.state`                                      | `git`                                                | Where to keep sync state; either a tag in the upstream repo (`git`), or as an annotation on the SSH secret (`secret`)
-| `sync.timeout`                                    | `None`                                               |  Duration after which sync operations time out (defaults to `1m`)
+| `sync.timeout`                                    | `None`                                               | Duration after which sync operations time out (defaults to `1m`)
+| `sync.interval`                                   | `<git.pollInterval>`                                 | Controls how often Flux will apply what’s in git, to the cluster, absent new commits (defaults to `git.pollInterval`)
 | `git.url`                                         | `None`                                               | URL of git repo with Kubernetes manifests
 | `git.readonly`                                    | `false`                                              | If `true`, the git repo will be considered read-only, and Flux will not attempt to write to it
 | `git.branch`                                      | `master`                                             | Branch of git repo to use for Kubernetes manifests
@@ -257,10 +258,10 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `memcached.pullSecret`                            | `None`                                               | Image pull secret
 | `memcached.repository`                            | `memcached`                                          | Image repository
 | `memcached.resources`                             | `None`                                               | CPU/memory resource requests/limits for memcached
-| `memcached.securityContext`                       | [See values.yaml](/chart/flux/values.yaml#L192-L195) | Container security context for memcached
+| `memcached.securityContext`                       | [See values.yaml](/chart/flux/values.yaml#L176-L179) | Container security context for memcached
 | `memcached.nodeSelector`                          | `{}`                                                 | Node Selector properties for the memcached deployment
 | `memcached.tolerations`                           | `[]`                                                 | Tolerations properties for the memcached deployment
-| `kube.config`                                     | [See values.yaml](/chart/flux/values.yaml#L151-L165) | Override for kubectl default config in the Flux pod(s).
+| `kube.config`                                     | [See values.yaml](/chart/flux/values.yaml#L200-L212) | Override for kubectl default config in the Flux pod(s).
 | `prometheus.enabled`                              | `false`                                              | If enabled, adds prometheus annotations to Flux and helmOperator pod(s)
 | `prometheus.serviceMonitor.create`                | `false`                                              | Set to true if using the Prometheus Operator
 | `prometheus.serviceMonitor.interval`              | ``                                                   | Interval at which metrics should be scraped

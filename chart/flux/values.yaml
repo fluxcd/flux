@@ -82,6 +82,10 @@ sync:
   state: git
   # Duration after which sync operations time out (defaults to 1m)
   timeout:
+  # Controls how often Flux will apply what’s in git, to the cluster, absent new commits.
+  # Reducing this interval below a minute or so may hinder Flux, since syncs can take tens of seconds,
+  # leaving not much time to do other operations.
+  #  interval: "5m"
 
 git:
   # URL of git repo with Kubernetes manifests; e.g. git.url=ssh://git@github.com/fluxcd/flux-get-started
