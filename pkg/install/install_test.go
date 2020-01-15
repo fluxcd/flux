@@ -45,10 +45,11 @@ func TestFillInTemplatesAllParameters(t *testing.T) {
 
 func TestFillInTemplatesMissingValues(t *testing.T) {
 	testFillInTemplates(t, 5, TemplateParameters{
-		GitURL:    "git@github.com:fluxcd/flux-get-started",
-		GitBranch: "branch",
-		GitPaths:  []string{},
-		GitLabel:  "label",
+		GitURL:           "git@github.com:fluxcd/flux-get-started",
+		GitBranch:        "branch",
+		GitPaths:         []string{},
+		GitLabel:         "label",
+		RegistryScanning: true,
 	})
 }
 
