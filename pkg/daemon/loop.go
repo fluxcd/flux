@@ -77,7 +77,7 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 				default:
 				}
 			}
-			if d.Repo.Readonly() || !d.ImageScanEnabled {
+			if d.Repo.Readonly() {
 				// don't bother trying to update images, and don't
 				// bother setting the timer again
 				continue
