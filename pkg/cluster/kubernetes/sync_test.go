@@ -241,9 +241,10 @@ func setup(t *testing.T) (*Cluster, *fakeApplier, func()) {
 	clients, cancel := fakeClients()
 	applier := &fakeApplier{dynamicClient: clients.dynamicClient, coreClient: clients.coreClient, defaultNS: defaultTestNamespace}
 	kube := &Cluster{
-		applier: applier,
-		client:  clients,
-		logger:  log.NewLogfmtLogger(os.Stdout),
+		applier:             applier,
+		client:              clients,
+		logger:              log.NewLogfmtLogger(os.Stdout),
+		resourceExcludeList: []string{"*metrics.k8s.io/*", "webhook.certmanager.k8s.io/v1beta1/*"},
 	}
 	return kube, applier, cancel
 }

@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"github.com/ryanuber/go-glob"
 	"io"
 	"os/exec"
 	"sort"
@@ -201,7 +202,28 @@ func (r *kuberesource) GetGCMark() string {
 	return r.obj.GetLabels()[gcMarkLabel]
 }
 
-var excludedGroups = []string{"metrics.k8s.io", "webhook.certmanager.k8s.io"}
+func (c *Cluster) filterResources(resources *meta_v1.APIResourceList) *meta_v1.APIResourceList {
+	list := []meta_v1.APIResource{}
+	for _, apiResource := range resources.APIResources {
+		fullName := fmt.Sprintf("%s/%s", resources.GroupVersion, apiResource.Kind)
+		excluded := false
+		for _, exp := range c.resourceExcludeList {
+			if glob.Glob(exp, fullName) {
+				excluded = true
+				break
+			}
+		}
+		if !excluded {
+			list = append(list, apiResource)
+		}
+	}
+
+	return &meta_v1.APIResourceList{
+		TypeMeta:     resources.TypeMeta,
+		GroupVersion: resources.GroupVersion,
+		APIResources: list,
+	}
+}
 
 func (c *Cluster) getAllowedResourcesBySelector(selector string) (map[string]*kuberesource, error) {
 	listOptions := meta_v1.ListOptions{}
@@ -219,8 +241,8 @@ func (c *Cluster) getAllowedResourcesBySelector(selector string) (map[string]*ku
 		gv := sgs.Groups[i].PreferredVersion.GroupVersion
 
 		excluded := false
-		for _, exg := range excludedGroups {
-			if strings.HasSuffix(sgs.Groups[i].Name, exg) {
+		for _, exp := range c.resourceExcludeList {
+			if glob.Glob(exp, fmt.Sprintf("%s/", gv)) {
 				excluded = true
 				break
 			}
@@ -229,7 +251,7 @@ func (c *Cluster) getAllowedResourcesBySelector(selector string) (map[string]*ku
 		if !excluded {
 			if r, err := c.client.discoveryClient.ServerResourcesForGroupVersion(gv); err == nil {
 				if r != nil {
-					resources = append(resources, r)
+					resources = append(resources, c.filterResources(r))
 				}
 			} else {
 				// ignore errors for resources with empty group version instead of failing to sync
