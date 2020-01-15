@@ -213,7 +213,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `sync.timeout`                                    | `None`                                               | Duration after which sync operations time out (defaults to `1m`)
 | `sync.interval`                                   | `<git.pollInterval>`                                 | Controls how often Flux will apply what’s in git, to the cluster, absent new commits (defaults to `git.pollInterval`)
 | `git.url`                                         | `None`                                               | URL of git repo with Kubernetes manifests
-| `git.readonly`                                    | `false`                                              | If `true`, the git repo will be considered read-only, and Flux will not attempt to write to it
+| `git.readonly`                                    | `false`                                              | If `true`, the git repo will be considered read-only, Flux will not attempt to write to it, image scanning will be disabled and memcached will not be deployed
 | `git.branch`                                      | `master`                                             | Branch of git repo to use for Kubernetes manifests
 | `git.path`                                        | `None`                                               | Path within git repo to locate Kubernetes manifests (relative path)
 | `git.user`                                        | `Weave Flux`                                         | Username to use as git committer
