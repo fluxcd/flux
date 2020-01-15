@@ -57,7 +57,7 @@ Version controlling of cluster manifests provides reproducibility and a historic
 | --git-notes-ref                                  | `flux`                   | ref to use for keeping commit annotations in git notes
 | --git-poll-interval                              | `5m`                     | period at which to fetch any new commits from the git repo
 | --git-timeout                                    | `20s`                    | duration after which git operations time out
-| --git-readonly                                   | `false`                  | If `true`, the git repo will be considered read-only, and Flux will not attempt to write to it. Implies --sync-state=secret and and --registry-scanning=false
+| --git-readonly                                   | `false`                  | If `true`, the git repo will be considered read-only, and Flux will not attempt to write to it. Implies --sync-state=secret and --registry-scanning=false
 | **syncing:** control over how config is applied to the cluster
 | --sync-interval                                  | `5m`                     | apply the git config to the cluster at least this often. New commits may provoke more frequent syncs
 | --sync-timeout                                   | `1m`                     | duration after which sync operations time out
