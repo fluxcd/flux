@@ -307,6 +307,11 @@ func TestSyncTolerateMetricsErrors(t *testing.T) {
 	fakeClient.Resources = []*metav1.APIResourceList{{GroupVersion: "custom.metrics.k8s.io/v1"}}
 	err = kube.Sync(cluster.SyncSet{})
 	assert.NoError(t, err)
+
+	kube.client.discoveryClient.(*cachedDiscovery).CachedDiscoveryInterface.Invalidate()
+	fakeClient.Resources = []*metav1.APIResourceList{{GroupVersion: "webhook.certmanager.k8s.io/v1beta1"}}
+	err = kube.Sync(cluster.SyncSet{})
+	assert.NoError(t, err)
 }
 
 func TestSync(t *testing.T) {

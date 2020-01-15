@@ -201,6 +201,8 @@ func (r *kuberesource) GetGCMark() string {
 	return r.obj.GetLabels()[gcMarkLabel]
 }
 
+var excludedGroups = []string{"metrics.k8s.io", "webhook.certmanager.k8s.io"}
+
 func (c *Cluster) getAllowedResourcesBySelector(selector string) (map[string]*kuberesource, error) {
 	listOptions := meta_v1.ListOptions{}
 	if selector != "" {
@@ -215,8 +217,16 @@ func (c *Cluster) getAllowedResourcesBySelector(selector string) (map[string]*ku
 	resources := []*meta_v1.APIResourceList{}
 	for i := range sgs.Groups {
 		gv := sgs.Groups[i].PreferredVersion.GroupVersion
-		// exclude the *.metrics.k8s.io resources to avoid querying the cluster metrics
-		if sgs.Groups[i].Name != "metrics.k8s.io" && !strings.HasSuffix(sgs.Groups[i].Name, ".metrics.k8s.io") {
+
+		excluded := false
+		for _, exg := range excludedGroups {
+			if strings.HasSuffix(sgs.Groups[i].Name, exg) {
+				excluded = true
+				break
+			}
+		}
+
+		if !excluded {
 			if r, err := c.client.discoveryClient.ServerResourcesForGroupVersion(gv); err == nil {
 				if r != nil {
 					resources = append(resources, r)
