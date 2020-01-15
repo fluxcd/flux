@@ -33,21 +33,23 @@ fluxctl install --git-url 'git@github.com:<your username>/flux-get-started' | ku
 	cmd.Flags().StringVar(&opts.GitBranch, "git-branch", "master",
 		"Git branch to be used by Flux")
 	cmd.Flags().StringSliceVar(&opts.GitPaths, "git-paths", []string{},
-		"Relative paths within the Git repo for Flux to locate Kubernetes manifests")
+		"relative paths within the Git repo for Flux to locate Kubernetes manifests")
 	cmd.Flags().StringSliceVar(&opts.GitPaths, "git-path", []string{},
-		"Relative paths within the Git repo for Flux to locate Kubernetes manifests")
+		"relative paths within the Git repo for Flux to locate Kubernetes manifests")
 	cmd.Flags().StringVar(&opts.GitLabel, "git-label", "flux",
 		"Git label to keep track of Flux's sync progress; overrides both --git-sync-tag and --git-notes-ref")
 	cmd.Flags().StringVar(&opts.GitUser, "git-user", "Flux",
-		"Username to use as git committer")
+		"username to use as git committer")
 	cmd.Flags().StringVar(&opts.GitEmail, "git-email", "",
-		"Email to use as git committer")
+		"email to use as git committer")
 	cmd.Flags().BoolVar(&opts.GitReadOnly, "git-readonly", false,
-		"Tell flux it has readonly access to the repo")
+		"tell flux it has readonly access to the repo")
 	cmd.Flags().BoolVar(&opts.ManifestGeneration, "manifest-generation", false,
-		"Whether to enable manifest generation")
+		"whether to enable manifest generation")
 	cmd.Flags().StringVar(&opts.Namespace, "namespace", "",
-		"Cluster namespace where to install flux")
+		"cluster namespace where to install flux")
+	cmd.Flags().BoolVar(&opts.RegistryScanning, "registry-scanning", true,
+		"scan container image registries to fill in the registry cache")
 	cmd.Flags().StringVarP(&opts.outputDir, "output-dir", "o", "", "a directory in which to write individual manifests, rather than printing to stdout")
 
 	// Hide and deprecate "git-paths", which was wrongly introduced since its inconsistent with fluxd's git-path flag
