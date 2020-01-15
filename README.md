@@ -59,9 +59,10 @@ container images and config changes are propagated to the cluster.
 |[Omise](https://www.omise.co)|[Payout](https://payout.one)|[Qordoba](https://qordoba.com)
 |[Rakuten](https://rakuten.com)|[Replicated](https://replicated.com)|[Rungway](https://rungway.com)
 |[Sage AI Labs](https://www.sage.com)|[Starbucks](https://www.starbucks.com/)|[Troii](https://troii.com/)
-|[Under Armour](https://www.underarmour.com)|[VSHN](https://vshn.ch)|[Walmart Chile](https://www.walmartchile.cl)
-|[Weave Cloud](https://cloud.weave.works)|[Workable](https://www.workable.com)|[Working Group Two](https://wgtwo.com)
-|[Yusofleet](https://yusofleet.com)|[Yad2](https://yad2.co.il)|[Zaaksysteem](https://zaaksysteem.nl)
+|[UK Hydrographic Office](https://www.gov.uk/government/organisations/uk-hydrographic-office)|[Under Armour](https://www.underarmour.com)|[VSHN](https://vshn.ch)
+|[Walmart Chile](https://www.walmartchile.cl)|[Weave Cloud](https://cloud.weave.works)|[Workable](https://www.workable.com)
+|[Working Group Two](https://wgtwo.com)|[Yusofleet](https://yusofleet.com)|[Yad2](https://yad2.co.il)
+|[Zaaksysteem](https://zaaksysteem.nl)
 |||
 
 If you too are using Flux in production; please submit a PR to add your organization to the list!
