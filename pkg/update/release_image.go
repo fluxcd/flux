@@ -196,6 +196,9 @@ func (s ReleaseImageSpec) calculateImageUpdates(rc ReleaseContext, candidates []
 		ref, err = s.ImageSpec.AsRef()
 		if err == nil {
 			singleRepo = ref.CanonicalName()
+			// FIXME(fons): we probably want to allow this operation even if image
+			//              scanning is disabled. We could either avoid the validation
+			//              or use an uncached registry.
 			imageRepos, err = exactImageRepos(rc.Registry(), []image.Ref{ref})
 		}
 	}

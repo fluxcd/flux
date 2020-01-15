@@ -57,7 +57,7 @@ Version controlling of cluster manifests provides reproducibility and a historic
 | --git-notes-ref                                  | `flux`                   | ref to use for keeping commit annotations in git notes
 | --git-poll-interval                              | `5m`                     | period at which to fetch any new commits from the git repo
 | --git-timeout                                    | `20s`                    | duration after which git operations time out
-| --git-readonly                                   | `false`                  | If `true`, the git repo will be considered read-only, and Flux will not attempt to write to it. Implies --sync-state=secret
+| --git-readonly                                   | `false`                  | If `true`, the git repo will be considered read-only, and Flux will not attempt to write to it. Implies --sync-state=secret and --registry-scanning=false
 | **syncing:** control over how config is applied to the cluster
 | --sync-interval                                  | `5m`                     | apply the git config to the cluster at least this often. New commits may provoke more frequent syncs
 | --sync-timeout                                   | `1m`                     | duration after which sync operations time out
@@ -79,6 +79,7 @@ Version controlling of cluster manifests provides reproducibility and a historic
 | --registry-ecr-include-id                        | `[]`                               | include these AWS account ID(s) when scanning images in ECR (multiple values allowed); empty means allow all, unless excluded
 | --registry-ecr-exclude-id                        | `[<EKS SYSTEM ACCOUNT>]`           | exclude these AWS account ID(s) when scanning ECR (multiple values allowed); defaults to the EKS system account, so system images will not be scanned
 | --registry-require                               | `[]`                               | exit with an error if the given services are not available. Useful for escalating misconfiguration or outages that might otherwise go undetected. Presently supported values: {`ecr`} |
+| --registry-scanning                              | `true`                             | scan container image registries to fill in the registry cache; --registry-scanning=false implies --read-only=true
 | **k8s-secret backed ssh keyring configuration**
 | --k8s-secret-name                                | `flux-git-deploy`                  | name of the k8s secret used to store the private SSH key
 | --k8s-secret-volume-mount-path                   | `/etc/fluxd/ssh`                   | mount location of the k8s secret storing the private SSH key

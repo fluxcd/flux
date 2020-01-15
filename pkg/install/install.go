@@ -22,6 +22,7 @@ type TemplateParameters struct {
 	GitUser            string
 	GitEmail           string
 	GitReadOnly        bool
+	RegistryScanning   bool
 	Namespace          string
 	ManifestGeneration bool
 	AdditionalFluxArgs []string
@@ -34,6 +35,10 @@ func FillInTemplates(params TemplateParameters) (map[string][]byte, error) {
 			return fmt.Errorf("cannot walk embedded files: %s", err)
 		}
 		if info.IsDir() {
+			return nil
+		}
+		if (params.GitReadOnly || !params.RegistryScanning) && strings.Contains(info.Name(), "memcache") {
+			// do not include memcached resources in readonly mode or when registry scanning is disabled
 			return nil
 		}
 		manifestTemplateBytes, err := ioutil.ReadAll(rs)
