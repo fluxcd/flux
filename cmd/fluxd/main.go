@@ -30,6 +30,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
 
+	helmopclient "github.com/fluxcd/helm-operator/pkg/client/clientset/versioned"
+
 	hrclient "github.com/fluxcd/flux/integrations/client/clientset/versioned"
 	"github.com/fluxcd/flux/pkg/checkpoint"
 	"github.com/fluxcd/flux/pkg/cluster"
@@ -50,7 +52,6 @@ import (
 	"github.com/fluxcd/flux/pkg/remote"
 	"github.com/fluxcd/flux/pkg/ssh"
 	fluxsync "github.com/fluxcd/flux/pkg/sync"
-	helmopclient "github.com/fluxcd/helm-operator/pkg/client/clientset/versioned"
 )
 
 var version = "unversioned"
@@ -557,9 +558,9 @@ func main() {
 	}
 
 	// Registry components
-	var cacheRegistry registry.Registry
+	var imageRegistry registry.Registry = registry.ImageScanDisabledRegistry{}
 	var cacheWarmer *cache.Warmer
-	{
+	if !*disableImageScan {
 		// Cache client, for use by registry and cache warmer
 		var cacheClient cache.Client
 		var memcacheClient *registryMemcache.MemcacheClient
@@ -583,13 +584,13 @@ func main() {
 		defer memcacheClient.Stop()
 		cacheClient = cache.InstrumentClient(memcacheClient)
 
-		cacheRegistry = &cache.Cache{
+		imageRegistry = &cache.Cache{
 			Reader: cacheClient,
 			Decorators: []cache.Decorator{
 				cache.TimestampLabelWhitelist(*registryUseLabels),
 			},
 		}
-		cacheRegistry = registry.NewInstrumentedRegistry(cacheRegistry)
+		imageRegistry = registry.NewInstrumentedRegistry(imageRegistry)
 
 		// Remote client, for warmer to refresh entries
 		registryLogger := log.With(logger, "component", "registry")
@@ -709,7 +710,7 @@ func main() {
 		V:                         version,
 		Cluster:                   k8s,
 		Manifests:                 k8sManifests,
-		Registry:                  cacheRegistry,
+		Registry:                  imageRegistry,
 		ImageRefresh:              make(chan image.Name, 100), // size chosen by fair dice roll
 		Repo:                      repo,
 		GitConfig:                 gitConfig,
@@ -761,11 +762,11 @@ func main() {
 	shutdownWg.Add(1)
 	go daemon.Loop(shutdown, shutdownWg, log.With(logger, "component", "sync-loop"))
 
-	cacheWarmer.Notify = daemon.AskForAutomatedWorkloadImageUpdates
-	cacheWarmer.Priority = daemon.ImageRefresh
-	cacheWarmer.Trace = *registryTrace
-	shutdownWg.Add(1)
 	if !*disableImageScan {
+		cacheWarmer.Notify = daemon.AskForAutomatedWorkloadImageUpdates
+		cacheWarmer.Priority = daemon.ImageRefresh
+		cacheWarmer.Trace = *registryTrace
+		shutdownWg.Add(1)
 		go cacheWarmer.Loop(log.With(logger, "component", "warmer"), shutdown, shutdownWg, imageCreds)
 	}
 
