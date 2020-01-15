@@ -20,7 +20,6 @@ type LoopVars struct {
 	GitTimeout          time.Duration
 	GitVerifySignatures bool
 	SyncState           fluxsync.State
-	ImageScanEnabled    bool
 
 	initOnce               sync.Once
 	syncSoon               chan struct{}
