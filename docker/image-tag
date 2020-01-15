@@ -10,15 +10,28 @@ if [ "${1:-}" = '--show-diff' ]; then
 fi
 
 # If a tagged version, just print that tag
-HEAD_TAGS=$(git tag --points-at HEAD)
-if [ -n "${HEAD_TAGS}" ] ; then
-    # remove helm- prefix from helm-op release name
-    if echo "${HEAD_TAGS}" | grep -Eq "helm-[0-9]+(\.[0-9]+)*(-[a-z]+)?$"; then
-      HEAD_TAGS=$(echo "$HEAD_TAGS" | cut -c 6-)
-    fi
-	echo ${HEAD_TAGS}
-	exit 0
-fi
+HEAD_TAGS=( $(git tag --points-at HEAD) )
+case ${#HEAD_TAGS[@]} in
+    0)  ;;
+
+    1)  echo ${HEAD_TAGS[0]}; exit 0
+	;;
+
+    2) # For releases we may have two tags, one with an v prefix (e.g. v1.17.0 and 1.17.0),
+       # discard the v prefix
+       TAG1=${HEAD_TAGS[0]}
+       TAG2=${HEAD_TAGS[1]}
+       if [[ "${TAG1}" == v* && ${TAG1%$TAG2} == "v" ]]; then
+           echo ${TAG2}; exit 0
+       fi
+       if [[ "${TAG2}" == v* && ${TAG2%$TAG1} == "v" ]]; then
+           echo ${TAG1}; exit 0
+       fi
+       ;&
+
+    *) echo "error: more than one tag pointing to HEAD" >&2; exit 1; ;;
+esac
+
 
 
 WORKING_SUFFIX=$(if ! git diff --exit-code ${OUTPUT} HEAD >&2; \
