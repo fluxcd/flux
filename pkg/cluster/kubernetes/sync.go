@@ -303,7 +303,12 @@ func (c *Cluster) getAllowedResourcesBySelector(selector string) (map[string]*ku
 				if itemDesc == "v1:ComponentStatus" || itemDesc == "v1:Endpoints" {
 					continue
 				}
-				// TODO(michael) also exclude anything that has an ownerReference (that isn't "standard"?)
+
+				// exclude anything that has an ownerReference
+				owners := item.GetOwnerReferences()
+				if owners != nil && len(owners) > 0 {
+					continue
+				}
 
 				res := &kuberesource{obj: &list[i], namespaced: apiResource.Namespaced}
 				result[res.ResourceID().String()] = res
