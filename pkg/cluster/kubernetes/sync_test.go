@@ -241,9 +241,10 @@ func setup(t *testing.T) (*Cluster, *fakeApplier, func()) {
 	clients, cancel := fakeClients()
 	applier := &fakeApplier{dynamicClient: clients.dynamicClient, coreClient: clients.coreClient, defaultNS: defaultTestNamespace}
 	kube := &Cluster{
-		applier: applier,
-		client:  clients,
-		logger:  log.NewLogfmtLogger(os.Stdout),
+		applier:             applier,
+		client:              clients,
+		logger:              log.NewLogfmtLogger(os.Stdout),
+		resourceExcludeList: []string{"*metrics.k8s.io/*", "webhook.certmanager.k8s.io/v1beta1/*"},
 	}
 	return kube, applier, cancel
 }
@@ -305,6 +306,11 @@ func TestSyncTolerateMetricsErrors(t *testing.T) {
 	// Check that syncing doesn't result in an error for a metrics group
 	kube.client.discoveryClient.(*cachedDiscovery).CachedDiscoveryInterface.Invalidate()
 	fakeClient.Resources = []*metav1.APIResourceList{{GroupVersion: "custom.metrics.k8s.io/v1"}}
+	err = kube.Sync(cluster.SyncSet{})
+	assert.NoError(t, err)
+
+	kube.client.discoveryClient.(*cachedDiscovery).CachedDiscoveryInterface.Invalidate()
+	fakeClient.Resources = []*metav1.APIResourceList{{GroupVersion: "webhook.certmanager.k8s.io/v1beta1"}}
 	err = kube.Sync(cluster.SyncSet{})
 	assert.NoError(t, err)
 }

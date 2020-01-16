@@ -109,20 +109,22 @@ type Cluster struct {
 	allowedNamespaces map[string]struct{}
 	loggedAllowedNS   map[string]bool // to keep track of whether we've logged a problem with seeing an allowed namespace
 
-	imageExcludeList []string
-	mu               sync.Mutex
+	imageExcludeList    []string
+	resourceExcludeList []string
+	mu                  sync.Mutex
 }
 
 // NewCluster returns a usable cluster.
-func NewCluster(client ExtendedClient, applier Applier, sshKeyRing ssh.KeyRing, logger log.Logger, allowedNamespaces map[string]struct{}, imageExcludeList []string) *Cluster {
+func NewCluster(client ExtendedClient, applier Applier, sshKeyRing ssh.KeyRing, logger log.Logger, allowedNamespaces map[string]struct{}, imageExcludeList []string, resourceExcludeList []string) *Cluster {
 	c := &Cluster{
-		client:            client,
-		applier:           applier,
-		logger:            logger,
-		sshKeyRing:        sshKeyRing,
-		allowedNamespaces: allowedNamespaces,
-		loggedAllowedNS:   map[string]bool{},
-		imageExcludeList:  imageExcludeList,
+		client:              client,
+		applier:             applier,
+		logger:              logger,
+		sshKeyRing:          sshKeyRing,
+		allowedNamespaces:   allowedNamespaces,
+		loggedAllowedNS:     map[string]bool{},
+		imageExcludeList:    imageExcludeList,
+		resourceExcludeList: resourceExcludeList,
 	}
 
 	return c

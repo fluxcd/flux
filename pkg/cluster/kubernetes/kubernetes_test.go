@@ -32,7 +32,7 @@ func testGetAllowedNamespaces(t *testing.T, namespace []string, expected []strin
 	for _, n := range namespace {
 		allowedNamespaces[n] = struct{}{}
 	}
-	c := NewCluster(client, nil, nil, log.NewNopLogger(), allowedNamespaces, []string{})
+	c := NewCluster(client, nil, nil, log.NewNopLogger(), allowedNamespaces, []string{}, []string{})
 
 	namespaces, err := c.getAllowedAndExistingNamespaces(context.Background())
 	if err != nil {
