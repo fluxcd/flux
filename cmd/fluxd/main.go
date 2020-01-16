@@ -178,7 +178,7 @@ func main() {
 		k8sNamespaceWhitelist = fs.StringSlice("k8s-namespace-whitelist", []string{}, "restrict the view of the cluster to the namespaces listed. All namespaces are included if this is not set")
 		k8sAllowNamespace     = fs.StringSlice("k8s-allow-namespace", []string{}, "restrict all operations to the provided namespaces")
 		k8sDefaultNamespace   = fs.String("k8s-default-namespace", "", "the namespace to use for resources where a namespace is not specified")
-		k8sExcludeResource    = fs.StringSlice("k8s-exclude-resource", []string{"*metrics.k8s.io/*", "webhook.certmanager.k8s.io/*", "v1/Event"}, "do not attempt to obtain cluster resources whose group/version/kind matches these glob expressions")
+		k8sExcludeResource    = fs.StringSlice("k8s-unsafe-exclude-resource", []string{"*metrics.k8s.io/*", "webhook.certmanager.k8s.io/*", "v1/Event"}, "do not attempt to obtain cluster resources whose group/version/kind matches these glob expressions. Potentially unsafe, please read its documentation first")
 		k8sVerbosity          = fs.Int("k8s-verbosity", 0, "klog verbosity level")
 
 		// SSH key generation
