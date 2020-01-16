@@ -1,0 +1,16 @@
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: --registry-scanning=true
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: --registry-exclude-image=*bitnami/mongodb,*bitnami/redis,*k8s.gcr.io*,*docker/kube-*,*fluxcd/flux,*alpine,*memcached,*stefanprodan/gitsrv,*registry
+# replace docker's registry by our local one
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: --registry-insecure-host=index.docker.io
+- op: add
+  path: /spec/template/spec/hostAliases
+  value:
+    - ip: "${REGISTRY_SERVICE_IP}"
+      hostnames:
+      - "index.docker.io"
