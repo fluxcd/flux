@@ -29,10 +29,8 @@ function setup() {
   defer rm -rf "'$clone_dir'"
   git clone -b master ssh://git@localhost/git-server/repos/cluster.git "$clone_dir"
   cd "$clone_dir"
-  local sync_tag_hash
-  sync_tag_hash=$(git rev-list -n 1 flux)
   head_hash=$(git rev-list -n 1 HEAD)
-  [ "$sync_tag_hash" = "$head_hash" ]
+  poll_until_equals "sync tag" "$head_hash" 'git pull -f --tags > /dev/null 2>&1; git rev-list -n 1 flux'
 
   # Remove a manifest and commit that
   git rm workloads/podinfo-dep.yaml
