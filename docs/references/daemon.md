@@ -87,7 +87,7 @@ Version controlling of cluster manifests provides reproducibility and a historic
 | **k8s configuration**
 | --k8s-allow-namespace                            |                                    | restrict all operations to the provided namespaces
 | --k8s-default-namespace                          |                                    | the namespace to use for resources where a namespace is not specified
-| --k8s-exclude-resource                           | `["*metrics.k8s.io/*", "webhook.certmanager.k8s.io/*", "v1/Event"]` | do not attempt to obtain cluster resources whose group/version/kind matches these glob expressions, e.g. `coordination.k8s.io/v1beta1/Lease`, `coordination.k8s.io/*/Lease` or `coordination.k8s.io/*`
+| --k8s-unsafe-exclude-resource                    | `["*metrics.k8s.io/*", "webhook.certmanager.k8s.io/*", "v1/Event"]` | do not attempt to obtain cluster resources whose group/version/kind matches these glob expressions, e.g. `coordination.k8s.io/v1beta1/Lease`, `coordination.k8s.io/*/Lease` or `coordination.k8s.io/*`. Potentially unsafe, please read Flux's troubleshooting section on `--k8s-unsafe-exclude-resource` before using it.
 | **upstream service**
 | --connect                                        |                                    | connect to an upstream service e.g., Weave Cloud, at this base address
 | --token                                          |                                    | authentication token for upstream service
