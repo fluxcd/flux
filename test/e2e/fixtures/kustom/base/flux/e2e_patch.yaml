@@ -10,7 +10,7 @@
   value: --sync-interval=10s
 - op: add
   path: /spec/template/spec/containers/0/args/-
-  value: --registry-exclude-image=*
+  value: --registry-scanning=false
 - op: add
   path: /spec/template/spec/containers/0/volumeMounts/-
   value:
