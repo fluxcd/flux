@@ -339,7 +339,14 @@ If the replicas field is not present in Git, Flux will not override the replica 
 
 ### Can I disable Flux registry scanning?
 
-You can exclude images from being scanned by providing a list of glob expressions using the `registry-exclude-image` flag.
+You can completely disable registry scanning by using the
+`--registry-scanning=false` flag. This allows deploying Flux without Memcached.
+
+
+If you only want to disable scanning for certain images, you can keep
+`--registry-scanning` set to `true` (its default value) and tell Flux
+what images to exclude. This is done by supplying a list of glob expressions
+using the `registry-exclude-image` flag.
 
 Exclude images from Docker Hub and Quay.io:
 
@@ -357,12 +364,6 @@ Exclude images containing `test` in the FQN:
 
 ```
 --registry-exclude-image=*test*
-```
-
-Disable image scanning for all images:
-
-```
---registry-exclude-image=*
 ```
 
 ### Does Flux support Kustomize/Templating/My favorite manifest factorization technology?
