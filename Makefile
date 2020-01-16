@@ -118,8 +118,10 @@ cache/%/kubectl-$(KUBECTL_VERSION): docker/kubectl.version
 
 cache/%/kustomize-$(KUSTOMIZE_VERSION): docker/kustomize.version
 	mkdir -p cache/$*
-	curl --fail -L -o $@ "https://github.com/kubernetes-sigs/kustomize/releases/download/v$(KUSTOMIZE_VERSION)/kustomize_$(KUSTOMIZE_VERSION)_`echo $* | tr - _`"
-	[ $* != "linux-amd64" ] || echo "$(KUSTOMIZE_CHECKSUM)  $@" | shasum -a 256 -c
+	curl --fail -L -o cache/$*/kustomize-$(KUSTOMIZE_VERSION).tar.gz "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv$(KUSTOMIZE_VERSION)/kustomize_v$(KUSTOMIZE_VERSION)_linux_amd64.tar.gz"
+	echo "$(KUSTOMIZE_CHECKSUM)  cache/$*/kustomize-$(KUSTOMIZE_VERSION).tar.gz" | shasum -a 256 -c
+	tar -m -C ./cache -xzf cache/$*/kustomize-$(KUSTOMIZE_VERSION).tar.gz kustomize
+	mv cache/kustomize $@
 
 cache/%/helm-$(HELM_VERSION):
 	mkdir -p cache/$*
