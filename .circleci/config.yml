@@ -29,19 +29,6 @@ jobs:
             git config --global user.email fluxcdbot@users.noreply.github.com
             git config --global user.name fluxcdbot
 
-            # Push to fluxcd/flux gh-pages branch
-            if echo "${CIRCLE_TAG}" | grep -Eq "chart-[0-9]+(\.[0-9]+)*(-[a-z]+)?$"; then
-              REPOSITORY="https://fluxcdbot:${GITHUB_TOKEN}@github.com/fluxcd/flux.git"
-              git remote set-url origin ${REPOSITORY}
-              git checkout gh-pages
-              cp $HOME/chart/*.tgz .
-              helm repo index . --url https://fluxcd.github.io/flux
-              git add .
-              git commit -m "Publish Helm chart"
-              git push origin gh-pages
-            else
-              echo "Not a chart release! Skip chart publish"
-            fi
             # Push to fluxcd/charts gh-pages branch
             if echo "${CIRCLE_TAG}" | grep -Eq "chart-[0-9]+(\.[0-9]+)*(-[a-z]+)?$"; then
               REPOSITORY="https://fluxcdbot:${GITHUB_TOKEN}@github.com/fluxcd/charts.git"
