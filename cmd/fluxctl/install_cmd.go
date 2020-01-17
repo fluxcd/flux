@@ -51,9 +51,7 @@ fluxctl install --git-url 'git@github.com:<your username>/flux-get-started' | ku
 	cmd.Flags().BoolVar(&opts.RegistryScanning, "registry-scanning", true,
 		"scan container image registries to fill in the registry cache")
 	cmd.Flags().StringVarP(&opts.outputDir, "output-dir", "o", "", "a directory in which to write individual manifests, rather than printing to stdout")
-	cmd.Flags().BoolVar(&opts.OpenShiftTarget, "oc", false, "Install flux on OpenShift")
-	cmd.Flags().BoolVar(&opts.OpenShiftAddMemcachedSCC, "oc-add-memcached-scc", false, "Create a new SCC for memcached. Defaults to 'false'")
-	cmd.Flags().BoolVar(&opts.OpenShiftAddFluxSCC, "oc-add-flux-scc", false, "Create a new SCC for flux. Defaults to 'false'")
+	cmd.Flags().BoolVar(&opts.NoSecurityContext, "no-security-context", false, "Ensure that no security context information is added to the pod specs. Defaults to 'false'")
 
 	// Hide and deprecate "git-paths", which was wrongly introduced since its inconsistent with fluxd's git-path flag
 	cmd.Flags().MarkHidden("git-paths")
