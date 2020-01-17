@@ -454,7 +454,7 @@ func main() {
 		clusterVersion = "kubernetes-" + serverVersion.GitVersion
 
 		fileinfo, err := os.Stat(k8sInClusterSecretsBaseDir)
-		isInCluster := err != nil && fileinfo.IsDir()
+		isInCluster := err == nil && fileinfo.IsDir()
 		if isInCluster && !httpGitURL {
 			namespace, err := ioutil.ReadFile(filepath.Join(k8sInClusterSecretsBaseDir, "serviceaccount/namespace"))
 			if err != nil {
