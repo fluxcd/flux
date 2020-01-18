@@ -27,7 +27,7 @@ case ${#HEAD_TAGS[@]} in
        if [[ "${TAG2}" == v* && ${TAG2%$TAG1} == "v" ]]; then
            echo ${TAG1}; exit 0
        fi
-       ;&
+       ;;
 
     *) echo "error: more than one tag pointing to HEAD" >&2; exit 1; ;;
 esac
