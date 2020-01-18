@@ -215,6 +215,9 @@ spec:
           {{- if .Values.git.label }}
           - --git-label={{ .Values.git.label }}
           {{- end }}
+          {{- if .Values.sops.enabled }}
+          - --sops={{ .Values.sops.enabled }}
+          {{- end }}
           {{- if .Values.manifestGeneration }}
           - --manifest-generation=true
           {{- end }}
