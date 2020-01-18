@@ -231,6 +231,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `git.config.data`                                 | `None`                                               | Global Git configuration per [git-config](https://git-scm.com/docs/git-config)
 | `gpgKeys.secretName`                              | `None`                                               | Kubernetes secret with GPG keys the Flux daemon should import
 | `gpgKeys.configMapName`                           | `None`                                               | Kubernetes config map with public GPG keys the Flux daemon should import
+| `sops.enabled`                                    | `false`                                              | If `true` SOPS support will be enabled
 | `ssh.known_hosts`                                 | `None`                                               | The contents of an SSH `known_hosts` file, if you need to supply host key(s)
 | `registry.automationInterval`                     | `5m`                                                 | Period at which to check for updated images
 | `registry.rps`                                    | `200`                                                | Maximum registry requests per second per host

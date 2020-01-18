@@ -132,6 +132,10 @@ git:
     #   [credential "https://github.com"]
     #           username = foo
 
+# If `true` SOPS support will be enabled
+sops:
+  enabled: false
+
 registry:
   # Period at which to check for updated images
   automationInterval: "5m"
