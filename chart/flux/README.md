@@ -39,13 +39,18 @@ helm repo add fluxcd https://charts.fluxcd.io
 
 #### Install the chart with the release name `flux`
 
+1. Create the flux namespace:
+
+   ```sh
+   kubectl create namespace flux
+   ```
+
 1. Replace `fluxcd/flux-get-started` with your own git repository and run helm install:
 
    ```sh
-   helm install --name flux \
+   helm upgrade -i flux fluxcd/flux \
    --set git.url=git@github.com:fluxcd/flux-get-started \
-   --namespace flux \
-   fluxcd/flux
+   --namespace flux
    ```
 
 1. Setup Git deploy
@@ -92,11 +97,10 @@ to securely provide the HTTPS credentials which then can be used in the
 1. Install Flux:
 
    ```sh
-   helm install --name flux \
+   helm upgrade -i flux fluxcd/flux \
    --set git.url='https://$(GIT_AUTHUSER):$(GIT_AUTHKEY)@github.com/fluxcd/flux-get-started.git' \
    --set env.secretName=flux-git-auth \
-   --namespace flux \
-   fluxcd/flux
+   --namespace flux
    ```
 
 #### Flux with a private git host
@@ -130,12 +134,10 @@ called `flux-ssh-config` which in turn will be mounted into a volume named
      domain ecdsa-sha2-line2
      domain ssh-ed25519 line3'
 
-     helm install \
-     --name flux \
+     helm upgrade -i flux fluxcd/flux \
      --set git.url="git@${YOUR_GIT_HOST}:${YOUR_GIT_USER}/flux-get-started" \
      --set-string ssh.known_hosts="${KNOWN_HOSTS}" \
-     --namespace flux \
-     fluxcd/flux
+     --namespace flux
      ```
 
    - Using a file for setting `known_hosts`
@@ -146,22 +148,19 @@ called `flux-ssh-config` which in turn will be mounted into a volume named
      YOUR_GIT_HOST=your_git_host.example.com
      YOUR_GIT_USER=your_git_user
 
-     helm install \
-     --name flux \
+     helm upgrade -i flux fluxcd/flux \
      --set git.url="git@${YOUR_GIT_HOST}:${YOUR_GIT_USER}/flux-get-started" \
      --set-file ssh.known_hosts=/tmp/flux_known_hosts \
-     --namespace flux \
-     fluxcd/flux
+     --namespace flux
      ```
 
 #### Connect Flux to a Weave Cloud instance
 
 ```sh
-helm install --name flux \
+helm upgrade -i flux fluxcd/flux \
 --set git.url=git@github.com:fluxcd/flux-get-started \
 --set token=YOUR_WEAVE_CLOUD_SERVICE_TOKEN \
---namespace flux \
-fluxcd/flux
+--namespace flux
 ```
 
 ### Uninstalling the Chart
@@ -169,7 +168,7 @@ fluxcd/flux
 To uninstall/delete the `flux` deployment:
 
 ```sh
-helm delete --purge flux
+helm delete flux
 ```
 
 The command removes all the Kubernetes components associated with the chart and deletes the release.
@@ -276,7 +275,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example:
 
 ```sh
-helm upgrade --install --wait flux \
+helm upgrade -i flux fluxcd/flux \
 --set git.url=git@github.com:stefanprodan/k8s-podinfo \
 --set git.path="deploy/auto-scaling\,deploy/local-storage" \
 --namespace flux \
@@ -288,7 +287,6 @@ fluxcd/flux
 Update Flux version with:
 
 ```sh
-helm upgrade --reuse-values flux \
---set image.tag=1.8.1 \
-fluxcd/flux
+helm upgrade --reuse-values flux fluxcd/flux \
+--set image.tag=1.17.1
 ```
