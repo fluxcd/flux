@@ -5,6 +5,7 @@ source "${E2E_DIR}/lib/defer.bash"
 # shellcheck disable=SC1090
 source "${E2E_DIR}/lib/template.bash"
 
+# pushes an empty image (layerless) to a given registry
 function push_empty_image() {
   local registry_host=$1
   local image_name_and_tag=$2
