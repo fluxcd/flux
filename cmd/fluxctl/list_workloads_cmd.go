@@ -17,6 +17,7 @@ type workloadListOpts struct {
 	namespace     string
 	allNamespaces bool
 	containerName string
+	noHeaders     bool
 }
 
 func newWorkloadList(parent *rootOpts) *workloadListOpts {
@@ -34,6 +35,7 @@ func (opts *workloadListOpts) Command() *cobra.Command {
 	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "", "Confine query to namespace")
 	cmd.Flags().BoolVarP(&opts.allNamespaces, "all-namespaces", "a", false, "Query across all namespaces")
 	cmd.Flags().StringVarP(&opts.containerName, "container", "c", "", "Filter workloads by container name")
+	cmd.Flags().BoolVar(&opts.noHeaders, "no-headers", false, "Don't print headers (default print headers)")
 	return cmd
 }
 
@@ -63,7 +65,10 @@ func (opts *workloadListOpts) RunE(cmd *cobra.Command, args []string) error {
 	sort.Sort(workloadStatusByName(workloads))
 
 	w := newTabwriter()
-	fmt.Fprintf(w, "WORKLOAD\tCONTAINER\tIMAGE\tRELEASE\tPOLICY\n")
+	if !opts.noHeaders {
+		fmt.Fprintf(w, "WORKLOAD\tCONTAINER\tIMAGE\tRELEASE\tPOLICY\n")
+	}
+
 	for _, workload := range workloads {
 		if len(workload.Containers) > 0 {
 			c := workload.Containers[0]

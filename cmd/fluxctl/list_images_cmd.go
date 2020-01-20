@@ -17,9 +17,10 @@ import (
 
 type imageListOpts struct {
 	*rootOpts
-	namespace string
-	workload  string
-	limit     int
+	namespace   string
+	workload    string
+	limit       int
+	noHeaders   bool
 
 	// Deprecated
 	controller string
@@ -39,6 +40,7 @@ func (opts *imageListOpts) Command() *cobra.Command {
 	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "", "Namespace")
 	cmd.Flags().StringVarP(&opts.workload, "workload", "w", "", "Show images for this workload")
 	cmd.Flags().IntVarP(&opts.limit, "limit", "l", 10, "Number of images to show (0 for all)")
+	cmd.Flags().BoolVar(&opts.noHeaders, "no-headers", false, "Don't print headers (default print headers)")
 
 	// Deprecated
 	cmd.Flags().StringVarP(&opts.controller, "controller", "c", "", "Show images for this controller")
@@ -83,7 +85,10 @@ func (opts *imageListOpts) RunE(cmd *cobra.Command, args []string) error {
 
 	out := newTabwriter()
 
-	fmt.Fprintln(out, "WORKLOAD\tCONTAINER\tIMAGE\tCREATED")
+	if !opts.noHeaders {
+		fmt.Fprintln(out, "WORKLOAD\tCONTAINER\tIMAGE\tCREATED")
+	}
+
 	for _, workload := range workloads {
 		if len(workload.Containers) == 0 {
 			fmt.Fprintf(out, "%s\t\t\t\n", workload.ID)
