@@ -82,6 +82,19 @@ files: {}
 	}
 }
 
+const justFilesConfigFile = `
+version: 1
+files: {}
+`
+
+func TestJustFileDirective(t *testing.T) {
+	var cf ConfigFile
+	err := ParseConfigFile([]byte(justFilesConfigFile), &cf)
+	assert.NoError(t, err)
+
+	assert.True(t, cf.IsJustFiles())
+}
+
 const patchUpdatedConfigFile = `---
 version: 1
 patchUpdated:
@@ -96,6 +109,7 @@ func TestParsePatchUpdatedConfigFile(t *testing.T) {
 	if err := ParseConfigFile([]byte(patchUpdatedConfigFile), &cf); err != nil {
 		t.Fatal(err)
 	}
+	assert.False(t, cf.IsJustFiles())
 	assert.NotNil(t, cf.PatchUpdated)
 	assert.Nil(t, cf.CommandUpdated)
 	assert.Equal(t, 1, cf.Version)
@@ -126,6 +140,7 @@ func TestParseCmdUpdatedConfigFile(t *testing.T) {
 	if err := ParseConfigFile([]byte(echoCmdUpdatedConfigFile), &cf); err != nil {
 		t.Fatal(err)
 	}
+	assert.False(t, cf.IsJustFiles())
 	assert.NotNil(t, cf.CommandUpdated)
 	assert.Nil(t, cf.PatchUpdated)
 	assert.Equal(t, 1, cf.Version)

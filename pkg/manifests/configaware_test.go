@@ -384,3 +384,30 @@ func TestDuplicateInGenerators(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "duplicate")
 }
+
+func TestJustFiles(t *testing.T) {
+	// +-- config
+	//   +-- .flux.yaml (patchUpdated)
+	//   +-- rawfiles
+	//     +-- .flux.yaml (files)
+	//     +-- manifest.yaml
+
+	manifestyaml := `
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: foo-ns
+`
+
+	config, baseDir, cleanup := setup(t, []string{filepath.Join("config", "rawfiles")},
+		config{path: "config", fluxyaml: patchUpdatedEchoConfigFile},
+		config{path: filepath.Join("config", "rawfiles"), fluxyaml: "version: 1\nfiles: {}\n"},
+	)
+	defer cleanup()
+
+	assert.NoError(t, ioutil.WriteFile(filepath.Join(baseDir, "config", "rawfiles", "manifest.yaml"), []byte(manifestyaml), 0600))
+
+	res, err := config.GetAllResourcesByID(context.Background())
+	assert.NoError(t, err)
+	assert.Contains(t, res, "default:namespace/foo-ns")
+}

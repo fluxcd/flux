@@ -155,6 +155,15 @@ type PatchUpdated struct {
 type Files struct {
 }
 
+// IsJustFiles returns true if the config file indicates that the
+// directory should be treated as containing YAML files (i.e., should
+// act as though there was no config file in operation). This can be
+// used to reset the directive given by a .flux.yaml higher in the
+// directory structure.
+func (cf *ConfigFile) IsJustFiles() bool {
+	return cf.Files != nil
+}
+
 func ParseConfigFile(fileBytes []byte, result *ConfigFile) error {
 	// The file contents are unmarshaled into a map so that we will
 	// see any extraneous fields. This is important, for example, for
