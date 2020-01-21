@@ -112,9 +112,11 @@ func policies(s v6.ControllerStatus) string {
 func filterByContainerName(workloads []v6.ControllerStatus, containerName string) (filteredWorkloads []v6.ControllerStatus) {
     for _, workload := range workloads {
         if len(workload.Containers) > 0 {
-			c := workload.Containers[0]
-			if c.Name == containerName {
-				filteredWorkloads = append(filteredWorkloads, workload)
+			for _, c := range workload.Containers {
+				if c.Name == containerName {
+					filteredWorkloads = append(filteredWorkloads, workload)
+					break
+				}
 			}
 		}
     }
