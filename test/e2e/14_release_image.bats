@@ -54,8 +54,8 @@ function setup() {
   poll_until_equals "sync tag" "$head_hash" 'git pull -f --tags > /dev/null 2>&1; git rev-list -n 1 flux'
 
   # Wait for the registry scanner to fo its magic on stefanprodan/podinfo and bitnami/ghost
-  poll_until_true "stefanprodan/podinfo to be scanned" "kubectl logs -n $FLUX_NAMESPACE deploy/flux | grep -q \"component=warmer updated=stefanprodan/podinfo\""
-  poll_until_true "bitnami/ghost to be scanned" "kubectl logs -n $FLUX_NAMESPACE deploy/flux | grep -q \"component=warmer updated=bitnami/ghost\""
+  poll_until_true "stefanprodan/podinfo to be scanned" "kubectl logs -n $FLUX_NAMESPACE deploy/flux | grep -q \"component=warmer updated=stefanprodan/podinfo\"" 5 50
+  poll_until_true "bitnami/ghost to be scanned" "kubectl logs -n $FLUX_NAMESPACE deploy/flux | grep -q \"component=warmer updated=bitnami/ghost\"" 5 50
 
   # Manually release podinfo to version 3.0.5
   fluxctl --k8s-fwd-ns "${FLUX_NAMESPACE}" deautomate --workload=demo:deployment/podinfo
