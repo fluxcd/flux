@@ -62,7 +62,7 @@ realclean: clean
 test: test/bin/helm test/bin/kubectl test/bin/sops test/bin/kustomize $(GENERATED_TEMPLATES_FILE)
 	PATH="${PWD}/bin:${PWD}/test/bin:${PATH}" go test ${TEST_FLAGS} $(shell go list ./... | sort -u)
 
-e2e: lint-e2e test/bin/helm test/bin/kubectl test/bin/sops test/e2e/bats $(GOBIN)/fluxctl build/.flux.done
+e2e: lint-e2e test/bin/helm test/bin/kubectl test/bin/sops test/bin/crane test/e2e/bats $(GOBIN)/fluxctl build/.flux.done
 	PATH="${PWD}/test/bin:${PATH}" CURRENT_OS_ARCH=$(CURRENT_OS_ARCH) test/e2e/run.bash
 
 E2E_BATS_FILES := test/e2e/*.bats
@@ -151,6 +151,10 @@ test/e2e/bats: cache/bats-core-$(BATS_COMMIT).tar.gz
 cache/bats-core-$(BATS_COMMIT).tar.gz:
 	# Use 2opremio's fork until https://github.com/bats-core/bats-core/pull/255 is merged
 	curl --fail -L -o $@ https://github.com/2opremio/bats-core/archive/$(BATS_COMMIT).tar.gz
+
+test/bin/crane:
+	mkdir -p $(@D)
+	go build -o $@ github.com/google/go-containerregistry/cmd/crane
 
 $(GOBIN)/fluxctl: $(FLUXCTL_DEPS) $(GENERATED_TEMPLATES_FILE)
 	go install ./cmd/fluxctl

@@ -6,4 +6,4 @@ patchesJson6902:
     version: v1
     kind: Deployment
     name: flux
-  path: gc_patch.yaml
+  path: release_image_patch.yaml

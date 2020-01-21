@@ -5,6 +5,9 @@ go 1.13
 // remove when https://github.com/docker/distribution/pull/2905 is released.
 replace github.com/docker/distribution => github.com/2opremio/distribution v0.0.0-20190419185413-6c9727e5e5de
 
+// remove when https://github.com/google/go-containerregistry/pull/661 is merged.
+replace github.com/google/go-containerregistry => github.com/2opremio/go-containerregistry v0.0.0-20200120142434-5d8cba6ae83d
+
 // fix go-autorest ambiguous import caused by sops
 // sops needs to update their deps ref: https://github.com/kubernetes/client-go/issues/628
 replace github.com/Azure/go-autorest => github.com/Azure/go-autorest v12.2.0+incompatible
@@ -21,7 +24,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.0.3
 	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
 	github.com/VividCortex/gohistogram v1.0.0 // indirect
-	github.com/aws/aws-sdk-go v1.27.0
+	github.com/aws/aws-sdk-go v1.27.1
 	github.com/bradfitz/gomemcache v0.0.0-20190329173943-551aad21a668
 	github.com/cheggaaa/pb/v3 v3.0.2
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
@@ -33,8 +36,9 @@ require (
 	github.com/gogo/googleapis v1.3.1 // indirect
 	github.com/gogo/status v1.1.0 // indirect
 	github.com/golang/gddo v0.0.0-20190312205958-5a2505f3dbf0
+	github.com/google/go-containerregistry v0.0.0-20200115214256-379933c9c22b // indirect
 	github.com/google/go-github/v28 v28.1.1
-	github.com/gorilla/mux v1.7.1
+	github.com/gorilla/mux v1.7.3
 	github.com/gorilla/websocket v1.4.0
 	github.com/imdario/mergo v0.3.8
 	github.com/instrumenta/kubeval v0.0.0-20190804145309-805845b47dfc
@@ -62,9 +66,9 @@ require (
 	golang.org/x/sys v0.0.0-20191028164358-195ce5e7f934
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
 	gopkg.in/yaml.v2 v2.2.4
-	k8s.io/api v0.0.0-20191016110408-35e52d86657a // kubernetes-1.16.2
+	k8s.io/api v0.17.0 // kubernetes-1.16.2
 	k8s.io/apiextensions-apiserver v0.0.0-20191016113550-5357c4baaf65 // kubernetes-1.16.2
-	k8s.io/apimachinery v0.0.0-20191004115801-a2eda9f80ab8 // kubernetes-1.16.2
+	k8s.io/apimachinery v0.17.0 // kubernetes-1.16.2
 	k8s.io/client-go v11.0.0+incompatible
 	k8s.io/helm v2.16.1+incompatible
 	k8s.io/klog v1.0.0
