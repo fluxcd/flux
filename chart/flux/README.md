@@ -228,6 +228,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `git.config.enabled`                              | `false`                                              | Mount `$HOME/.gitconfig` via Secret into the Flux and HelmOperator Pods, allowing for custom global Git configuration
 | `git.config.secretName`                           | `Computed`                                           | Kubernetes secret with the global Git configuration
 | `git.config.data`                                 | `None`                                               | Global Git configuration per [git-config](https://git-scm.com/docs/git-config)
+| `podLabels`                                       | `{}`                                                 | Additional labels for the Flux pod
 | `gpgKeys.secretName`                              | `None`                                               | Kubernetes secret with GPG keys the Flux daemon should import
 | `gpgKeys.configMapName`                           | `None`                                               | Kubernetes config map with public GPG keys the Flux daemon should import
 | `sops.enabled`                                    | `false`                                              | If `true` SOPS support will be enabled
