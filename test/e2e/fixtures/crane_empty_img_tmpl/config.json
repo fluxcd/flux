@@ -47,7 +47,10 @@
     "WorkingDir": "",
     "Entrypoint": null,
     "OnBuild": null,
-    "Labels": null
+    "Labels": {
+      "org.opencontainers.image.created": "${CREATION_TIME}",
+      "org.label-schema.build-date": "${CREATION_TIME}"
+    }
   },
   "created": "${CREATION_TIME}",
   "docker_version": "19.03.5",
