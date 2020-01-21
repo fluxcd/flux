@@ -12,7 +12,7 @@ parts:
     source: .
     override-pull: |
       snapcraftctl pull
-      FLUX_TAG="$(git tag -l | egrep -v '^(chart-|helm-|master-|pre-split)' | sort --version-sort | tail -n1)"
+      FLUX_TAG="$(curl -s 'https://api.github.com/repos/fluxcd/flux/releases/latest' | jq -r .tag_name)"
       set +e
       git describe --exact-match --tags $(git log -n1 --pretty='%h')
       retVal=$?
@@ -35,6 +35,7 @@ parts:
     build-packages:
       - gcc
       - git
+      - jq
     build-snaps:
       - go/1.13/stable
     stage:
