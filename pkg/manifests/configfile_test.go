@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	//	jsonschema "github.com/xeipuuv/gojsonschema"
 
 	"github.com/fluxcd/flux/pkg/resource"
 )
@@ -72,7 +71,7 @@ patchUpdated:
 
 		"minimal files (the only kind)": `
 version: 1
-files: {}
+scanForFiles: {}
 `,
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -84,7 +83,7 @@ files: {}
 
 const justFilesConfigFile = `
 version: 1
-files: {}
+scanForFiles: {}
 `
 
 func TestJustFileDirective(t *testing.T) {
@@ -92,7 +91,7 @@ func TestJustFileDirective(t *testing.T) {
 	err := ParseConfigFile([]byte(justFilesConfigFile), &cf)
 	assert.NoError(t, err)
 
-	assert.True(t, cf.IsJustFiles())
+	assert.True(t, cf.IsScanForFiles())
 }
 
 const patchUpdatedConfigFile = `---
@@ -109,7 +108,7 @@ func TestParsePatchUpdatedConfigFile(t *testing.T) {
 	if err := ParseConfigFile([]byte(patchUpdatedConfigFile), &cf); err != nil {
 		t.Fatal(err)
 	}
-	assert.False(t, cf.IsJustFiles())
+	assert.False(t, cf.IsScanForFiles())
 	assert.NotNil(t, cf.PatchUpdated)
 	assert.Nil(t, cf.CommandUpdated)
 	assert.Equal(t, 1, cf.Version)
@@ -140,7 +139,7 @@ func TestParseCmdUpdatedConfigFile(t *testing.T) {
 	if err := ParseConfigFile([]byte(echoCmdUpdatedConfigFile), &cf); err != nil {
 		t.Fatal(err)
 	}
-	assert.False(t, cf.IsJustFiles())
+	assert.False(t, cf.IsScanForFiles())
 	assert.NotNil(t, cf.CommandUpdated)
 	assert.Nil(t, cf.PatchUpdated)
 	assert.Equal(t, 1, cf.Version)

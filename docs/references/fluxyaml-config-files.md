@@ -41,9 +41,8 @@ target path, or in a directory _above_ it in the git repository.
  - if no `.flux.yaml` file is found, the usual behaviour of looking
    for YAML files is adopted for that target path.
 
- - a `.flux.yaml` file containing the `files` directive resets the
-   behaviour to looking for YAML files. This is explained further,
-   below.
+ - a `.flux.yaml` file containing the `scanForFiles` directive resets
+   the behaviour to looking for YAML files. This is explained below.
 
 The manifests from all the target paths -- read from YAML files or
 generated -- are combined before applying to the cluster. If
@@ -111,18 +110,18 @@ Note also that the configuration file would **not** take effect for
 `--git-path=.` (i.e., the top directory), because manifest generation
 will not look in subdirectories for a `.flux.yaml` file.
 
-### The `files` directive
+### The `scanForFiles` directive
 
-The `files` directive indicates that the target path should be treated
-as though it had _no_ `.flux.yaml` in effect. In other words, fluxd
-will look for YAML files under the directory, and update manifests
-directly by rewriting the YAML files.
+The `scanForFiles` directive indicates that the target path should be
+treated as though it had _no_ `.flux.yaml` in effect. In other words,
+fluxd will look for YAML files under the directory, and update
+manifests directly by rewriting the YAML files.
 
-Here's an example `.flux.yaml` with the `files` directive:
+Here's an example `.flux.yaml` with the `scanForFiles` directive:
 
 ```
 version: 1
-files: {}
+scanForFiles: {}
 ```
 
 (The `{}` is an empty map, which acts as a placeholder value).
@@ -135,7 +134,7 @@ In the following example, the top-level `.flux.yaml` would take effect
 for `--git-path=staging` or `--git-path=production`.
 
 But if you wanted `yamls/permissions.yaml` to be applied (as it is),
-you could put a `.flux.yaml` containing `files` in that directory, and
+you could put a `.flux.yaml` containing `scanForFiles` in that directory, and
 specify `--git-path=staging,yamls`.
 
 ```
@@ -152,7 +151,7 @@ specify `--git-path=staging,yamls`.
 │   ├── kustomization.yaml
 │   └── replicas-patch.yaml
 ├── yamls
-│   ├── .flux.yaml # (with "files" directive)
+│   ├── .flux.yaml # (with "scanForFiles" directive)
 │   └── permissions.yaml
 └── staging
     ├── flux-patch.yaml
@@ -161,9 +160,9 @@ specify `--git-path=staging,yamls`.
 
 ## How to construct a .flux.yaml file
 
-Aside from the special case of the `files` directive, `.flux.yaml`
-files come in two varieties: "patch-updated", "command-updated". These
-refer to the way in which [automated
+Aside from the special case of the `scanForFiles` directive,
+`.flux.yaml` files come in two varieties: "patch-updated",
+"command-updated". These refer to the way in which [automated
 updates](./automated-image-update.md) are applied to files in the
 repo:
 

@@ -81,7 +81,7 @@ func splitConfigFilesAndRawManifestPaths(baseDir string, paths []string) ([]*Con
 		if err != nil {
 			return nil, nil, fmt.Errorf("cannot parse config file: %s", err)
 		}
-		if cf.IsJustFiles() {
+		if cf.IsScanForFiles() {
 			rawManifestPaths = append(rawManifestPaths, path)
 			continue
 		}

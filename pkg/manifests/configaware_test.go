@@ -385,11 +385,11 @@ func TestDuplicateInGenerators(t *testing.T) {
 	assert.Contains(t, err.Error(), "duplicate")
 }
 
-func TestJustFiles(t *testing.T) {
+func TestSccanForFiles(t *testing.T) {
 	// +-- config
 	//   +-- .flux.yaml (patchUpdated)
 	//   +-- rawfiles
-	//     +-- .flux.yaml (files)
+	//     +-- .flux.yaml (scanForFiles)
 	//     +-- manifest.yaml
 
 	manifestyaml := `
@@ -401,7 +401,7 @@ metadata:
 
 	config, baseDir, cleanup := setup(t, []string{filepath.Join("config", "rawfiles")},
 		config{path: "config", fluxyaml: patchUpdatedEchoConfigFile},
-		config{path: filepath.Join("config", "rawfiles"), fluxyaml: "version: 1\nfiles: {}\n"},
+		config{path: filepath.Join("config", "rawfiles"), fluxyaml: "version: 1\nscanForFiles: {}\n"},
 	)
 	defer cleanup()
 
