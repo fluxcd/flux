@@ -41,6 +41,10 @@ target path, or in a directory _above_ it in the git repository.
  - if no `.flux.yaml` file is found, the usual behaviour of looking
    for YAML files is adopted for that target path.
 
+ - a `.flux.yaml` file containing the `files` directive resets the
+   behaviour to looking for YAML files. This is explained further,
+   below.
+
 The manifests from all the target paths -- read from YAML files or
 generated -- are combined before applying to the cluster. If
 duplicates are detected, an error is logged and fluxd will abandon the
@@ -107,10 +111,59 @@ Note also that the configuration file would **not** take effect for
 `--git-path=.` (i.e., the top directory), because manifest generation
 will not look in subdirectories for a `.flux.yaml` file.
 
+### The `files` directive
+
+The `files` directive indicates that the target path should be treated
+as though it had _no_ `.flux.yaml` in effect. In other words, fluxd
+will look for YAML files under the directory, and update manifests
+directly by rewriting the YAML files.
+
+Here's an example `.flux.yaml` with the `files` directive:
+
+```
+version: 1
+files: {}
+```
+
+(The `{}` is an empty map, which acts as a placeholder value).
+
+This is to account for the case in which you have a `.flux.yaml`
+higher in the directory tree, applying to several target paths beneath
+it, but want to have a directory wth regular YAMLs as well.
+
+In the following example, the top-level `.flux.yaml` would take effect
+for `--git-path=staging` or `--git-path=production`.
+
+But if you wanted `yamls/permissions.yaml` to be applied (as it is),
+you could put a `.flux.yaml` containing `files` in that directory, and
+specify `--git-path=staging,yamls`.
+
+```
+.
+├── .flux.yaml
+├── base
+│   ├── demo-ns.yaml
+│   ├── kustomization.yaml
+│   ├── podinfo-dep.yaml
+│   ├── podinfo-hpa.yaml
+│   └── podinfo-svc.yaml
+├── production
+│   ├── flux-patch.yaml
+│   ├── kustomization.yaml
+│   └── replicas-patch.yaml
+├── yamls
+│   ├── .flux.yaml # (with "files" directive)
+│   └── permissions.yaml
+└── staging
+    ├── flux-patch.yaml
+    └── kustomization.yaml
+```
+
 ## How to construct a .flux.yaml file
 
-`.flux.yaml` files come in two varieties: "patch-updated", and
-"command-updated". These refer to the way in which [automated
+Aside from the special case of the `files` directive, `.flux.yaml`
+files come in two varieties: "patch-updated", "command-updated". These
+refer to the way in which [automated
 updates](./automated-image-update.md) are applied to files in the
 repo:
 
