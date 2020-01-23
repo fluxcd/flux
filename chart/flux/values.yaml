@@ -181,6 +181,7 @@ memcached:
   verbose: false
   maxItemSize: 5m
   maxMemory: 512
+  addSecurityContext: true
   securityContext:
     runAsUser: 11211
     runAsGroup: 11211

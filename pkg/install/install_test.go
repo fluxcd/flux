@@ -49,7 +49,7 @@ func testExtractDeployment(t *testing.T, data []byte) *v1.Deployment {
 }
 
 func TestFillInTemplatesAllParameters(t *testing.T) {
-	params := TemplateParameters{
+	testFillInTemplates(t, 5, TemplateParameters{
 		GitURL:             "git@github.com:fluxcd/flux-get-started",
 		GitBranch:          "branch",
 		GitPaths:           []string{"dir1", "dir2"},
@@ -61,22 +61,12 @@ func TestFillInTemplatesAllParameters(t *testing.T) {
 		ManifestGeneration: true,
 		AdditionalFluxArgs: []string{"arg1=foo", "arg2=bar"},
 		RegistryScanning:   true,
-		NoSecurityContext:  false,
-	}
-
-	manifests := testFillInTemplates(t, 6, params)
-
-	memDeploy := manifests["memcache-dep.yaml"]
-	deployment := testExtractDeployment(t, memDeploy)
-
-	container := deployment.Spec.Template.Spec.Containers[0]
-	if container.SecurityContext == nil {
-		t.Error("security context not found when there should be one")
-	}
+		AddSecurityContext: true,
+	})
 }
 
 func TestFillInTemplatesMissingValues(t *testing.T) {
-	testFillInTemplates(t, 6, TemplateParameters{
+	testFillInTemplates(t, 5, TemplateParameters{
 		GitURL:           "git@github.com:fluxcd/flux-get-started",
 		GitBranch:        "branch",
 		GitPaths:         []string{},
@@ -102,6 +92,33 @@ func TestFillInTemplatesNoMemcached(t *testing.T) {
 	})
 }
 
+func TestTestFillInTemplatesAddSecurityContext(t *testing.T) {
+	params := TemplateParameters{
+		GitURL:             "git@github.com:fluxcd/flux-get-started",
+		GitBranch:          "branch",
+		GitPaths:           []string{"dir1", "dir2"},
+		GitLabel:           "label",
+		GitUser:            "User",
+		GitEmail:           "this.is@anemail.com",
+		Namespace:          "flux",
+		GitReadOnly:        false,
+		ManifestGeneration: true,
+		AdditionalFluxArgs: []string{"arg1=foo", "arg2=bar"},
+		RegistryScanning:   true,
+		AddSecurityContext: true,
+	}
+
+	manifests := testFillInTemplates(t, 5, params)
+
+	memDeploy := manifests["memcache-dep.yaml"]
+	deployment := testExtractDeployment(t, memDeploy)
+
+	container := deployment.Spec.Template.Spec.Containers[0]
+	if container.SecurityContext == nil {
+		t.Error("security context not found when there should be one")
+	}
+}
+
 func TestFillInTemplatesNoSecurityContext(t *testing.T) {
 	params := TemplateParameters{
 		GitURL:             "git@github.com:fluxcd/flux-get-started",
@@ -115,10 +132,10 @@ func TestFillInTemplatesNoSecurityContext(t *testing.T) {
 		ManifestGeneration: true,
 		AdditionalFluxArgs: []string{"arg1=foo", "arg2=bar"},
 		RegistryScanning:   true,
-		NoSecurityContext:  true,
+		AddSecurityContext: false,
 	}
 
-	manifests := testFillInTemplates(t, 6, params)
+	manifests := testFillInTemplates(t, 5, params)
 	memDeploy := manifests["memcache-dep.yaml"]
 
 	deployment := testExtractDeployment(t, memDeploy)
