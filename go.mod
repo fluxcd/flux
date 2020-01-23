@@ -67,6 +67,7 @@ require (
 	github.com/weaveworks/go-checkpoint v0.0.0-20170503165305-ebbb8b0518ab
 	github.com/weaveworks/promrus v1.2.0 // indirect
 	github.com/whilp/git-urls v0.0.0-20160530060445-31bac0d230fa
+	github.com/xeipuuv/gojsonschema v1.1.0
 	go.mozilla.org/sops/v3 v3.5.0
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
 	golang.org/x/sys v0.0.0-20191028164358-195ce5e7f934

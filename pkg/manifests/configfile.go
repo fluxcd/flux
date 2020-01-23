@@ -11,8 +11,9 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
+	jsonschema "github.com/xeipuuv/gojsonschema"
 
 	"github.com/fluxcd/flux/pkg/image"
 	"github.com/fluxcd/flux/pkg/resource"
@@ -23,15 +24,79 @@ const (
 	CommandTimeout = time.Minute
 )
 
+// This is easier to read as YAML, trust me.
+const configSchemaYAML = `
+"$schema": http://json-schema.org/draft-07/schema#
+definitions:
+  command:
+    type: object
+    required: ['command']
+  version: { const: 1 }
+type: object
+oneOf:
+- required: ['version', 'commandUpdated']
+  properties:
+    version: { '$ref': '#/definitions/version' }
+    commandUpdated:
+      required: ['generators']
+      properties:
+        generators:
+          type: array
+          items: { '$ref': '#/definitions/command' }
+        updaters:
+          type: array
+          items:
+            type: object
+            properties:
+              containerImage: { '$ref': '#/definitions/command' }
+              policy: { '$ref': '#/definitions/command' }
+      additionalProperties: false
+- required: ['version', 'patchUpdated']
+  properties:
+    version: { '$ref': '#/definitions/version' }
+    patchUpdated:
+      required: ['generators', 'patchFile']
+      properties:
+        patchFile: { type: string }
+        generators:
+          type: array
+          items: { '$ref': '#/definitions/command' }
+      additionalProperties: false
+- required: ['version', 'scanForFiles']
+  properties:
+    version: { '$ref': '#/definitions/version' }
+    scanForFiles:
+      additionalProperties: false
+  additionalProperties: false
+`
+
+func mustCompileConfigSchema() *jsonschema.Schema {
+	j, err := yaml.YAMLToJSON([]byte(configSchemaYAML))
+	if err != nil {
+		panic(err)
+	}
+	sl := jsonschema.NewSchemaLoader()
+	sl.Validate = false
+	schema, err := sl.Compile(jsonschema.NewBytesLoader(j))
+	if err != nil {
+		panic(err)
+	}
+	return schema
+}
+
+var ConfigSchema = mustCompileConfigSchema()
+
 // ConfigFile holds the values necessary for generating and updating
 // manifests according to a `.flux.yaml` file. It does double duty as
 // the format for the file (to deserialise into), and the state
 // necessary for running commands.
 type ConfigFile struct {
-	Version int
+	Version int `json:"version"`
+
 	// Only one of the following should be set simultaneously
-	CommandUpdated *CommandUpdated `yaml:"commandUpdated"`
-	PatchUpdated   *PatchUpdated   `yaml:"patchUpdated"`
+	CommandUpdated *CommandUpdated `json:"commandUpdated,omitempty"`
+	PatchUpdated   *PatchUpdated   `json:"patchUpdated,omitempty"`
+	ScanForFiles   *ScanForFiles   `json:"scanForFiles,omitempty"`
 
 	// These are supplied, and can't be calculated from each other
 	configPath         string // the absolute path to the .flux.yaml
@@ -45,44 +110,87 @@ type ConfigFile struct {
 // CommandUpdated represents a config in which updates are done by
 // execing commands as given.
 type CommandUpdated struct {
-	Generators []Generator
-	Updaters   []Updater
+	Generators []Generator `json:"generators"`
+	Updaters   []Updater   `json:"updaters,omitempty"`
 }
 
 // Generator is an individual command for generating manifests.
 type Generator struct {
-	Command string
+	Command string `json:"command,omitempty"`
 }
 
 // Updater gives a means for updating image refs and a means for
 // updating policy in a manifest.
 type Updater struct {
-	ContainerImage ContainerImageUpdater `yaml:"containerImage"`
-	Policy         PolicyUpdater
+	ContainerImage ContainerImageUpdater `json:"containerImage,omitempty"`
+	Policy         PolicyUpdater         `json:"policy,omitempty"`
 }
 
 // ContainerImageUpdater is a command for updating the image used by a
 // container, in a manifest.
 type ContainerImageUpdater struct {
-	Command string
+	Command string `json:"command,omitempty"`
 }
 
 // PolicyUpdater is a command for updating a policy for a manifest.
 type PolicyUpdater struct {
-	Command string
+	Command string `json:"command,omitempty"`
 }
 
 // PatchUpdated represents a config in which updates are done by
 // maintaining a patch, which is calculating from, and applied to, the
 // generated manifests.
 type PatchUpdated struct {
-	Generators []Generator
-	PatchFile  string `yaml:"patchFile"`
+	Generators []Generator `json:"generators"`
+	PatchFile  string      `json:"patchFile,omitempty"`
+}
+
+// ScanForFiles represents a config in which the directory should be
+// treated as containing YAML files -- in other words, the normal mode
+// which looks for YAML files, and records changes by writing them
+// back to the original file.
+//
+// This can be used as a reset switch for a `--git-path`, if there's a
+// .flux.yaml higher in the directory structure.
+type ScanForFiles struct {
+}
+
+// IsScanForFiles returns true if the config file indicates that the
+// directory should be treated as containing YAML files (i.e., should
+// act as though there was no config file in operation). This can be
+// used to reset the directive given by a .flux.yaml higher in the
+// directory structure.
+func (cf *ConfigFile) IsScanForFiles() bool {
+	return cf.ScanForFiles != nil
+}
+
+func ParseConfigFile(fileBytes []byte, result *ConfigFile) error {
+	// The file contents are unmarshaled into a map so that we will
+	// see any extraneous fields. This is important, for example, for
+	// detecting when someone's made a commandUpdated config but
+	// mistakenly included a patchFile, thinking it will work.
+	var intermediate map[string]interface{}
+	if err := yaml.Unmarshal(fileBytes, &intermediate); err != nil {
+		return fmt.Errorf("cannot parse: %s", err)
+	}
+	validation, err := ConfigSchema.Validate(jsonschema.NewGoLoader(intermediate))
+	if err != nil {
+		return fmt.Errorf("cannot validate: %s", err)
+	}
+	if !validation.Valid() {
+		errs := ""
+		for _, e := range validation.Errors() {
+			errs = errs + "\n" + e.String()
+		}
+		return fmt.Errorf("config file is not valid: %s", errs)
+	}
+
+	return yaml.Unmarshal(fileBytes, result)
 }
 
 // NewConfigFile constructs a ConfigFile for the relative gitPath,
-// from the config file at the absolute path configPath, with the absolute
-// workingDir.
+// from the config file at the absolute path configPath, with the
+// absolute workingDir.
 func NewConfigFile(gitPath, configPath, workingDir string) (*ConfigFile, error) {
 	result := &ConfigFile{
 		configPath:         configPath,
@@ -100,20 +208,8 @@ func NewConfigFile(gitPath, configPath, workingDir string) (*ConfigFile, error) 
 	if err != nil {
 		return nil, fmt.Errorf("cannot read: %s", err)
 	}
-	if err := yaml.Unmarshal(fileBytes, result); err != nil {
-		return nil, fmt.Errorf("cannot parse: %s", err)
-	}
 
-	switch {
-	case result.Version != 1:
-		return nil, errors.New("incorrect version, only version 1 is supported for now")
-	case (result.CommandUpdated != nil && result.PatchUpdated != nil) ||
-		(result.CommandUpdated == nil && result.PatchUpdated == nil):
-		return nil, errors.New("a single commandUpdated or patchUpdated entry must be defined")
-	case result.PatchUpdated != nil && result.PatchUpdated.PatchFile == "":
-		return nil, errors.New("patchUpdated's patchFile cannot be empty")
-	}
-	return result, nil
+	return result, ParseConfigFile(fileBytes, result)
 }
 
 // -- entry points for using a config file to generate or update manifests

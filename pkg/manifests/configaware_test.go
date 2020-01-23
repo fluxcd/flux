@@ -262,7 +262,7 @@ spec:
 
 const mistakenConf = `
 version: 1
-commandUpdated: # <-- because this is commandUpdated, patchFile is ignored
+commandUpdated:
   generators:
     - command: |
        echo "apiVersion: extensions/v1beta1
@@ -283,7 +283,6 @@ commandUpdated: # <-- because this is commandUpdated, patchFile is ignored
        kind: Namespace
        metadata:
          name: demo"
-  patchFile: patchfile.yaml
 `
 
 // This tests that when using a config with no update commands, and
@@ -384,4 +383,31 @@ func TestDuplicateInGenerators(t *testing.T) {
 	assert.Nil(t, res)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "duplicate")
+}
+
+func TestSccanForFiles(t *testing.T) {
+	// +-- config
+	//   +-- .flux.yaml (patchUpdated)
+	//   +-- rawfiles
+	//     +-- .flux.yaml (scanForFiles)
+	//     +-- manifest.yaml
+
+	manifestyaml := `
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: foo-ns
+`
+
+	config, baseDir, cleanup := setup(t, []string{filepath.Join("config", "rawfiles")},
+		config{path: "config", fluxyaml: patchUpdatedEchoConfigFile},
+		config{path: filepath.Join("config", "rawfiles"), fluxyaml: "version: 1\nscanForFiles: {}\n"},
+	)
+	defer cleanup()
+
+	assert.NoError(t, ioutil.WriteFile(filepath.Join(baseDir, "config", "rawfiles", "manifest.yaml"), []byte(manifestyaml), 0600))
+
+	res, err := config.GetAllResourcesByID(context.Background())
+	assert.NoError(t, err)
+	assert.Contains(t, res, "default:namespace/foo-ns")
 }
