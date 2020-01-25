@@ -25,6 +25,11 @@ spec:
       labels:
         app: {{ template "flux.name" . }}
         release: {{ .Release.Name }}
+      {{- if .Values.podLabels }}
+      {{- range $key, $value := .Values.podLabels }}
+        {{ $key }}: {{ $value | quote }}
+      {{- end }}
+      {{- end }}
     spec:
       serviceAccountName: {{ template "flux.serviceAccountName" . }}
       {{- if .Values.image.pullSecret }}

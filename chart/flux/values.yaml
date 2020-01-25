@@ -53,6 +53,8 @@ nodeSelector: {}
 
 annotations: {}
 
+podLabels: {}
+
 tolerations: []
 
 affinity: {}
