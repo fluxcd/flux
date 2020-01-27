@@ -174,7 +174,7 @@ generate-deploy: $(GOBIN)/fluxctl
 		--namespace flux
 
 $(GENERATED_TEMPLATES_FILE): pkg/install/templates/*.tmpl pkg/install/generate.go
-	go generate ./pkg/install
+	cd ./pkg/install &&  go generate .
 
 check-generated: generate-deploy
 	git diff --exit-code -- deploy/
