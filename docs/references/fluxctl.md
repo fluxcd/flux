@@ -265,9 +265,20 @@ $ fluxctl list-workloads
 WORKLOAD                       CONTAINER   IMAGE                                         RELEASE  POLICY
 default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld:master-a000001  ready
                                sidecar     quay.io/weaveworks/sidecar:master-a000002
+default:deployment/busybox     busybox     busybox:1.31.1                                ready
+default:deployment/nginx       nginx       nginx:stable-alpine                           ready
 ```
 
 Note that the actual images running will depend on your cluster.
+
+You can also filter workloads by container name, using the `--container|-c` option:
+
+```sh
+$ fluxctl list-workloads --container helloworld
+WORKLOAD                       CONTAINER   IMAGE                                         RELEASE  POLICY
+default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld:master-a000001  ready
+                               sidecar     quay.io/weaveworks/sidecar:master-a000002
+```
 
 ### Inspecting the Version of a Container
 
