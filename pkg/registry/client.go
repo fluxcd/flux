@@ -128,28 +128,39 @@ interpret:
 	switch deserialised := manifest.(type) {
 	case *schema1.SignedManifest:
 		var man schema1.Manifest = deserialised.Manifest
-		// for decoding the v1-compatibility entry in schema1 manifests
+		// For decoding the v1-compatibility entry in schema1 manifests
+		// Ref: https://docs.docker.com/registry/spec/manifest-v2-1/
+		// Ref (spec): https://github.com/moby/moby/blob/master/image/spec/v1.md#image-json-field-descriptions
 		var v1 struct {
 			ID      string    `json:"id"`
 			Created time.Time `json:"created"`
 			OS      string    `json:"os"`
 			Arch    string    `json:"architecture"`
+		}
+		if err = json.Unmarshal([]byte(man.History[0].V1Compatibility), &v1); err != nil {
+			return ImageEntry{}, err
+		}
+
+		var config struct {
 			Config  struct {
 				Labels image.Labels `json:"labels"`
 			} `json:"config"`
 		}
-
-		if err = json.Unmarshal([]byte(man.History[0].V1Compatibility), &v1); err != nil {
+		// We need to unmarshal the labels separately as the validation error
+		// that may be returned stops the unmarshalling which would result
+		// in no data at all for the image.
+		if err = json.Unmarshal([]byte(man.History[0].V1Compatibility), &config); err != nil {
 			if _, ok := err.(*image.LabelTimestampFormatError); !ok {
 				return ImageEntry{}, err
 			}
 			labelErr = err
 		}
+
 		// This is not the ImageID that Docker uses, but assumed to
 		// identify the image as it's the topmost layer.
 		info.ImageID = v1.ID
 		info.CreatedAt = v1.Created
-		info.Labels = v1.Config.Labels
+		info.Labels = config.Config.Labels
 	case *schema2.DeserializedManifest:
 		var man schema2.Manifest = deserialised.Manifest
 		configBytes, err := repository.Blobs(ctx).Get(ctx, man.Config.Digest)
@@ -157,24 +168,36 @@ interpret:
 			return ImageEntry{}, err
 		}
 
+		// Ref: https://github.com/docker/distribution/blob/master/docs/spec/manifest-v2-2.md
 		var config struct {
 			Arch            string    `json:"architecture"`
 			Created         time.Time `json:"created"`
 			OS              string    `json:"os"`
+		}
+		if err = json.Unmarshal(configBytes, &config); err != nil {
+			return ImageEntry{}, nil
+		}
+
+		// Ref: https://github.com/moby/moby/blob/39e6def2194045cb206160b66bf309f486bd7e64/image/image.go#L47
+		var container struct {
 			ContainerConfig struct {
 				Labels image.Labels `json:"labels"`
 			} `json:"container_config"`
 		}
-		if err = json.Unmarshal(configBytes, &config); err != nil {
+		// We need to unmarshal the labels separately as the validation error
+		// that may be returned stops the unmarshalling which would result
+		// in no data at all for the image.
+		if err = json.Unmarshal(configBytes, &container); err != nil {
 			if _, ok := err.(*image.LabelTimestampFormatError); !ok {
 				return ImageEntry{}, err
 			}
 			labelErr = err
 		}
+
 		// This _is_ what Docker uses as its Image ID.
 		info.ImageID = man.Config.Digest.String()
 		info.CreatedAt = config.Created
-		info.Labels = config.ContainerConfig.Labels
+		info.Labels = container.ContainerConfig.Labels
 	case *manifestlist.DeserializedManifestList:
 		var list manifestlist.ManifestList = deserialised.ManifestList
 		// TODO(michael): is it valid to just pick the first one that matches?

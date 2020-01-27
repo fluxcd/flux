@@ -231,7 +231,7 @@ func (e *LabelTimestampFormatError) Error() string {
 	return fmt.Sprintf(
 		"failed to parse %d timestamp label(s) as RFC3339 (%s); ask the repository administrator to correct this as it conflicts with the spec",
 		len(e.Labels),
-		strings.Join(e.Labels, ","))
+		strings.Join(e.Labels, ", "))
 }
 
 // Labels has all the image labels we are interested in for an image
