@@ -488,7 +488,7 @@ func (r *Repo) workingClone(ctx context.Context, ref string) (string, error) {
 	}
 	path, err := clone(ctx, working, r.dir, ref)
 	if err != nil {
-		os.RemoveAll(path)
+		os.RemoveAll(working)
 	}
 	return path, err
 }
