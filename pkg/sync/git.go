@@ -66,6 +66,7 @@ func (p GitTagSyncProvider) UpdateMarker(ctx context.Context, revision string) e
 	if err != nil {
 		return err
 	}
+	defer checkout.Clean()
 	return checkout.MoveTagAndPush(ctx, git.TagAction{
 		Tag:        p.syncTag,
 		Revision:   revision,

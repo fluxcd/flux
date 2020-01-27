@@ -14,10 +14,11 @@ func (e *Export) Dir() string {
 	return e.dir
 }
 
-func (e *Export) Clean() {
+func (e *Export) Clean() error {
 	if e.dir != "" {
-		os.RemoveAll(e.dir)
+		return os.RemoveAll(e.dir)
 	}
+	return nil
 }
 
 // Export creates a minimal clone of the repo, at the ref given.
