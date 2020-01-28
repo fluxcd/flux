@@ -301,17 +301,14 @@ default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld
 The arrows will point to the version that is currently running
 alongside a list of other versions and their timestamps.
 
-For those using `fluxctl` in scripts, have a look at `--no-headers` for both `list-images` and `list-workloads` command to suppress the header:
+When using `fluxctl` in scripts, you can remove the table headers with `--no-headers` for both `list-images` and `list-workloads` command to suppress the header:
 
 ```sh
 $ fluxctl list-workloads --no-headers
 default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld:master-a000001  ready
                                sidecar     quay.io/weaveworks/sidecar:master-a000002
-...
 $ fluxctl list-images --workload default:deployment/helloworld --no-headers
 default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld
-...
-
 ```
 
 ### Releasing a Workload
