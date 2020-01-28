@@ -128,6 +128,6 @@ If you have any questions about Flux and continuous delivery:
   channel.
 - To be part of the conversation about Flux's development, join the
   [flux-dev mailing list](https://lists.cncf.io/g/cncf-flux-dev).
-- [File an issue.](https://github.com/fluxcd/flux/issues/new)
+- [File an issue.](https://github.com/fluxcd/flux/issues/new/choose)
 
 Your feedback is always welcome!
