@@ -66,12 +66,29 @@ function setup() {
   fluxctl --k8s-fwd-ns "${FLUX_NAMESPACE}" release --force --workload=demo:helmrelease/ghost --update-image=bitnami/ghost:3.0.2-debian-9-r3
   poll_until_true "helmrelease/ghost version 3.0.2-debian-9-r3 to be released" 'git pull > /dev/null 2>&1; grep -q 3.0.2-debian-9-r3 releases/ghost.yaml'
 
-  # Automate the resources and make sure that podinfo and ghost are updated according to their annotations
+  # Lock and automate ghost to make sure that it's not automatically updated by Flux
+  # even though there is a newer image available
+  fluxctl --k8s-fwd-ns "${FLUX_NAMESPACE}" lock --workload=demo:helmrelease/ghost
+  fluxctl --k8s-fwd-ns "${FLUX_NAMESPACE}" automate --workload=demo:helmrelease/ghost
+  sleep 11 # We set the automation period to 5 seconds, so waiting 11 should give enough time for Flux to not respect the lock
+  git pull > /dev/null 2>&1 && grep -q 3.0.2-debian-9-r3 releases/ghost.yaml
+
+  # Automate podinfo, unlock ghost and make sure they are updated according to their annotations
   # (semver:~3.1 for podinfo and glob:3.1.1-debian-9-* for ghost)
   fluxctl --k8s-fwd-ns "${FLUX_NAMESPACE}" automate --workload=demo:deployment/podinfo
-  fluxctl --k8s-fwd-ns "${FLUX_NAMESPACE}" automate --workload=demo:helmrelease/ghost
+  fluxctl --k8s-fwd-ns "${FLUX_NAMESPACE}" unlock --workload=demo:helmrelease/ghost
   poll_until_true "deployment/podinfo semver:~3.1 to be released" 'git pull > /dev/null 2>&1; grep -q stefanprodan/podinfo:3.1. workloads/podinfo-dep.yaml'
   poll_until_true "helmrelease/ghost glob:3.1.1-debian-9-* to be released" 'git pull > /dev/null 2>&1; grep -q 3.1.1-debian-9-r0 releases/ghost.yaml'
+
+  # Test `fluxctl release --update-all-images` by deautomating the podinfo deployment, pushing a newer podinfo image to the
+  # registry (matching its automation pattern) and making sure Flux the container to that image.
+  local time_before_new_image
+  time_before_new_image="$(date -u +%Y-%m-%dT%T.0Z)"
+  fluxctl --k8s-fwd-ns "${FLUX_NAMESPACE}" deautomate --workload=demo:deployment/podinfo
+  push_empty_image "localhost:$REGISTRY_PORT" 'stefanprodan/podinfo:3.1.5' '2020-12-20T13:53:05.47178071Z'
+  poll_until_true "stefanprodan/podinfo to be re-scanned" "kubectl logs --since-time=${time_before_new_image} -n $FLUX_NAMESPACE deploy/flux | grep -q \"component=warmer updated=stefanprodan/podinfo\"" 5 50
+  fluxctl --k8s-fwd-ns "${FLUX_NAMESPACE}" release --force --workload=demo:deployment/podinfo --update-all-images
+  poll_until_true "deployment/podinfo version 3.1.5 to be released" 'git pull > /dev/null 2>&1; grep -q stefanprodan/podinfo:3.1.5 workloads/podinfo-dep.yaml'
 }
 
 function teardown() {
