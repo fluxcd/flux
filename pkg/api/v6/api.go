@@ -58,6 +58,7 @@ type GitConfig struct {
 	Remote       GitRemoteConfig   `json:"remote"`
 	PublicSSHKey ssh.PublicKey     `json:"publicSSHKey"`
 	Status       git.GitRepoStatus `json:"status"`
+	Error        string            `json:"errors"`
 }
 
 type Deprecated interface {

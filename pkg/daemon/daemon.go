@@ -624,7 +624,12 @@ func (d *Daemon) GitRepoConfig(ctx context.Context, regenerate bool) (v6.GitConf
 	origin := d.Repo.Origin()
 	// Sanitize the URL before sharing it
 	origin.URL = origin.SafeURL()
-	status, _ := d.Repo.Status()
+	status, err := d.Repo.Status()
+	gitConfigError := ""
+	if err != nil {
+		gitConfigError = err.Error()
+	}
+
 	path := ""
 	if len(d.GitConfig.Paths) > 0 {
 		path = strings.Join(d.GitConfig.Paths, ",")
@@ -637,6 +642,7 @@ func (d *Daemon) GitRepoConfig(ctx context.Context, regenerate bool) (v6.GitConf
 		},
 		PublicSSHKey: publicSSHKey,
 		Status:       status,
+		Error:        gitConfigError,
 	}, nil
 }
 
