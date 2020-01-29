@@ -150,7 +150,7 @@ matters if it has been asked to report those with the `--connect`
 flag. Future versions of Flux may be more sparing in use of the sync
 tag.
 
-### Flux fails with an error log similar to _couldn't get resource list for example.com/version: the server is currently unable to handle the request_
+## Flux fails with an error log similar to _couldn't get resource list for example.com/version: the server is currently unable to handle the request_
 
 This means your Kubernetes cluster fails to respond to list queries
 for resources in _example.com/version_.
