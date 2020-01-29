@@ -377,6 +377,15 @@ func applyMetadata(res resource.Resource, syncSetName, checksum string) ([]byte,
 		mixin["labels"] = mixinLabels
 	}
 
+	// After loading the manifest the namespace of the resource can change
+	// (e.g. a default namespace is applied)
+	// The `ResourceID` should give us the up-to-date value
+	// (see `KubeManifest.SetNamespace`)
+	namespace, _, _ := res.ResourceID().Components()
+	if namespace != kresource.ClusterScope {
+		mixin["namespace"] = namespace
+	}
+
 	if checksum != "" {
 		mixinAnnotations := map[string]string{}
 		mixinAnnotations[checksumAnnotation] = checksum
