@@ -368,11 +368,11 @@ metadata:
 		}
 	}
 
-	test := func(t *testing.T, kube *Cluster, defs, expectedAfterSync string, expectErrors bool) {
+	testDefaultNs := func(t *testing.T, kube *Cluster, defs, expectedAfterSync string, expectErrors bool, defaultNamespace string) {
 		saved := getKubeconfigDefaultNamespace
 		getKubeconfigDefaultNamespace = func() (string, error) { return defaultTestNamespace, nil }
 		defer func() { getKubeconfigDefaultNamespace = saved }()
-		namespacer, err := NewNamespacer(kube.client.coreClient.Discovery(), "")
+		namespacer, err := NewNamespacer(kube.client.coreClient.Discovery(), defaultNamespace)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -425,6 +425,9 @@ metadata:
 			// the intersection of actual and expected above.
 		}
 	}
+	test := func(t *testing.T, kube *Cluster, defs, expectedAfterSync string, expectErrors bool) {
+		testDefaultNs(t, kube, defs, expectedAfterSync, expectErrors, "")
+	}
 
 	t.Run("sync adds and GCs resources", func(t *testing.T) {
 		kube, _, cancel := setup(t)
@@ -473,6 +476,43 @@ metadata:
   name: bar-ns
 `
 		test(t, kube, nsDef, nsDef, false)
+	})
+
+	t.Run("sync applies default namespace", func(t *testing.T) {
+		kube, _, cancel := setup(t)
+		defer cancel()
+		kube.GC = true
+
+		const depDef = `
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bar
+`
+		const depDefNamespaced = `
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bar
+  namespace: system
+`
+		const depDefAlreadyNamespaced = `
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bar
+  namespace: other
+`
+		const ns1 = `---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: foobar
+`
+		defaultNs := "system"
+		testDefaultNs(t, kube, depDef, depDefNamespaced, false, defaultNs)
+		testDefaultNs(t, kube, depDefAlreadyNamespaced, depDefAlreadyNamespaced, false, defaultNs)
+		testDefaultNs(t, kube, ns1, ns1, false, defaultNs)
 	})
 
 	t.Run("sync won't delete resources that got the fallback namespace when created", func(t *testing.T) {
