@@ -14,3 +14,7 @@
     - ip: "${REGISTRY_SERVICE_IP}"
       hostnames:
       - "index.docker.io"
+# Make automation fast so that we don't need to wait too much
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: --automation-interval=5s
