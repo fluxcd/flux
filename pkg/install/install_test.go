@@ -33,7 +33,7 @@ func testFillInTemplates(t *testing.T, expectedNoManifests int, params TemplateP
 	return manifests
 }
 
-func testExtractDeployment(t *testing.T, data []byte) *v1.Deployment {
+func unmarshalDeployment(t *testing.T, data []byte) *v1.Deployment {
 	manifest := string(data)
 
 	decoder := yaml.NewYAMLOrJSONDecoder(bytes.NewBuffer([]byte(manifest)), 4096)
@@ -109,7 +109,7 @@ func TestTestFillInTemplatesAddSecurityContext(t *testing.T) {
 	manifests := testFillInTemplates(t, 5, params)
 
 	memDeploy := manifests["memcache-dep.yaml"]
-	deployment := testExtractDeployment(t, memDeploy)
+	deployment := unmarshalDeployment(t, memDeploy)
 
 	container := deployment.Spec.Template.Spec.Containers[0]
 	if container.SecurityContext == nil {
@@ -136,7 +136,7 @@ func TestFillInTemplatesNoSecurityContext(t *testing.T) {
 	manifests := testFillInTemplates(t, 5, params)
 	memDeploy := manifests["memcache-dep.yaml"]
 
-	deployment := testExtractDeployment(t, memDeploy)
+	deployment := unmarshalDeployment(t, memDeploy)
 
 	container := deployment.Spec.Template.Spec.Containers[0]
 	if container.SecurityContext != nil {
