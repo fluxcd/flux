@@ -49,7 +49,7 @@ func TestCommit(t *testing.T) {
 		t.Error(err)
 	}
 
-	commits, err := repo.CommitsBefore(ctx, "HEAD")
+	commits, err := repo.CommitsBefore(ctx, "HEAD", false)
 
 	if err != nil {
 		t.Fatal(err)
@@ -105,7 +105,7 @@ func TestSignedCommit(t *testing.T) {
 		t.Error(err)
 	}
 
-	commits, err := repo.CommitsBefore(ctx, "HEAD")
+	commits, err := repo.CommitsBefore(ctx, "HEAD", false)
 
 	if err != nil {
 		t.Fatal(err)

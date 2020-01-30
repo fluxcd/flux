@@ -230,22 +230,22 @@ func (r *Repo) BranchHead(ctx context.Context) (string, error) {
 	return refRevision(ctx, r.dir, "heads/"+r.branch)
 }
 
-func (r *Repo) CommitsBefore(ctx context.Context, ref string, paths ...string) ([]Commit, error) {
+func (r *Repo) CommitsBefore(ctx context.Context, ref string, firstParent bool, paths ...string) ([]Commit, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if err := r.errorIfNotReady(); err != nil {
 		return nil, err
 	}
-	return onelinelog(ctx, r.dir, ref, paths)
+	return onelinelog(ctx, r.dir, ref, paths, firstParent)
 }
 
-func (r *Repo) CommitsBetween(ctx context.Context, ref1, ref2 string, paths ...string) ([]Commit, error) {
+func (r *Repo) CommitsBetween(ctx context.Context, ref1, ref2 string, firstParent bool, paths ...string) ([]Commit, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if err := r.errorIfNotReady(); err != nil {
 		return nil, err
 	}
-	return onelinelog(ctx, r.dir, ref1+".."+ref2, paths)
+	return onelinelog(ctx, r.dir, ref1+".."+ref2, paths, firstParent)
 }
 
 func (r *Repo) VerifyTag(ctx context.Context, tag string) (string, error) {

@@ -141,10 +141,10 @@ func getChangeSet(ctx context.Context, state revisionRatchet, headRev string, re
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	if c.oldTagRev != "" {
-		c.commits, err = repo.CommitsBetween(ctx, c.oldTagRev, c.newTagRev, paths...)
+		c.commits, err = repo.CommitsBetween(ctx, c.oldTagRev, c.newTagRev, false, paths...)
 	} else {
 		c.initialSync = true
-		c.commits, err = repo.CommitsBefore(ctx, c.newTagRev, paths...)
+		c.commits, err = repo.CommitsBefore(ctx, c.newTagRev, false, paths...)
 	}
 	cancel()
 

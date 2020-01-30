@@ -134,9 +134,10 @@ func main() {
 		gitTimeout      = fs.Duration("git-timeout", 20*time.Second, "duration after which git operations time out")
 
 		// GPG commit signing
-		gitImportGPG        = fs.StringSlice("git-gpg-key-import", []string{}, "keys at the paths given will be imported for use of signing and verifying commits")
-		gitSigningKey       = fs.String("git-signing-key", "", "if set, commits Flux makes will be signed with this GPG key")
-		gitVerifySignatures = fs.Bool("git-verify-signatures", false, "if set, the signature of commits will be verified before Flux applies them")
+		gitImportGPG               = fs.StringSlice("git-gpg-key-import", []string{}, "keys at the paths given will be imported for use of signing and verifying commits")
+		gitSigningKey              = fs.String("git-signing-key", "", "if set, commits Flux makes will be signed with this GPG key")
+		gitVerifySignatures        = fs.Bool("git-verify-signatures", false, "(deprecated) sets --git-verify-signatures-mode=all when set")
+		gitVerifySignaturesModeStr = fs.String("git-verify-signatures-mode", fluxsync.VerifySignaturesModeDefault, fmt.Sprintf("if git-verify-signatures is set, which strategy to use for signature verification (one of %s)", strings.Join([]string{fluxsync.VerifySignaturesModeNone, fluxsync.VerifySignaturesModeAll, fluxsync.VerifySignaturesModeFirstParent}, ",")))
 
 		// syncing
 		syncInterval = fs.Duration("sync-interval", 5*time.Minute, "apply config in git to cluster at least this often, even if there are no new commits")
@@ -203,6 +204,7 @@ func main() {
 	fs.MarkDeprecated("k8s-namespace-whitelist", "changed to --k8s-allow-namespace, use that instead")
 	fs.MarkDeprecated("registry-poll-interval", "changed to --automation-interval, use that instead")
 	fs.MarkDeprecated("k8s-in-cluster", "no longer used")
+	fs.MarkDeprecated("git-verify-signatures", "changed to --git-verify-signatures-mode, use that instead")
 
 	var kubeConfig *string
 	{
@@ -309,6 +311,19 @@ func main() {
 		*automationInterval = *registryPollInterval
 	}
 
+	// Maintain backwards compatibility with the --git-verify-signatures
+	// flag, but only if the --git-verify-signature-mode is not set to a
+	// custom (non default) value.
+	var gitVerifySignaturesMode fluxsync.VerifySignaturesMode
+	if *gitVerifySignatures && !fs.Changed("git-verify-signatures-mode") {
+		gitVerifySignaturesMode = fluxsync.VerifySignaturesModeAll
+	} else {
+		if gitVerifySignaturesMode, err = fluxsync.ToVerifySignaturesMode(*gitVerifySignaturesModeStr); err != nil {
+			logger.Log("error", err.Error())
+			os.Exit(1)
+		}
+	}
+
 	// Sort out values for the git tag and notes ref. There are
 	// running deployments that assume the defaults as given, so don't
 	// mess with those unless explicitly told.
@@ -346,7 +361,7 @@ func main() {
 
 	// Import GPG keys, if we've been told where to look for them
 	for _, p := range *gitImportGPG {
-		keyfiles, err := gpg.ImportKeys(p, *gitVerifySignatures)
+		keyfiles, err := gpg.ImportKeys(p, gitVerifySignaturesMode != fluxsync.VerifySignaturesModeNone)
 		if err != nil {
 			logger.Log("error", fmt.Sprintf("failed to import GPG key(s) from %s", p), "err", err.Error())
 		}
@@ -658,7 +673,7 @@ func main() {
 		"user", *gitUser,
 		"email", *gitEmail,
 		"signing-key", *gitSigningKey,
-		"verify-signatures", *gitVerifySignatures,
+		"verify-signatures-mode", gitVerifySignaturesMode,
 		"sync-tag", *gitSyncTag,
 		"state", *syncState,
 		"readonly", *gitReadonly,
@@ -697,7 +712,7 @@ func main() {
 			repo,
 			*gitSyncTag,
 			*gitSigningKey,
-			*gitVerifySignatures,
+			gitVerifySignaturesMode,
 			gitConfig,
 		)
 		if err != nil {
@@ -724,13 +739,13 @@ func main() {
 		ManifestGenerationEnabled: *manifestGeneration,
 		GitSecretEnabled:          *gitSecret,
 		LoopVars: &daemon.LoopVars{
-			SyncInterval:        *syncInterval,
-			SyncTimeout:         *syncTimeout,
-			SyncState:           syncProvider,
-			AutomationInterval:  *automationInterval,
-			GitTimeout:          *gitTimeout,
-			GitVerifySignatures: *gitVerifySignatures,
-			ImageScanDisabled:   *registryDisableScanning,
+			SyncInterval:            *syncInterval,
+			SyncTimeout:             *syncTimeout,
+			SyncState:               syncProvider,
+			AutomationInterval:      *automationInterval,
+			GitTimeout:              *gitTimeout,
+			GitVerifySignaturesMode: gitVerifySignaturesMode,
+			ImageScanDisabled:       *registryDisableScanning,
 		},
 	}
 

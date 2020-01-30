@@ -251,10 +251,16 @@ func refRevision(ctx context.Context, workingDir, ref string) (string, error) {
 }
 
 // Return the revisions and one-line log commit messages
-func onelinelog(ctx context.Context, workingDir, refspec string, subdirs []string) ([]Commit, error) {
+func onelinelog(ctx context.Context, workingDir, refspec string, subdirs []string, firstParent bool) ([]Commit, error) {
 	out := &bytes.Buffer{}
-	args := []string{"log", "--pretty=format:%GK|%G?|%H|%s", refspec}
-	args = append(args, "--")
+	args := []string{"log", "--pretty=format:%GK|%G?|%H|%s"}
+
+	if firstParent {
+		args = append(args, "--first-parent")
+	}
+
+	args = append(args, refspec, "--")
+
 	if len(subdirs) > 0 {
 		args = append(args, subdirs...)
 	}

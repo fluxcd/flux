@@ -727,7 +727,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *mock.Mock, *mockEventWr
 
 	manifests := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
 
-	gitSync, _ := fluxsync.NewGitTagSyncProvider(repo, syncTag, "", false, params)
+	gitSync, _ := fluxsync.NewGitTagSyncProvider(repo, syncTag, "", fluxsync.VerifySignaturesModeNone, params)
 
 	// Finally, the daemon
 	d := &Daemon{
@@ -741,7 +741,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *mock.Mock, *mockEventWr
 		JobStatusCache: &job.StatusCache{Size: 100},
 		EventWriter:    events,
 		Logger:         logger,
-		LoopVars:       &LoopVars{SyncTimeout: timeout, GitTimeout: timeout, SyncState: gitSync},
+		LoopVars:       &LoopVars{SyncTimeout: timeout, GitTimeout: timeout, SyncState: gitSync, GitVerifySignaturesMode: fluxsync.VerifySignaturesModeNone},
 	}
 
 	start := func() {

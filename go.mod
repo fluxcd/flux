@@ -29,6 +29,7 @@ replace github.com/fluxcd/flux/pkg/install => ./pkg/install
 
 require (
 	github.com/Jeffail/gabs v1.4.0
+	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Masterminds/semver/v3 v3.0.3
 	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
 	github.com/VividCortex/gohistogram v1.0.0 // indirect
