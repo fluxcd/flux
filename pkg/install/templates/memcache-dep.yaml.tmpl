@@ -29,8 +29,8 @@ spec:
         # - -vv    # Uncomment to get logs of each request and response.
         ports:
         - name: clients
-          containerPort: 11211
+          containerPort: 11211{{ if .AddSecurityContext}}
         securityContext:
           runAsUser: 11211
           runAsGroup: 11211
-          allowPrivilegeEscalation: false
+          allowPrivilegeEscalation: false{{ end }}

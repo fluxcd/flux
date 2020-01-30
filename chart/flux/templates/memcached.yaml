@@ -49,8 +49,10 @@ spec:
           containerPort: 11211
         resources:
 {{ toYaml .Values.memcached.resources | indent 10 }}
+        {{- if .Values.memcached.addSecurityContext }}
         securityContext:
 {{ toYaml .Values.memcached.securityContext | indent 10 }}
+        {{- end }}
       nodeSelector:
         beta.kubernetes.io/os: linux
       {{- with .Values.memcached.nodeSelector }}
