@@ -2,7 +2,6 @@ package install
 
 import (
 	"bytes"
-	"strings"
 	"testing"
 
 	"github.com/instrumenta/kubeval/kubeval"
@@ -12,10 +11,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
-func testFillInTemplates(t *testing.T, expectedNoManifestst int, params TemplateParameters) map[string][]byte {
+func testFillInTemplates(t *testing.T, expectedNoManifests int, params TemplateParameters) map[string][]byte {
 	manifests, err := FillInTemplates(params)
 	assert.NoError(t, err)
-	assert.Len(t, manifests, expectedNoManifestst)
+	assert.Len(t, manifests, expectedNoManifests)
 
 	for fileName, contents := range manifests {
 		validationResults, err := kubeval.Validate(contents)
@@ -36,10 +35,9 @@ func testFillInTemplates(t *testing.T, expectedNoManifestst int, params Template
 
 func testExtractDeployment(t *testing.T, data []byte) *v1.Deployment {
 	manifest := string(data)
-	manifest = strings.Replace(manifest, "---\n", "", -1)
 
 	decoder := yaml.NewYAMLOrJSONDecoder(bytes.NewBuffer([]byte(manifest)), 4096)
-	deployment := new(v1.Deployment)
+	deployment := &v1.Deployment{}
 	err := decoder.Decode(deployment)
 	if err != nil {
 		t.Errorf("issue decoding memcache-dep.yaml into a deployment: %#v", err)
