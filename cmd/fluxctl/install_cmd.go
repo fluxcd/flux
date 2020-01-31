@@ -25,7 +25,7 @@ func (opts *installOpts) Command() *cobra.Command {
 		Use:   "install",
 		Short: "Print and tweak Kubernetes manifests needed to install Flux in a Cluster",
 		Example: `# Install Flux and make it use Git repository git@github.com:<your username>/flux-get-started
-fluxctl install --git-url 'git@github.com:<your username>/flux-get-started' | kubectl -f -`,
+fluxctl install --git-url 'git@github.com:<your username>/flux-get-started' --git-email=<your_git_email> | kubectl -f -`,
 		RunE: opts.RunE,
 	}
 	cmd.Flags().StringVar(&opts.GitURL, "git-url", "",
@@ -60,6 +60,9 @@ fluxctl install --git-url 'git@github.com:<your username>/flux-get-started' | ku
 }
 
 func (opts *installOpts) RunE(cmd *cobra.Command, args []string) error {
+	if len(args) != 0 {
+		return errorWantedNoArgs
+	}
 	if opts.GitURL == "" {
 		return fmt.Errorf("please supply a valid --git-url argument")
 	}

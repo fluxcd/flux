@@ -13,6 +13,9 @@ func newVersionCommand() *cobra.Command {
 		Use:   "version",
 		Short: "Output the version of fluxctl",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) != 0 {
+				return errorWantedNoArgs
+			}
 			if version == "" {
 				version = "unversioned"
 			}
