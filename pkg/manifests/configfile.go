@@ -141,8 +141,9 @@ type PolicyUpdater struct {
 // maintaining a patch, which is calculating from, and applied to, the
 // generated manifests.
 type PatchUpdated struct {
-	Generators []Generator `json:"generators"`
-	PatchFile  string      `json:"patchFile,omitempty"`
+	Generators            []Generator `json:"generators"`
+	PatchFile             string      `json:"patchFile,omitempty"`
+	generatorsResultCache []byte
 }
 
 // ScanForFiles represents a config in which the directory should be
@@ -324,11 +325,15 @@ type ConfigFileCombinedExecResult struct {
 // getGeneratedAndPatchedManifests is used to generate manifests when
 // the config is patchUpdated.
 func (cf *ConfigFile) getGeneratedAndPatchedManifests(ctx context.Context, manifests Manifests) ([]byte, []byte, string, error) {
-	generatedManifests, err := cf.getGeneratedManifests(ctx, manifests, cf.PatchUpdated.Generators)
-	if err != nil {
-		return nil, nil, "", err
+	generatedManifests := cf.PatchUpdated.generatorsResultCache
+	if generatedManifests == nil {
+		var err error
+		generatedManifests, err = cf.getGeneratedManifests(ctx, manifests, cf.PatchUpdated.Generators)
+		if err != nil {
+			return nil, nil, "", err
+		}
+		cf.PatchUpdated.generatorsResultCache = generatedManifests
 	}
-
 	// The patch file is given in the config file as a path relative
 	// to the working directory
 	relPatchFilePath := cf.PatchUpdated.PatchFile

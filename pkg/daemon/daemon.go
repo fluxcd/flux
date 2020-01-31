@@ -411,7 +411,7 @@ func (d *Daemon) updatePolicies(spec update.Spec, updates resource.PolicyUpdates
 					Status: update.ReleaseStatusSkipped,
 				}
 			}
-			if policy.Set(u.Add).Has(policy.Automated) {
+			if u.Add.Has(policy.Automated) {
 				anythingAutomated = true
 			}
 			cm, err := d.getManifestStore(working)
