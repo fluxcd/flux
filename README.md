@@ -98,6 +98,7 @@ a few popular ones you might want to check out:
 - [OpenFaaS GitOps workflow with Flux](https://github.com/stefanprodan/openfaas-flux)
 - [GitOps for Istio Canary deployments](https://github.com/stefanprodan/gitops-istio)
 - [Fluxcloud to receive events from Flux](https://github.com/justinbarrick/fluxcloud)
+- [Google PubSub integration](https://github.com/shelmangroup/flux-events-pubsub)
 
 ## Community & Developer information
 
