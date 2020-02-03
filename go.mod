@@ -40,6 +40,7 @@ require (
 	github.com/fluxcd/helm-operator v1.0.0-rc6
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-kit/kit v0.9.0
+	github.com/go-redis/redis/v7 v7.0.0-beta.6
 	github.com/golang/gddo v0.0.0-20190312205958-5a2505f3dbf0
 	github.com/google/go-containerregistry v0.0.0-20200121192426-b0ae1fc74a66
 	github.com/google/go-github/v28 v28.1.1

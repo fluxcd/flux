@@ -12,7 +12,6 @@ recover from that -- we'll just get a cache miss, and fetch it again.
 package memcached
 
 import (
-	"encoding/binary"
 	"fmt"
 	"net"
 	"sort"
@@ -24,11 +23,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/fluxcd/flux/pkg/registry/cache"
-)
-
-const (
-	// The minimum expiry given to an entry.
-	MinExpiry = time.Hour
 )
 
 // MemcacheClient is a memcache client that gets its server list from SRV
@@ -113,24 +107,19 @@ func (c *MemcacheClient) GetKey(k cache.Keyer) ([]byte, time.Time, error) {
 			return []byte{}, time.Time{}, err
 		}
 	}
-	deadlineTime := binary.BigEndian.Uint32(cacheItem.Value)
-	return cacheItem.Value[4:], time.Unix(int64(deadlineTime), 0), nil
+	return cache.EndianGet(cacheItem.Value)
 }
 
 // SetKey sets the value and its refresh deadline at a key. NB the key
 // expiry is set _longer_ than the deadline, to give us a grace period
 // in which to refresh the value.
 func (c *MemcacheClient) SetKey(k cache.Keyer, refreshDeadline time.Time, v []byte) error {
-	expiry := refreshDeadline.Sub(time.Now()) * 2
-	if expiry < MinExpiry {
-		expiry = MinExpiry
-	}
+	expiry := cache.GracePeriodDeadline(refreshDeadline)
+	deadlineBytes := cache.EndianPut(refreshDeadline)
 
-	deadlineBytes := make([]byte, 4, 4)
-	binary.BigEndian.PutUint32(deadlineBytes, uint32(refreshDeadline.Unix()))
 	if err := c.client.Set(&memcache.Item{
 		Key:        k.Key(),
-		Value:      append(deadlineBytes, v...),
+		Value:      cache.EndianCompose(deadlineBytes, v),
 		Expiration: int32(expiry.Seconds()),
 	}); err != nil {
 		c.logger.Log("err", errors.Wrap(err, "storing in memcache"))

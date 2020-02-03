@@ -47,6 +47,7 @@ import (
 	"github.com/fluxcd/flux/pkg/registry"
 	"github.com/fluxcd/flux/pkg/registry/cache"
 	registryMemcache "github.com/fluxcd/flux/pkg/registry/cache/memcached"
+	registryRedis "github.com/fluxcd/flux/pkg/registry/cache/redis"
 	registryMiddleware "github.com/fluxcd/flux/pkg/registry/middleware"
 	"github.com/fluxcd/flux/pkg/remote"
 	"github.com/fluxcd/flux/pkg/ssh"
@@ -60,7 +61,7 @@ const (
 
 	// This is used as the "burst" value for rate limiting, and
 	// therefore also as the limit to the number of concurrent fetches
-	// and memcached connections, since these in general can't do any
+	// and cache backend connections, since these in general can't do any
 	// more work than is allowed by the burst amount.
 	defaultRemoteConnections = 10
 
@@ -145,11 +146,17 @@ func main() {
 		dryGC        = fs.Bool("sync-garbage-collection-dry", false, "only log what would be garbage collected, rather than deleting. Implies --sync-garbage-collection")
 		syncState    = fs.String("sync-state", fluxsync.GitTagStateMode, fmt.Sprintf("method used by flux for storing state (one of {%s})", strings.Join([]string{fluxsync.GitTagStateMode, fluxsync.NativeStateMode}, ",")))
 
-		// registry
+		// registry scanning cache backend
+		cacheBackend = fs.String("cache-backend", "memcached", "select the registry cache backend (supported: memcached, redis)")
+		cacheTimeout = fs.Duration("cache-request-timeout", time.Second, "maximum time to wait before giving up on cache requests.")
+		// memcached
 		memcachedHostname = fs.String("memcached-hostname", "memcached", "hostname for memcached service.")
 		memcachedPort     = fs.Int("memcached-port", 11211, "memcached service port.")
-		memcachedTimeout  = fs.Duration("memcached-timeout", time.Second, "maximum time to wait before giving up on memcached requests.")
 		memcachedService  = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
+		memcachedTimeout  = fs.Duration("memcached-timeout", time.Second, "maximum time to wait before giving up on memcached requests.")
+		// redis
+		redisService = fs.String("redis-service", "memcached", "service used to reach Redis service.")
+		redisPort    = fs.Int("redis-port", 6379, "redis service port.")
 
 		registryDisableScanning = fs.Bool("registry-disable-scanning", false, "do not scan container image registries to fill in the registry cache")
 		automationInterval      = fs.Duration("automation-interval", 5*time.Minute, "period at which to check for image updates for automated workloads")
@@ -205,6 +212,7 @@ func main() {
 	fs.MarkDeprecated("registry-poll-interval", "changed to --automation-interval, use that instead")
 	fs.MarkDeprecated("k8s-in-cluster", "no longer used")
 	fs.MarkDeprecated("git-verify-signatures", "changed to --git-verify-signatures-mode, use that instead")
+	fs.MarkDeprecated("memcached-timeout", "changed to --cache-request-timeout")
 
 	var kubeConfig *string
 	{
@@ -302,6 +310,13 @@ func main() {
 		if len(changedGitRelatedFlags) > 0 {
 			logger.Log("warning", fmt.Sprintf("configuring any of {%s} has no effect when --git-readonly is set", strings.Join(changedGitRelatedFlags, ", ")))
 		}
+	}
+
+	// Maintain backwards compatibility with the --memcached-timeout
+	// flag, but only if the --cache-request-timeout is not set to a custom
+	// (non default) value.
+	if fs.Changed("memcached-timeout") && !fs.Changed("cache-request-timeout") {
+		*cacheTimeout = *memcachedTimeout
 	}
 
 	// Maintain backwards compatibility with the --registry-poll-interval
@@ -576,29 +591,42 @@ func main() {
 	if !*registryDisableScanning {
 		// Cache client, for use by registry and cache warmer
 		var cacheClient cache.Client
-		var memcacheClient *registryMemcache.MemcacheClient
-		memcacheConfig := registryMemcache.MemcacheConfig{
-			Host:           *memcachedHostname,
-			Service:        *memcachedService,
-			Timeout:        *memcachedTimeout,
-			UpdateInterval: 1 * time.Minute,
-			Logger:         log.With(logger, "component", "memcached"),
-			MaxIdleConns:   *registryBurst,
-		}
 
-		// if no memcached service is specified use the ClusterIP name instead of SRV records
-		if *memcachedService == "" {
-			memcacheClient = registryMemcache.NewFixedServerMemcacheClient(memcacheConfig,
-				fmt.Sprintf("%s:%d", *memcachedHostname, *memcachedPort))
-		} else {
-			memcacheClient = registryMemcache.NewMemcacheClient(memcacheConfig)
+		switch *cacheBackend {
+		case "memcached":
+			var memcacheClient *registryMemcache.MemcacheClient
+			memcacheConfig := registryMemcache.MemcacheConfig{
+				Host:           *memcachedHostname,
+				Service:        *memcachedService,
+				Timeout:        *cacheTimeout,
+				UpdateInterval: 1 * time.Minute,
+				Logger:         log.With(logger, "component", "memcached"),
+				MaxIdleConns:   *registryBurst,
+			}
+			// if no memcached service is specified use the ClusterIP name instead of SRV records
+			if *memcachedService == "" {
+				memcacheClient = registryMemcache.NewFixedServerMemcacheClient(memcacheConfig,
+					fmt.Sprintf("%s:%d", *memcachedHostname, *memcachedPort))
+			} else {
+				memcacheClient = registryMemcache.NewMemcacheClient(memcacheConfig)
+			}
+			defer memcacheClient.Stop()
+			cacheClient = memcacheClient
+		case "redis":
+			redisConfig := registryRedis.RedisConfig{
+				Service: *redisService,
+				Port:    *redisPort,
+				Timeout: *cacheTimeout,
+				Logger:  log.With(logger, "component", "redis"),
+			}
+			cacheClient = registryRedis.NewRedisClient(redisConfig)
+		default:
+			_ = logger.Log("error", "selected storage backend is not implemented", "backend", *cacheBackend)
+			os.Exit(1)
 		}
-
-		defer memcacheClient.Stop()
-		cacheClient = cache.InstrumentClient(memcacheClient)
 
 		imageRegistry = &cache.Cache{
-			Reader: cacheClient,
+			Reader: cache.InstrumentClient(cacheClient),
 			Decorators: []cache.Decorator{
 				cache.TimestampLabelWhitelist(*registryUseLabels),
 			},
