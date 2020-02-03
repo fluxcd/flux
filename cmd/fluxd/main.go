@@ -117,7 +117,7 @@ func main() {
 		gitURL       = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:fluxcd/flux-get-started")
 		gitBranch    = fs.String("git-branch", "master", "branch of git repo to use for Kubernetes manifests")
 		gitPath      = fs.StringSlice("git-path", []string{}, "relative paths within the git repo to locate Kubernetes manifests")
-		gitReadonly  = fs.Bool("git-readonly", false, fmt.Sprintf("use to prevent Flux from pushing changes to git; implies --sync-state=%s and --registry-scanning=false", fluxsync.NativeStateMode))
+		gitReadonly  = fs.Bool("git-readonly", false, fmt.Sprintf("use to prevent Flux from pushing changes to git; implies --sync-state=%s", fluxsync.NativeStateMode))
 		gitUser      = fs.String("git-user", "Weave Flux", "username to use as git committer")
 		gitEmail     = fs.String("git-email", "support@weave.works", "email to use as git committer")
 		gitSetAuthor = fs.Bool("git-set-author", false, "if set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.")
@@ -151,7 +151,7 @@ func main() {
 		memcachedTimeout  = fs.Duration("memcached-timeout", time.Second, "maximum time to wait before giving up on memcached requests.")
 		memcachedService  = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
 
-		registryScanning     = fs.Bool("registry-scanning", true, "scan container image registries to fill in the registry cache; --registry-scanning=false implies --read-only=true")
+		registryScanning     = fs.Bool("registry-scanning", true, "scan container image registries to fill in the registry cache")
 		automationInterval   = fs.Duration("automation-interval", 5*time.Minute, "period at which to check for image updates for automated workloads")
 		registryPollInterval = fs.Duration("registry-poll-interval", 5*time.Minute, "period at which to check for updated images")
 		registryRPS          = fs.Float64("registry-rps", 50, "maximum registry requests per second per host")
@@ -277,7 +277,6 @@ func main() {
 	// Argument validation
 
 	if *gitReadonly {
-		*registryScanning = false
 		if *syncState == fluxsync.GitTagStateMode {
 			logger.Log("warning", fmt.Sprintf("--git-readonly prevents use of --sync-state=%s. Forcing to --sync-state=%s", fluxsync.GitTagStateMode, fluxsync.NativeStateMode))
 			*syncState = fluxsync.NativeStateMode
@@ -728,6 +727,7 @@ func main() {
 			AutomationInterval:  *automationInterval,
 			GitTimeout:          *gitTimeout,
 			GitVerifySignatures: *gitVerifySignatures,
+			ImageScanEnabled:    *registryScanning,
 		},
 	}
 

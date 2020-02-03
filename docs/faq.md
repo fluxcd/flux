@@ -348,19 +348,19 @@ If you only want to disable scanning for certain images, you can keep
 what images to exclude. This is done by supplying a list of glob expressions
 using the `registry-exclude-image` flag.
 
-Exclude images from Docker Hub and Quay.io:
+To exclude images from Docker Hub and Quay.io, use:
 
 ```
 --registry-exclude-image=docker.io/*,quay.io/*
 ```
 
-And the Helm install equivalent (note the `\,` separator):
+Here is the Helm install equivalent (note the `\,` separator):
 
 ```
 --set registry.excludeImage="docker.io/*\,quay.io/*"
 ```
 
-Exclude images containing `test` in the FQN:
+To exclude images containing `test` in the FQN, use:
 
 ```
 --registry-exclude-image=*test*
