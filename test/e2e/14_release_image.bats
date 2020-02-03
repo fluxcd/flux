@@ -22,7 +22,6 @@ function setup() {
   REGISTRY_PORT="${registry_result[0]}"
   # Teardown the created port-forward to the registry.
   defer kill "${registry_result[1]}"
-  echo "REGISTRY_PORT=$REGISTRY_PORT" >&3
   # create empty images for the test
   push_empty_image "localhost:$REGISTRY_PORT" 'bitnami/ghost:3.0.2-debian-9-r3' '2020-01-20T13:53:05.47178071Z'
   push_empty_image "localhost:$REGISTRY_PORT" 'bitnami/ghost:3.1.1-debian-9-r0' '2020-02-20T13:53:05.47178071Z'
@@ -53,9 +52,9 @@ function setup() {
   head_hash=$(git rev-list -n 1 HEAD)
   poll_until_equals "sync tag" "$head_hash" 'git pull -f --tags > /dev/null 2>&1; git rev-list -n 1 flux'
 
-  # Wait for the registry scanner to fo its magic on stefanprodan/podinfo and bitnami/ghost
-  poll_until_true "stefanprodan/podinfo to be scanned" "kubectl logs -n $FLUX_NAMESPACE deploy/flux | grep -q \"component=warmer updated=stefanprodan/podinfo\"" 5 50
-  poll_until_true "bitnami/ghost to be scanned" "kubectl logs -n $FLUX_NAMESPACE deploy/flux | grep -q \"component=warmer updated=bitnami/ghost\"" 5 50
+  # Wait for the registry scanner to do its magic on stefanprodan/podinfo and bitnami/ghost
+  poll_until_true "stefanprodan/podinfo to be scanned" "kubectl logs -n $FLUX_NAMESPACE deploy/flux | grep -q \"component=warmer updated=stefanprodan/podinfo\"" 50
+  poll_until_true "bitnami/ghost to be scanned" "kubectl logs -n $FLUX_NAMESPACE deploy/flux | grep -q \"component=warmer updated=bitnami/ghost\"" 50
 
   # Manually release podinfo to version 3.0.5
   fluxctl --k8s-fwd-ns "${FLUX_NAMESPACE}" deautomate --workload=demo:deployment/podinfo
@@ -81,12 +80,12 @@ function setup() {
   poll_until_true "helmrelease/ghost glob:3.1.1-debian-9-* to be released" 'git pull > /dev/null 2>&1; grep -q 3.1.1-debian-9-r0 releases/ghost.yaml'
 
   # Test `fluxctl release --update-all-images` by deautomating the podinfo deployment, pushing a newer podinfo image to the
-  # registry (matching its automation pattern) and making sure Flux the container to that image.
+  # registry (matching its automation pattern) and making sure Flux updates the podinfo container to that image.
   local time_before_new_image
   time_before_new_image="$(date -u +%Y-%m-%dT%T.0Z)"
   fluxctl --k8s-fwd-ns "${FLUX_NAMESPACE}" deautomate --workload=demo:deployment/podinfo
   push_empty_image "localhost:$REGISTRY_PORT" 'stefanprodan/podinfo:3.1.5' '2020-12-20T13:53:05.47178071Z'
-  poll_until_true "stefanprodan/podinfo to be re-scanned" "kubectl logs --since-time=${time_before_new_image} -n $FLUX_NAMESPACE deploy/flux | grep -q \"component=warmer updated=stefanprodan/podinfo\"" 5 50
+  poll_until_true "stefanprodan/podinfo to be re-scanned" "kubectl logs --since-time=${time_before_new_image} -n $FLUX_NAMESPACE deploy/flux | grep -q \"component=warmer updated=stefanprodan/podinfo\"" 50
   fluxctl --k8s-fwd-ns "${FLUX_NAMESPACE}" release --force --workload=demo:deployment/podinfo --update-all-images
   poll_until_true "deployment/podinfo version 3.1.5 to be released" 'git pull > /dev/null 2>&1; grep -q stefanprodan/podinfo:3.1.5 workloads/podinfo-dep.yaml'
 }
