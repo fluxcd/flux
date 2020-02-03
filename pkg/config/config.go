@@ -10,7 +10,8 @@ import (
 
 const (
 	ConfigPath        = "/etc/fluxd/conf"
-	ConfigName        = "flux-config"
+	ConfigName        = "flux-config.yaml"
+	ConfigType        = "yaml"
 	FluxConfigVersion = "v1"
 )
 
@@ -20,76 +21,76 @@ type Config struct {
 	// is interpreted: for now, if it is not equal to
 	// FluxConfigVersion above, it is considered an invalid
 	// configuration.
-	ConfigVersion string `mapstructure:"flux-config-version"`
+	ConfigVersion string `mapstructure:"fluxConfigVersion"`
 
-	LogFormat     string `mapstructure:"log-format"`
+	LogFormat     string `mapstructure:"logFormat"`
 	Listen        string `mapstructure:"listen"`
-	ListenMetrics string `mapstructure:"listen-metrics"`
+	ListenMetrics string `mapstructure:"listenMetrics"`
 
-	GitURL              string        `mapstructure:"git-url"`
-	GitBranch           string        `mapstructure:"git-branch"`
-	GitPath             []string      `mapstructure:"git-path"`
-	GitReadonly         bool          `mapstructure:"git-readonly"`
-	GitUser             string        `mapstructure:"git-user"`
-	GitEmail            string        `mapstructure:"git-email"`
-	GitSetAuthor        bool          `mapstructure:"git-set-author"`
-	GitLabel            string        `mapstructure:"git-label"`
-	GitSecret           bool          `mapstructure:"git-secret"`
-	GitSyncTag          string        `mapstructure:"git-sync-tag"`
-	GitNotesRef         string        `mapstructure:"git-notes-ref"`
-	GitCISkip           bool          `mapstructure:"git-ci-skip"`
-	GitCISkipMessage    string        `mapstructure:"git-ci-skip-message"`
-	GitPollInterval     time.Duration `mapstructure:"git-poll-interval"`
-	GitTimeout          time.Duration `mapstructure:"git-timeout"`
-	GitGPGKeyImport     []string      `mapstructure:"git-gpg-key-import"`
-	GitVerifySignatures bool          `mapstructure:"git-verify-signatures"`
-	GitSigningKey       string        `mapstructure:"git-signing-key"`
+	GitURL              string        `mapstructure:"gitUrl"`
+	GitBranch           string        `mapstructure:"gitBranch"`
+	GitPath             []string      `mapstructure:"gitPath"`
+	GitReadonly         bool          `mapstructure:"gitReadonly"`
+	GitUser             string        `mapstructure:"gitUser"`
+	GitEmail            string        `mapstructure:"gitEmail"`
+	GitSetAuthor        bool          `mapstructure:"gitSetAuthor"`
+	GitLabel            string        `mapstructure:"gitLabel"`
+	GitSecret           bool          `mapstructure:"gitSecret"`
+	GitSyncTag          string        `mapstructure:"gitSyncTag"`
+	GitNotesRef         string        `mapstructure:"gitNotesRef"`
+	GitCISkip           bool          `mapstructure:"gitCiSkip"`
+	GitCISkipMessage    string        `mapstructure:"gitCiSkipMessage"`
+	GitPollInterval     time.Duration `mapstructure:"gitPollInterval"`
+	GitTimeout          time.Duration `mapstructure:"gitTimeout"`
+	GitGPGKeyImport     []string      `mapstructure:"gitGpgKeyImport"`
+	GitVerifySignatures bool          `mapstructure:"gitVerifySignatures"`
+	GitSigningKey       string        `mapstructure:"gitSigningKey"`
 
-	SyncInterval             time.Duration `mapstructure:"sync-interval"`
-	SyncTimeout              time.Duration `mapstructure:"sync-timeout"`
-	SyncGarbageCollection    bool          `mapstructure:"sync-garbage-collection"`
-	SyncGarbageCollectionDry bool          `mapstructure:"sync-garbage-collection-dry"`
-	SyncState                string        `mapstructure:"sync-state"`
+	SyncInterval             time.Duration `mapstructure:"syncInterval"`
+	SyncTimeout              time.Duration `mapstructure:"syncTimeout"`
+	SyncGarbageCollection    bool          `mapstructure:"syncGarbageCollection"`
+	SyncGarbageCollectionDry bool          `mapstructure:"syncGarbageCollectionDry"`
+	SyncState                string        `mapstructure:"syncState"`
 	SopsEnabled              bool          `mapstructure:"sops"`
 
-	RegistryDisableScanning bool `mapstructure:"registry-disable-scanning"`
+	RegistryDisableScanning bool `mapstructure:"registryDisableScanning"`
 
-	MemcachedHostname string        `mapstructure:"memcached-hostname"`
-	MemcachedPort     int           `mapstructure:"memcached-port"`
-	MemcachedService  string        `mapstructure:"memcached-service"`
-	MemcachedTimeout  time.Duration `mapstructure:"memcached-timeout"`
+	MemcachedHostname string        `mapstructure:"memcachedHostname"`
+	MemcachedPort     int           `mapstructure:"memcachedPort"`
+	MemcachedService  string        `mapstructure:"memcachedService"`
+	MemcachedTimeout  time.Duration `mapstructure:"memcachedTimeout"`
 
-	AutomationInterval   time.Duration `mapstructure:"automation-interval"`
-	RegistryPollInterval time.Duration `mapstructure:"registry-poll-interval"`
-	RegistryRPS          float64       `mapstructure:"registry-rps"`
-	RegistryBurst        int           `mapstructure:"registry-burst"`
-	RegistryTrace        bool          `mapstructure:"registry-trace"`
-	RegistryInsecureHost []string      `mapstructure:"registry-insecure-host"`
-	RegistryExcludeImage []string      `mapstructure:"registry-exclude-image"`
-	RegistryUseLabels    []string      `mapstructure:"registry-use-labels"`
-	RegistryECRRegion    []string      `mapstructure:"registry-ecr-region"`
-	RegistryECRIncludeID []string      `mapstructure:"registry-ecr-include-id"`
-	RegistryECRExcludeID []string      `mapstructure:"registry-ecr-exclude-id"`
-	RegistryRequire      []string      `mapstructure:"registry-require"`
+	AutomationInterval   time.Duration `mapstructure:"automationInterval"`
+	RegistryPollInterval time.Duration `mapstructure:"registryPollInterval"`
+	RegistryRPS          float64       `mapstructure:"registryRps"`
+	RegistryBurst        int           `mapstructure:"registryBurst"`
+	RegistryTrace        bool          `mapstructure:"registryTrace"`
+	RegistryInsecureHost []string      `mapstructure:"registryInsecureHost"`
+	RegistryExcludeImage []string      `mapstructure:"registryExcludeImage"`
+	RegistryUseLabels    []string      `mapstructure:"registryUseLabels"`
+	RegistryECRRegion    []string      `mapstructure:"registryEcrRegion"`
+	RegistryECRIncludeID []string      `mapstructure:"registryEcrIncludeId"`
+	RegistryECRExcludeID []string      `mapstructure:"registryEcrExcludeId"`
+	RegistryRequire      []string      `mapstructure:"registryRequire"`
 
-	K8sSecretName            string        `mapstructure:"k8s-secret-name"`
-	K8sSecretVolumeMountPath string        `mapstructure:"k8s-secret-volume-mount-path"`
-	K8sSecretDataKey         string        `mapstructure:"k8s-secret-data-key"`
-	K8sAllowNamespace        []string      `mapstructure:"k8s-allow-namespace"`
-	K8sDefaultNamespace      string        `mapstructure:"k8s-default-namespace"`
-	K8sExcludeResource       []string      `mapstructure:"k8s-unsafe-exclude-resource"`
-	K8sVerbosity             int           `mapstructure:"k8s-verbosity"`
-	SSHKeygenDir             string        `mapstructure:"ssh-keygen-dir"`
-	ManifestGeneration       bool          `mapstructure:"manifest-generation"`
+	K8sSecretName            string        `mapstructure:"k8sSecretName"`
+	K8sSecretVolumeMountPath string        `mapstructure:"k8sSecretVolumeMountPath"`
+	K8sSecretDataKey         string        `mapstructure:"k8sSecretDataKey"`
+	K8sAllowNamespace        []string      `mapstructure:"k8sAllowNamespace"`
+	K8sDefaultNamespace      string        `mapstructure:"k8sDefaultNamespace"`
+	K8sExcludeResource       []string      `mapstructure:"k8sUnsafeExcludeResource"`
+	K8sVerbosity             int           `mapstructure:"k8sVerbosity"`
+	SSHKeygenDir             string        `mapstructure:"sshKeygenDir"`
+	ManifestGeneration       bool          `mapstructure:"manifestGeneration"`
 	Connect                  string        `mapstructure:"connect"`
 	Token                    string        `mapstructure:"token"`
-	RPCTimeout               time.Duration `mapstructure:"rpc-timeout"`
-	DockerConfig             string        `mapstructure:"docker-config"`
+	RPCTimeout               time.Duration `mapstructure:"rpcTimeout"`
+	DockerConfig             string        `mapstructure:"dockerConfig"`
 }
 
 func (c Config) IsValid() error {
 	if c.ConfigVersion != FluxConfigVersion {
-		return fmt.Errorf("config file is expected to include `flux-config-version: %s` to mark it as a Flux config", FluxConfigVersion)
+		return fmt.Errorf("config file is expected to include `fluxConfigVersion: %s` to mark it as a Flux config", FluxConfigVersion)
 	}
 	return nil
 }
