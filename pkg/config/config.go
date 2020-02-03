@@ -8,9 +8,11 @@ import (
 	"time"
 )
 
-const ConfigPath = "/etc/fluxd/conf"
-const ConfigName = "flux-config"
-const FluxConfigVersion = "v1"
+const (
+	ConfigPath        = "/etc/fluxd/conf"
+	ConfigName        = "flux-config"
+	FluxConfigVersion = "v1"
+)
 
 type Config struct {
 	// This is expected to be present in a config file (and will not
