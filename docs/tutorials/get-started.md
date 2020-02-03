@@ -60,14 +60,15 @@ kubectl -n flux rollout status deployment/flux
 
 ### Using a configuration file
 
-You can also use a configuration file to configure Flux instead of specifying command line arguments:
+You can also use a configuration file to configure Flux instead of
+specifying command line arguments:
 
 ```sh
 echo "git-url: git@github.com:${GHUSER}/flux-get-started" >> flux-config.yaml
 fluxctl install --config-file=flux-config.yaml --namespace=flux | kubectl apply -f -
 ```
 
-The configuration file accepts any of the command-line
+The configuration file accepts most of the command-line
 arguments. Command-line arguments override configuration file
 values. By default, a Kubernetes Secret will be created to store the
 Flux configuration. If you prefer to use a ConfigMap to specify the
