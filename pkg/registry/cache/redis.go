@@ -1,4 +1,4 @@
-package redis
+package cache
 
 import (
 	"fmt"
@@ -8,8 +8,6 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-redis/redis/v7"
 	"github.com/pkg/errors"
-
-	"github.com/fluxcd/flux/pkg/registry/cache"
 )
 
 type RedisClient struct {
@@ -20,26 +18,26 @@ type RedisClient struct {
 	wait   sync.WaitGroup
 }
 
-func (r *RedisClient) GetKey(k cache.Keyer) ([]byte, time.Time, error) {
+func (r *RedisClient) GetKey(k Keyer) ([]byte, time.Time, error) {
 	v := r.client.Get(k.Key())
 	ci, err := v.Bytes()
 	if err == redis.Nil {
 		// cache miss, no need of logging
-		return nil, time.Time{}, cache.ErrNotCached
+		return nil, time.Time{}, ErrNotCached
 	} else if err != nil {
 		// error interacting with Redis
 		_ = r.logger.Log("err", errors.Wrap(err, "fetching tag from redis"))
 		return nil, time.Time{}, err
 	}
 
-	return cache.EndianGet(ci)
+	return EndianGet(ci)
 }
 
-func (r *RedisClient) SetKey(k cache.Keyer, deadline time.Time, v []byte) (err error) {
-	expiry := cache.GracePeriodDeadline(deadline)
-	deadlineBytes := cache.EndianPut(deadline)
+func (r *RedisClient) SetKey(k Keyer, deadline time.Time, v []byte) (err error) {
+	expiry := GracePeriodDeadline(deadline)
+	deadlineBytes := EndianPut(deadline)
 
-	if _, err = r.client.Set(k.Key(), cache.EndianCompose(deadlineBytes, v), expiry).Result(); err != nil {
+	if _, err = r.client.Set(k.Key(), EndianCompose(deadlineBytes, v), expiry).Result(); err != nil {
 		_ = r.logger.Log("err", errors.Wrap(err, "storing in redis"))
 		return err
 	}

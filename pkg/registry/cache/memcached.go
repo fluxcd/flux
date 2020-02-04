@@ -9,7 +9,7 @@ memcached will still evict things when under memory pressure. We can
 recover from that -- we'll just get a cache miss, and fetch it again.
 
 */
-package memcached
+package cache
 
 import (
 	"fmt"
@@ -21,8 +21,6 @@ import (
 	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
-
-	"github.com/fluxcd/flux/pkg/registry/cache"
 )
 
 // MemcacheClient is a memcache client that gets its server list from SRV
@@ -96,30 +94,30 @@ func NewFixedServerMemcacheClient(config MemcacheConfig, addresses ...string) *M
 }
 
 // GetKey gets the value and its refresh deadline from the cache.
-func (c *MemcacheClient) GetKey(k cache.Keyer) ([]byte, time.Time, error) {
+func (c *MemcacheClient) GetKey(k Keyer) ([]byte, time.Time, error) {
 	cacheItem, err := c.client.Get(k.Key())
 	if err != nil {
 		if err == memcache.ErrCacheMiss {
 			// Don't log on cache miss
-			return []byte{}, time.Time{}, cache.ErrNotCached
+			return []byte{}, time.Time{}, ErrNotCached
 		} else {
 			c.logger.Log("err", errors.Wrap(err, "Fetching tag from memcache"))
 			return []byte{}, time.Time{}, err
 		}
 	}
-	return cache.EndianGet(cacheItem.Value)
+	return EndianGet(cacheItem.Value)
 }
 
 // SetKey sets the value and its refresh deadline at a key. NB the key
 // expiry is set _longer_ than the deadline, to give us a grace period
 // in which to refresh the value.
-func (c *MemcacheClient) SetKey(k cache.Keyer, refreshDeadline time.Time, v []byte) error {
-	expiry := cache.GracePeriodDeadline(refreshDeadline)
-	deadlineBytes := cache.EndianPut(refreshDeadline)
+func (c *MemcacheClient) SetKey(k Keyer, refreshDeadline time.Time, v []byte) error {
+	expiry := GracePeriodDeadline(refreshDeadline)
+	deadlineBytes := EndianPut(refreshDeadline)
 
 	if err := c.client.Set(&memcache.Item{
 		Key:        k.Key(),
-		Value:      cache.EndianCompose(deadlineBytes, v),
+		Value:      EndianCompose(deadlineBytes, v),
 		Expiration: int32(expiry.Seconds()),
 	}); err != nil {
 		c.logger.Log("err", errors.Wrap(err, "storing in memcache"))

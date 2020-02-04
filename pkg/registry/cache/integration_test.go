@@ -1,6 +1,6 @@
 // +build integration
 
-package memcached
+package cache
 
 import (
 	"os"
@@ -14,23 +14,14 @@ import (
 
 	"github.com/fluxcd/flux/pkg/image"
 	"github.com/fluxcd/flux/pkg/registry"
-	"github.com/fluxcd/flux/pkg/registry/cache"
 	"github.com/fluxcd/flux/pkg/registry/middleware"
 )
-
-// memcachedIPs flag from memcached_test.go
 
 // This tests a real memcached cache and a request to a real Docker
 // repository. It is intended to be an end-to-end integration test for
 // the warmer since I had a few bugs introduced when refactoring. This
 // should cover against these bugs.
 func TestWarming_WarmerWriteCacheRead(t *testing.T) {
-	mc := NewFixedServerMemcacheClient(MemcacheConfig{
-		Timeout:        time.Second,
-		UpdateInterval: 1 * time.Minute,
-		Logger:         log.With(log.NewLogfmtLogger(os.Stderr), "component", "memcached"),
-	}, strings.Fields(*memcachedIPs)...)
-
 	// This repo has a stable number of images in the low tens (just
 	// <20); more than `burst` below, but not so many that timing out
 	// is likely.
@@ -40,6 +31,27 @@ func TestWarming_WarmerWriteCacheRead(t *testing.T) {
 	// tens.
 	id, _ := image.ParseRef("docker.io/weaveworks/flagger-loadtester")
 
+	t.Run("memcached", func(t *testing.T) {
+		mc := NewFixedServerMemcacheClient(MemcacheConfig{
+			Timeout:        time.Second,
+			UpdateInterval: 1 * time.Minute,
+			Logger:         log.With(log.NewLogfmtLogger(os.Stderr), "component", "memcached"),
+		}, strings.Fields(*memcachedIPs)...)
+		warmerTest(id, mc, t)
+	})
+	t.Run("redis", func(t *testing.T) {
+		r := NewRedisClient(RedisConfig{
+			Service:  *redisIp,
+			Port:     *redisPort,
+			Timeout:  time.Second,
+			MaxConns: 10,
+			Logger:   log.With(log.NewLogfmtLogger(os.Stderr), "component", "redis"),
+		})
+		warmerTest(id, r, t)
+	})
+}
+
+func warmerTest(id image.Ref, mc Client, t *testing.T) {
 	logger := log.NewLogfmtLogger(os.Stderr)
 
 	remote := &registry.RemoteClientFactory{
@@ -48,9 +60,9 @@ func TestWarming_WarmerWriteCacheRead(t *testing.T) {
 		Trace:    true,
 	}
 
-	r := &cache.Cache{Reader: mc}
+	r := &Cache{Reader: mc}
+	w, _ := NewWarmer(remote, mc, 125)
 
-	w, _ := cache.NewWarmer(remote, mc, 125)
 	shutdown := make(chan struct{})
 	shutdownWg := &sync.WaitGroup{}
 	defer func() {
@@ -59,6 +71,7 @@ func TestWarming_WarmerWriteCacheRead(t *testing.T) {
 	}()
 
 	shutdownWg.Add(1)
+
 	go w.Loop(log.With(logger, "component", "warmer"), shutdown, shutdownWg, func() registry.ImageCreds {
 		return registry.ImageCreds{
 			id.Name: registry.NoCredentials(),

@@ -1,23 +1,22 @@
 // +build integration
 
-package memcached
+package cache
 
 import (
 	"flag"
-	"github.com/go-kit/kit/log"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/go-kit/kit/log"
 )
 
 var (
+	val          = []byte("test bytes")
+	key          = testKey("test")
 	memcachedIPs = flag.String("memcached-ips", "127.0.0.1:11211", "space-separated host:port values for memcached to connect to")
 )
-
-var val = []byte("test bytes")
-
-var key = testKey("test")
 
 type testKey string
 

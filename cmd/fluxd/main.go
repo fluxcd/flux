@@ -46,8 +46,6 @@ import (
 	"github.com/fluxcd/flux/pkg/manifests"
 	"github.com/fluxcd/flux/pkg/registry"
 	"github.com/fluxcd/flux/pkg/registry/cache"
-	registryMemcache "github.com/fluxcd/flux/pkg/registry/cache/memcached"
-	registryRedis "github.com/fluxcd/flux/pkg/registry/cache/redis"
 	registryMiddleware "github.com/fluxcd/flux/pkg/registry/middleware"
 	"github.com/fluxcd/flux/pkg/remote"
 	"github.com/fluxcd/flux/pkg/ssh"
@@ -594,8 +592,8 @@ func main() {
 
 		switch *cacheBackend {
 		case "memcached":
-			var memcacheClient *registryMemcache.MemcacheClient
-			memcacheConfig := registryMemcache.MemcacheConfig{
+			var memcacheClient *cache.MemcacheClient
+			memcacheConfig := cache.MemcacheConfig{
 				Host:           *memcachedHostname,
 				Service:        *memcachedService,
 				Timeout:        *cacheTimeout,
@@ -605,21 +603,21 @@ func main() {
 			}
 			// if no memcached service is specified use the ClusterIP name instead of SRV records
 			if *memcachedService == "" {
-				memcacheClient = registryMemcache.NewFixedServerMemcacheClient(memcacheConfig,
+				memcacheClient = cache.NewFixedServerMemcacheClient(memcacheConfig,
 					fmt.Sprintf("%s:%d", *memcachedHostname, *memcachedPort))
 			} else {
-				memcacheClient = registryMemcache.NewMemcacheClient(memcacheConfig)
+				memcacheClient = cache.NewMemcacheClient(memcacheConfig)
 			}
 			defer memcacheClient.Stop()
 			cacheClient = memcacheClient
 		case "redis":
-			redisConfig := registryRedis.RedisConfig{
+			redisConfig := cache.RedisConfig{
 				Service: *redisService,
 				Port:    *redisPort,
 				Timeout: *cacheTimeout,
 				Logger:  log.With(logger, "component", "redis"),
 			}
-			cacheClient = registryRedis.NewRedisClient(redisConfig)
+			cacheClient = cache.NewRedisClient(redisConfig)
 		default:
 			_ = logger.Log("error", "selected storage backend is not implemented", "backend", *cacheBackend)
 			os.Exit(1)
