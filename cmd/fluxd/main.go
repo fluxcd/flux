@@ -209,12 +209,13 @@ func main() {
 
 	// --- From this point, we can just consult the config struct for values ---
 
-	// viper.IsSet, which we could otherwise use for determining
-	// whether a flag has been supplied, is broken:
-	// https://github.com/spf13/viper/pull/331. So we have to proceed
-	// by other means.
-	isSet := func(flag string) bool {
-		return fs.Changed(flag) || viper.InConfig(flag)
+	// A convenience: since we tend to think in flags or fields of
+	// `config.Config` here, but viper expects lowercase config
+	// keys. This makes sure camel-cased keys still work (though
+	// without checking that the key is backed by a flag or config
+	// field).
+	isSet := func(key string) bool {
+		return viper.IsSet(strings.ToLower(key))
 	}
 
 	// Explicitly initialize klog to enable stderr logging,
@@ -272,17 +273,17 @@ func main() {
 			config.SyncState = fluxsync.NativeStateMode
 		}
 
-		gitRelatedFlags := []string{
-			"git-user",
-			"git-email",
-			"git-sync-tag",
-			"git-set-author",
-			"git-ci-skip",
-			"git-ci-skip-message",
+		gitRelatedFlags := map[string]string{
+			"git-user":            "gitUser",
+			"git-email":           "gitEmail",
+			"git-sync-tag":        "gitSyncTag",
+			"git-set-author":      "gitSetAuthor",
+			"git-ci-skip":         "gitCISkip",
+			"git-ci-skip-message": "gitCISkipMessage",
 		}
 		var changedGitRelatedFlags []string
-		for _, gitRelatedFlag := range gitRelatedFlags {
-			if isSet(gitRelatedFlag) {
+		for gitRelatedFlag, field := range gitRelatedFlags {
+			if isSet(field) {
 				changedGitRelatedFlags = append(changedGitRelatedFlags, gitRelatedFlag)
 			}
 		}
@@ -294,17 +295,17 @@ func main() {
 	// Maintain backwards compatibility with the --registry-poll-interval
 	// _flag_, but only if the --automation-interval is not set to a custom
 	// (non default) value anywhere.
-	if fs.Changed("registry-poll-interval") && !isSet("automation-interval") {
+	if fs.Changed("registry-poll-interval") && !isSet("automationInterval") {
 		config.AutomationInterval = *registryPollInterval
 	}
 
 	// Sort out values for the git tag and notes ref. There are
 	// running deployments that assume the defaults as given, so don't
 	// mess with those unless explicitly told.
-	if isSet("git-label") {
+	if isSet("gitLabel") {
 		config.GitSyncTag = config.GitLabel
 		config.GitNotesRef = config.GitLabel
-		for _, f := range []string{"git-sync-tag", "git-notes-ref"} {
+		for _, f := range []string{"gitSyncTag", "gitNotesRef"} {
 			if isSet(f) {
 				logger.Log("overridden", f, "value", config.GitLabel)
 			}
