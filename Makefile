@@ -162,9 +162,6 @@ $(GOBIN)/fluxctl: $(FLUXCTL_DEPS) $(GENERATED_TEMPLATES_FILE)
 $(GOBIN)/fluxd: $(FLUXD_DEPS)
 	go install ./cmd/fluxd
 
-integration-test: all
-	test/bin/test-flux
-
 generate-deploy: $(GOBIN)/fluxctl
 	$(GOBIN)/fluxctl install -o ./deploy \
 		--git-url git@github.com:fluxcd/flux-get-started \
