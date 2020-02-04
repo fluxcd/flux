@@ -81,26 +81,41 @@ func (opts *installOpts) RunE(cmd *cobra.Command, args []string) error {
 	// secret) and the flags (which will go into the template as fluxd
 	// args).
 
+	// These are mandatory, so the only two we care about here;
+	// binding them with config names means we'll see them when we
+	// load the config file.
+	mandatoryFields := map[string]string{"gitURL": "git-url", "gitEmail": "git-email"}
+	for field, flag := range mandatoryFields {
+		// viper won't error if the pflag is nil :-/
+		f := cmd.Flags().Lookup(flag)
+		if f == nil {
+			panic("error while initialising flags: mandatory field " + field + " does not have an associated flag")
+		}
+		if err := viper.BindPFlag(field, f); err != nil {
+			panic(err)
+		}
+	}
+
 	if opts.configFile != "" {
 		viper.SetConfigFile(opts.configFile)
+		viper.SetConfigType("yaml")
 		if err := viper.ReadInConfig(); err != nil {
-			return fmt.Errorf("unable to read config at %s (possibly a missing file extension, try .yaml or .json): %s", opts.configFile, err)
+			return fmt.Errorf("unable to read config at %s (expected to be YAML): %s", opts.configFile, err)
 		}
 	}
-	viper.BindPFlags(cmd.Flags())
 
 	// check that our mandatory flags were set, either on the command
-	// line or in the config file
-	mandatoryFlags := []string{"git-url", "git-email"}
-	var missingFlags []string
-	for _, flag := range mandatoryFlags {
-		if !(viper.InConfig(flag) || cmd.Flags().Changed(flag)) {
-			missingFlags = append(missingFlags, flag)
+	// line or in the config file. NB viper expects these to be
+	// lowercase.
+	var missingFields []string
+	for field, flag := range mandatoryFields {
+		if !(viper.InConfig(strings.ToLower(field)) || cmd.Flags().Changed(flag)) {
+			missingFields = append(missingFields, field)
 		}
 	}
-	if len(missingFlags) > 0 {
-		return fmt.Errorf("(each of) %s must be set either by command-line flag, or in a file supplied to --config-file",
-			strings.Join(missingFlags, ", "))
+	if len(missingFields) > 0 {
+		return fmt.Errorf("(each of) %s must be set either by command-line flag, or in the file supplied to --config-file",
+			strings.Join(missingFields, ", "))
 	}
 
 	if opts.configFile != "" {
