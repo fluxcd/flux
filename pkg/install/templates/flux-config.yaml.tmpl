@@ -16,5 +16,9 @@ metadata:
   namespace: {{ .Namespace }}
   {{- end }}
 data:
-{{ printf "%s" .ConfigFileContent | indent 2 }}
+  {{- if .ConfigAsConfigMap }}
+  flux-config.yaml: | {{- printf "\n%s" (.ConfigFileContent | indent 4) }}
+  {{- else }}
+  flux-config.yaml: "{{ .ConfigFileContent | base64enc }}"
+  {{- end }}
 {{- end }}

@@ -104,14 +104,11 @@ func (opts *installOpts) RunE(cmd *cobra.Command, args []string) error {
 	}
 
 	if opts.configFile != "" {
-		configFileReader, err := os.Open(opts.configFile)
+		configFileContent, err := ioutil.ReadFile(opts.configFile)
 		if err != nil {
 			return fmt.Errorf("unable to open flux config file: %s", err.Error())
 		}
-		opts.params.ConfigFileContent, err = install.ConfigContent(configFileReader, opts.params.ConfigAsConfigMap)
-		if err != nil {
-			return fmt.Errorf("unable to construct config resource: %s", err.Error())
-		}
+		opts.params.ConfigFileContent = string(configFileContent)
 	}
 
 	opts.params.Namespace = getKubeConfigContextNamespaceOrDefault(opts.params.Namespace, "default", "")

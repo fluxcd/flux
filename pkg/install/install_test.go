@@ -1,7 +1,6 @@
 package install
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/instrumenta/kubeval/kubeval"
@@ -147,14 +146,13 @@ func TestFillInTemplatesNoSecurityContext(t *testing.T) {
 
 func TestFillInTemplatesConfigFile(t *testing.T) {
 
-	configFile := `config1: configuration1
+	configContent := `config1: configuration1
 config2: configuration2
 config3: configuration3`
 
 	tests := map[string]struct {
 		params              TemplateParameters
-		configFileName      string
-		configFileNameCheck string
+		configFileCheck     string
 		deploymentFileCheck string
 	}{
 		"configMap": {
@@ -169,8 +167,7 @@ config3: configuration3`
 				ConfigAsConfigMap:  true,
 				AdditionalFluxArgs: []string{"arg1=foo", "arg2=bar"},
 			},
-			configFileName:      "flux-config.yaml",
-			configFileNameCheck: "    config2: config",
+			configFileCheck:     "    config2: configuration2",
 			deploymentFileCheck: "name: flux-config",
 		},
 		"secret": {
@@ -185,24 +182,19 @@ config3: configuration3`
 				ConfigAsConfigMap:  false,
 				AdditionalFluxArgs: []string{"arg1=foo", "arg2=bar"},
 			},
-			configFileName: "flux-config.yaml",
 			// the following field value is the base64 encoding of the config file string above
-			configFileNameCheck: "  flux-config.yaml: Y29uZmlnMTogY29uZmlndXJhdGlvbjEKY29uZmlnMjogY29uZmlndXJhdGlvbjIKY29uZmlnMzogY29uZmlndXJhdGlvbjM=",
+			configFileCheck:     `  flux-config.yaml: "Y29uZmlnMTogY29uZmlndXJhdGlvbjEKY29uZmlnMjogY29uZmlndXJhdGlvbjIKY29uZmlnMzogY29uZmlndXJhdGlvbjM="`,
 			deploymentFileCheck: "secretName: flux-config",
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(*testing.T) {
-			configContent, err := ConfigContent(strings.NewReader(configFile), test.params.ConfigAsConfigMap)
-			if err != nil {
-				t.Fatal(err)
-			}
 			test.params.ConfigFileContent = configContent
 			manifests := testFillInTemplates(t, 6, test.params)
 			for fileName, contents := range manifests {
-				if fileName == test.configFileName {
-					assert.Contains(t, string(contents), test.configFileNameCheck)
+				if fileName == "flux-config.yaml" {
+					assert.Contains(t, string(contents), test.configFileCheck)
 				}
 				if fileName == "flux-deployment.yaml" {
 					assert.Contains(t, string(contents), test.deploymentFileCheck)

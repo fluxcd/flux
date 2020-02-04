@@ -2,6 +2,7 @@ package install
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -10,7 +11,6 @@ import (
 	"text/template"
 
 	"github.com/shurcooL/httpfs/vfsutil"
-	"k8s.io/helm/pkg/chartutil"
 )
 
 //go:generate go run generate.go
@@ -37,6 +37,10 @@ func indent(spaces int, v string) string {
 	return pad + strings.Replace(v, "\n", "\n"+pad, -1)
 }
 
+func base64enc(v string) string {
+	return base64.StdEncoding.EncodeToString([]byte(v))
+}
+
 func FillInTemplates(params TemplateParameters) (map[string][]byte, error) {
 	result := map[string][]byte{}
 
@@ -56,7 +60,7 @@ func FillInTemplates(params TemplateParameters) (map[string][]byte, error) {
 			return fmt.Errorf("cannot read embedded file %q: %s", info.Name(), err)
 		}
 		manifestTemplate, err := template.New(info.Name()).
-			Funcs(template.FuncMap{"StringsJoin": strings.Join, "indent": indent}).
+			Funcs(template.FuncMap{"StringsJoin": strings.Join, "indent": indent, "base64enc": base64enc}).
 			Parse(string(manifestTemplateBytes))
 		if err != nil {
 			return fmt.Errorf("cannot parse embedded file %q: %s", info.Name(), err)
@@ -65,8 +69,8 @@ func FillInTemplates(params TemplateParameters) (map[string][]byte, error) {
 		if err := manifestTemplate.Execute(out, params); err != nil {
 			return fmt.Errorf("cannot execute template for embedded file %q: %s", info.Name(), err)
 		}
-		if out.Len() > 0 {
-			result[strings.TrimSuffix(info.Name(), ".tmpl")] = out.Bytes()
+		if content := out.Bytes(); len(bytes.TrimSpace(content)) > 0 {
+			result[strings.TrimSuffix(info.Name(), ".tmpl")] = content
 		}
 		return nil
 	})
@@ -74,19 +78,4 @@ func FillInTemplates(params TemplateParameters) (map[string][]byte, error) {
 		return nil, fmt.Errorf("internal error filling embedded installation templates: %s", err)
 	}
 	return result, nil
-}
-
-func ConfigContent(configFile io.Reader, configAsConfigMap bool) (string, error) {
-	tmp, err := ioutil.ReadAll(configFile)
-	if err != nil {
-		return "", fmt.Errorf("unable to read config file: %s", err)
-	}
-	var f chartutil.Files
-	f = make(map[string][]byte)
-	f["flux-config.yaml"] = tmp
-	if configAsConfigMap {
-		return f.AsConfig(), nil
-	} else {
-		return f.AsSecrets(), nil
-	}
 }
