@@ -155,10 +155,19 @@ To work around exceptional cases, you can mount a docker config into
 the Flux container. See the argument `--docker-config` in [the daemon
 arguments reference](references/daemon.md).
 
-For ECR, if you are using Kiam, you need to whitelist the following API routes:
-```
---whitelist-route-regexp=(/latest/meta-data/placement/availability-zone|/latest/dynamic/instance-identity/document)
-```
+For ECR, Flux requires access to the EC2 instance metadata API to
+obtain AWS credentials. Kube2iam, Kiam, and potentially other
+Kuberenetes IAM utilities may block pod level access to the EC2
+metadata APIs. If this is the case, Flux will be unable to poll ECR
+for automated workloads.
+
+ -  If you are using Kiam, you need to whitelist the following API routes:
+      ```
+      --whitelist-route-regexp=(/latest/meta-data/placement/availability-zone|/latest/dynamic/instance-identity/document)
+      ```
+ - If you are using kube2iam, ensure the values of --iptables and
+    --in-interface are [configured correctly for your virtual network
+    provider](https://github.com/jtblin/kube2iam#iptables).
 
 See also
 [Why are my images not showing up in the list of images?](#why-are-my-images-not-showing-up-in-the-list-of-images)
