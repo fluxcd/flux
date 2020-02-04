@@ -741,7 +741,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *mock.Mock, *mockEventWr
 		JobStatusCache: &job.StatusCache{Size: 100},
 		EventWriter:    events,
 		Logger:         logger,
-		LoopVars:       &LoopVars{SyncTimeout: timeout, GitTimeout: timeout, SyncState: gitSync, ImageScanEnabled: true},
+		LoopVars:       &LoopVars{SyncTimeout: timeout, GitTimeout: timeout, SyncState: gitSync},
 	}
 
 	start := func() {

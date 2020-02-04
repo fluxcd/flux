@@ -1,6 +1,6 @@
 - op: add
   path: /spec/template/spec/containers/0/args/-
-  value: --registry-scanning=true
+  value: --registry-disable-scanning=false
 - op: add
   path: /spec/template/spec/containers/0/args/-
   value: --registry-exclude-image=*bitnami/mongodb,*bitnami/redis,*k8s.gcr.io*,*docker/kube-*,*fluxcd/flux,*alpine,*memcached,*stefanprodan/gitsrv,*registry

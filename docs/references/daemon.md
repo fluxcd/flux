@@ -79,7 +79,7 @@ Version controlling of cluster manifests provides reproducibility and a historic
 | --registry-ecr-include-id                        | `[]`                               | include these AWS account ID(s) when scanning images in ECR (multiple values allowed); empty means allow all, unless excluded
 | --registry-ecr-exclude-id                        | `[<EKS SYSTEM ACCOUNT>]`           | exclude these AWS account ID(s) when scanning ECR (multiple values allowed); defaults to the EKS system account, so system images will not be scanned
 | --registry-require                               | `[]`                               | exit with an error if the given services are not available. Useful for escalating misconfiguration or outages that might otherwise go undetected. Presently supported values: {`ecr`} |
-| --registry-scanning                              | `true`                             | scan container image registries to fill in the registry cache
+| --registry-disable-scanning                      | `false`                            | do not scan container image registries to fill in the registry cache
 | **k8s-secret backed ssh keyring configuration**
 | --k8s-secret-name                                | `flux-git-deploy`                  | name of the k8s secret used to store the private SSH key
 | --k8s-secret-volume-mount-path                   | `/etc/fluxd/ssh`                   | mount location of the k8s secret storing the private SSH key
