@@ -24,7 +24,7 @@ CURRENT_OS=$(shell go env GOOS)
 CURRENT_OS_ARCH=$(shell echo $(CURRENT_OS)-`go env GOARCH`)
 GOBIN?=$(shell echo `go env GOPATH`/bin)
 
-MAIN_GO_MODULE:=github.com/fluxcd/flux
+MAIN_GO_MODULE:=$(shell go list -m -f '{{ .Path }}')
 LOCAL_GO_MODULES:=$(shell go list -m -f '{{ .Path }}' all | grep $(MAIN_GO_MODULE))
 godeps=$(shell go list -deps -f '{{if not .Standard}}{{ $$dep := . }}{{range .GoFiles}}{{$$dep.Dir}}/{{.}} {{end}}{{end}}' $(1) | sed "s%${PWD}/%%g")
 
