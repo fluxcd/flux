@@ -48,8 +48,8 @@ fluxctl install --git-url 'git@github.com:<your username>/flux-get-started' --gi
 		"whether to enable manifest generation")
 	cmd.Flags().StringVar(&opts.Namespace, "namespace", "",
 		"cluster namespace where to install flux")
-	cmd.Flags().BoolVar(&opts.RegistryScanning, "registry-scanning", true,
-		"scan container image registries to fill in the registry cache")
+	cmd.Flags().BoolVar(&opts.RegistryDisableScanning, "registry-disable-scanning", false,
+		"do not scan container image registries to fill in the registry cache")
 	cmd.Flags().StringVarP(&opts.outputDir, "output-dir", "o", "", "a directory in which to write individual manifests, rather than printing to stdout")
 	cmd.Flags().BoolVar(&opts.AddSecurityContext, "add-security-context", true, "Ensure security context information is added to the pod specs. Defaults to 'true'")
 

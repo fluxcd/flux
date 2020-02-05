@@ -64,35 +64,26 @@ func TestFillInTemplatesAllParameters(t *testing.T) {
 		GitReadOnly:        false,
 		ManifestGeneration: true,
 		AdditionalFluxArgs: []string{"arg1=foo", "arg2=bar"},
-		RegistryScanning:   true,
 		AddSecurityContext: true,
 	})
 }
 
 func TestFillInTemplatesMissingValues(t *testing.T) {
 	testFillInTemplates(t, 5, TemplateParameters{
-		GitURL:           "git@github.com:fluxcd/flux-get-started",
-		GitBranch:        "branch",
-		GitPaths:         []string{},
-		GitLabel:         "label",
-		RegistryScanning: true,
+		GitURL:                  "git@github.com:fluxcd/flux-get-started",
+		GitBranch:               "branch",
+		GitPaths:                []string{},
+		GitLabel:                "label",
 	})
 }
 
 func TestFillInTemplatesNoMemcached(t *testing.T) {
 	testFillInTemplates(t, 3, TemplateParameters{
-		GitURL:           "git@github.com:fluxcd/flux-get-started",
-		GitBranch:        "branch",
-		GitPaths:         []string{},
-		GitLabel:         "label",
-		RegistryScanning: false,
-	})
-	testFillInTemplates(t, 3, TemplateParameters{
-		GitURL:      "git@github.com:fluxcd/flux-get-started",
-		GitBranch:   "branch",
-		GitPaths:    []string{},
-		GitLabel:    "label",
-		GitReadOnly: false,
+		GitURL:                  "git@github.com:fluxcd/flux-get-started",
+		GitBranch:               "branch",
+		GitPaths:                []string{},
+		GitLabel:                "label",
+		RegistryDisableScanning: true,
 	})
 }
 
@@ -108,7 +99,6 @@ func TestTestFillInTemplatesAddSecurityContext(t *testing.T) {
 		GitReadOnly:        false,
 		ManifestGeneration: true,
 		AdditionalFluxArgs: []string{"arg1=foo", "arg2=bar"},
-		RegistryScanning:   true,
 		AddSecurityContext: true,
 	}
 
@@ -138,7 +128,6 @@ func TestFillInTemplatesNoSecurityContext(t *testing.T) {
 		GitReadOnly:        false,
 		ManifestGeneration: true,
 		AdditionalFluxArgs: []string{"arg1=foo", "arg2=bar"},
-		RegistryScanning:   true,
 		AddSecurityContext: false,
 	}
 

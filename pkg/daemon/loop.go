@@ -20,6 +20,7 @@ type LoopVars struct {
 	GitTimeout          time.Duration
 	GitVerifySignatures bool
 	SyncState           fluxsync.State
+	ImageScanDisabled   bool
 
 	initOnce               sync.Once
 	syncSoon               chan struct{}
@@ -53,11 +54,16 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 	// In-memory sync tag state
 	ratchet := &lastKnownSyncState{logger: logger, state: d.SyncState}
 
-	// If the git repo is read-only, the image update will fail; to
+	// If the git repo is read-only, the image updates will fail; to
 	// avoid repeated failures in the log, mention it here and
 	// otherwise skip it when it comes around.
 	if d.Repo.Readonly() {
 		logger.Log("info", "Repo is read-only; no image updates will be attempted")
+	}
+
+	// Same for registry scanning
+	if d.ImageScanDisabled {
+		logger.Log("info", "Registry scanning is disabled; no image updates will be attempted")
 	}
 
 	// Ask for a sync, and to check
@@ -76,7 +82,7 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 				default:
 				}
 			}
-			if d.Repo.Readonly() {
+			if d.Repo.Readonly() || d.ImageScanDisabled {
 				// don't bother trying to update images, and don't
 				// bother setting the timer again
 				continue

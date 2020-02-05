@@ -184,8 +184,8 @@ spec:
         # Serve /metrics endpoint at different port;
         # make sure to set prometheus' annotation to scrape the port value.
         - --listen-metrics=:3031
-{{- if not .RegistryScanning }}
-        - --registry-scanning=false
+{{- if .RegistryDisableScanning }}
+        - --registry-disable-scanning
 {{- end }}
 {{ if .AdditionalFluxArgs }}
         # Additional arguments{{ range .AdditionalFluxArgs }}

@@ -15,18 +15,18 @@ import (
 //go:generate go run generate.go
 
 type TemplateParameters struct {
-	GitURL             string
-	GitBranch          string
-	GitPaths           []string
-	GitLabel           string
-	GitUser            string
-	GitEmail           string
-	GitReadOnly        bool
-	RegistryScanning   bool
-	Namespace          string
-	ManifestGeneration bool
-	AdditionalFluxArgs []string
-	AddSecurityContext bool
+	GitURL                  string
+	GitBranch               string
+	GitPaths                []string
+	GitLabel                string
+	GitUser                 string
+	GitEmail                string
+	GitReadOnly             bool
+	RegistryDisableScanning bool
+	Namespace               string
+	ManifestGeneration      bool
+	AdditionalFluxArgs      []string
+	AddSecurityContext      bool
 }
 
 func FillInTemplates(params TemplateParameters) (map[string][]byte, error) {
@@ -38,8 +38,8 @@ func FillInTemplates(params TemplateParameters) (map[string][]byte, error) {
 		if info.IsDir() {
 			return nil
 		}
-		if (params.GitReadOnly || !params.RegistryScanning) && strings.Contains(info.Name(), "memcache") {
-			// do not include memcached resources in readonly mode or when registry scanning is disabled
+		if params.RegistryDisableScanning && strings.Contains(info.Name(), "memcache") {
+			// do not include memcached resources when registry scanning is disabled
 			return nil
 		}
 		manifestTemplateBytes, err := ioutil.ReadAll(rs)

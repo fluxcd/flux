@@ -117,7 +117,7 @@ func main() {
 		gitURL       = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:fluxcd/flux-get-started")
 		gitBranch    = fs.String("git-branch", "master", "branch of git repo to use for Kubernetes manifests")
 		gitPath      = fs.StringSlice("git-path", []string{}, "relative paths within the git repo to locate Kubernetes manifests")
-		gitReadonly  = fs.Bool("git-readonly", false, fmt.Sprintf("use to prevent Flux from pushing changes to git; implies --sync-state=%s and --registry-scanning=false", fluxsync.NativeStateMode))
+		gitReadonly  = fs.Bool("git-readonly", false, fmt.Sprintf("use to prevent Flux from pushing changes to git; implies --sync-state=%s", fluxsync.NativeStateMode))
 		gitUser      = fs.String("git-user", "Weave Flux", "username to use as git committer")
 		gitEmail     = fs.String("git-email", "support@weave.works", "email to use as git committer")
 		gitSetAuthor = fs.Bool("git-set-author", false, "if set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.")
@@ -151,15 +151,15 @@ func main() {
 		memcachedTimeout  = fs.Duration("memcached-timeout", time.Second, "maximum time to wait before giving up on memcached requests.")
 		memcachedService  = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
 
-		registryScanning     = fs.Bool("registry-scanning", true, "scan container image registries to fill in the registry cache; --registry-scanning=false implies --read-only=true")
-		automationInterval   = fs.Duration("automation-interval", 5*time.Minute, "period at which to check for image updates for automated workloads")
-		registryPollInterval = fs.Duration("registry-poll-interval", 5*time.Minute, "period at which to check for updated images")
-		registryRPS          = fs.Float64("registry-rps", 50, "maximum registry requests per second per host")
-		registryBurst        = fs.Int("registry-burst", defaultRemoteConnections, "maximum number of warmer connections to remote and memcache")
-		registryTrace        = fs.Bool("registry-trace", false, "output trace of image registry requests to log")
-		registryInsecure     = fs.StringSlice("registry-insecure-host", []string{}, "let these registry hosts skip TLS host verification and fall back to using HTTP instead of HTTPS; this allows man-in-the-middle attacks, so use with extreme caution")
-		registryExcludeImage = fs.StringSlice("registry-exclude-image", []string{"k8s.gcr.io/*"}, "do not scan images that match these glob expressions; the default is to exclude the 'k8s.gcr.io/*' images")
-		registryUseLabels    = fs.StringSlice("registry-use-labels", []string{"index.docker.io/weaveworks/*", "index.docker.io/fluxcd/*"}, "use the timestamp (RFC3339) from labels for (canonical) image refs that match these glob expression")
+		registryDisableScanning = fs.Bool("registry-disable-scanning", false, "do not scan container image registries to fill in the registry cache")
+		automationInterval      = fs.Duration("automation-interval", 5*time.Minute, "period at which to check for image updates for automated workloads")
+		registryPollInterval    = fs.Duration("registry-poll-interval", 5*time.Minute, "period at which to check for updated images")
+		registryRPS             = fs.Float64("registry-rps", 50, "maximum registry requests per second per host")
+		registryBurst           = fs.Int("registry-burst", defaultRemoteConnections, "maximum number of warmer connections to remote and memcache")
+		registryTrace           = fs.Bool("registry-trace", false, "output trace of image registry requests to log")
+		registryInsecure        = fs.StringSlice("registry-insecure-host", []string{}, "let these registry hosts skip TLS host verification and fall back to using HTTP instead of HTTPS; this allows man-in-the-middle attacks, so use with extreme caution")
+		registryExcludeImage    = fs.StringSlice("registry-exclude-image", []string{"k8s.gcr.io/*"}, "do not scan images that match these glob expressions; the default is to exclude the 'k8s.gcr.io/*' images")
+		registryUseLabels       = fs.StringSlice("registry-use-labels", []string{"index.docker.io/weaveworks/*", "index.docker.io/fluxcd/*"}, "use the timestamp (RFC3339) from labels for (canonical) image refs that match these glob expression")
 
 		// AWS authentication
 		registryAWSRegions         = fs.StringSlice("registry-ecr-region", nil, "include just these AWS regions when scanning images in ECR; when not supplied, the cluster's region will included if it can be detected through the AWS API")
@@ -277,7 +277,6 @@ func main() {
 	// Argument validation
 
 	if *gitReadonly {
-		*registryScanning = false
 		if *syncState == fluxsync.GitTagStateMode {
 			logger.Log("warning", fmt.Sprintf("--git-readonly prevents use of --sync-state=%s. Forcing to --sync-state=%s", fluxsync.GitTagStateMode, fluxsync.NativeStateMode))
 			*syncState = fluxsync.NativeStateMode
@@ -561,7 +560,7 @@ func main() {
 	// Registry components
 	var imageRegistry registry.Registry = registry.ImageScanDisabledRegistry{}
 	var cacheWarmer *cache.Warmer
-	if *registryScanning {
+	if !*registryDisableScanning {
 		// Cache client, for use by registry and cache warmer
 		var cacheClient cache.Client
 		var memcacheClient *registryMemcache.MemcacheClient
@@ -660,7 +659,7 @@ func main() {
 		"sync-tag", *gitSyncTag,
 		"state", *syncState,
 		"readonly", *gitReadonly,
-		"registry-scanning", *registryScanning,
+		"registry-disable-scanning", *registryDisableScanning,
 		"notes-ref", *gitNotesRef,
 		"set-author", *gitSetAuthor,
 		"git-secret", *gitSecret,
@@ -728,6 +727,7 @@ func main() {
 			AutomationInterval:  *automationInterval,
 			GitTimeout:          *gitTimeout,
 			GitVerifySignatures: *gitVerifySignatures,
+			ImageScanDisabled:   *registryDisableScanning,
 		},
 	}
 
@@ -763,7 +763,7 @@ func main() {
 	shutdownWg.Add(1)
 	go daemon.Loop(shutdown, shutdownWg, log.With(logger, "component", "sync-loop"))
 
-	if *registryScanning {
+	if !*registryDisableScanning {
 		cacheWarmer.Notify = daemon.AskForAutomatedWorkloadImageUpdates
 		cacheWarmer.Priority = daemon.ImageRefresh
 		cacheWarmer.Trace = *registryTrace
