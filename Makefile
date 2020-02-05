@@ -24,6 +24,8 @@ CURRENT_OS=$(shell go env GOOS)
 CURRENT_OS_ARCH=$(shell echo $(CURRENT_OS)-`go env GOARCH`)
 GOBIN?=$(shell echo `go env GOPATH`/bin)
 
+MAIN_GO_MODULE:=github.com/fluxcd/flux
+LOCAL_GO_MODULES:=$(shell go list -m -f '{{ .Path }}' all | grep $(MAIN_GO_MODULE))
 godeps=$(shell go list -deps -f '{{if not .Standard}}{{ $$dep := . }}{{range .GoFiles}}{{$$dep.Dir}}/{{.}} {{end}}{{end}}' $(1) | sed "s%${PWD}/%%g")
 
 FLUXD_DEPS:=$(call godeps,./cmd/fluxd/...)
@@ -60,7 +62,7 @@ realclean: clean
 	rm -rf ./cache
 
 test: test/bin/helm test/bin/kubectl test/bin/sops test/bin/kustomize $(GENERATED_TEMPLATES_FILE)
-	PATH="${PWD}/bin:${PWD}/test/bin:${PATH}" go test ${TEST_FLAGS} $(shell go list ./... | sort -u)
+	PATH="${PWD}/bin:${PWD}/test/bin:${PATH}" go test ${TEST_FLAGS} $(shell go list $(patsubst %, %/..., $(LOCAL_GO_MODULES)) | sort -u)
 
 e2e: lint-e2e test/bin/helm test/bin/kubectl test/bin/sops test/bin/crane test/e2e/bats $(GOBIN)/fluxctl build/.flux.done
 	PATH="${PWD}/test/bin:${PATH}" CURRENT_OS_ARCH=$(CURRENT_OS_ARCH) test/e2e/run.bash
