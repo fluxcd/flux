@@ -1,14 +1,11 @@
 package install
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/instrumenta/kubeval/kubeval"
 	"github.com/stretchr/testify/assert"
-
-	v1 "k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/util/yaml"
+	yaml "gopkg.in/yaml.v2"
 )
 
 func testFillInTemplates(t *testing.T, expectedNoManifests int, params TemplateParameters) map[string][]byte {
@@ -33,16 +30,25 @@ func testFillInTemplates(t *testing.T, expectedNoManifests int, params TemplateP
 	return manifests
 }
 
-func unmarshalDeployment(t *testing.T, data []byte) *v1.Deployment {
-	manifest := string(data)
+// Deployment is defined here to avoid pulling in all the k8s dependencies into the install package
+type Deployment struct {
+	Spec struct {
+		Template struct {
+			Spec struct {
+				Containers []struct {
+					SecurityContext *struct {
+					} `yaml:"securityContext"`
+				} `yaml:"containers"`
+			} `yaml:"spec"`
+		} `yaml:"template"`
+	} `yaml:"spec"`
+}
 
-	decoder := yaml.NewYAMLOrJSONDecoder(bytes.NewBuffer([]byte(manifest)), 4096)
-	deployment := &v1.Deployment{}
-	err := decoder.Decode(deployment)
-	if err != nil {
+func unmarshalDeployment(t *testing.T, data []byte) *Deployment {
+	deployment := &Deployment{}
+	if err := yaml.Unmarshal(data, deployment); err != nil {
 		t.Errorf("issue decoding memcache-dep.yaml into a deployment: %#v", err)
 	}
-
 	return deployment
 }
 
@@ -111,6 +117,9 @@ func TestTestFillInTemplatesAddSecurityContext(t *testing.T) {
 	memDeploy := manifests["memcache-dep.yaml"]
 	deployment := unmarshalDeployment(t, memDeploy)
 
+	if len(deployment.Spec.Template.Spec.Containers) < 1 {
+		t.Error("incorrect number of containers in deployment")
+	}
 	container := deployment.Spec.Template.Spec.Containers[0]
 	if container.SecurityContext == nil {
 		t.Error("security context not found when there should be one")
@@ -137,7 +146,9 @@ func TestFillInTemplatesNoSecurityContext(t *testing.T) {
 	memDeploy := manifests["memcache-dep.yaml"]
 
 	deployment := unmarshalDeployment(t, memDeploy)
-
+	if len(deployment.Spec.Template.Spec.Containers) < 1 {
+		t.Error("incorrect number of containers in deployment")
+	}
 	container := deployment.Spec.Template.Spec.Containers[0]
 	if container.SecurityContext != nil {
 		t.Errorf("security context found when there should be none: %#v", container.SecurityContext)
