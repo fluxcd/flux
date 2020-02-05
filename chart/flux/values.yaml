@@ -155,7 +155,7 @@ registry:
   automationInterval: "5m"
   # Maximum registry requests per second per host
   rps: 200
-  # Maximum number of warmer connections to remote and memcache
+  # Maximum number of warmer connections to remote and cache service
   burst: 125
   # Output trace of image registry requests to log
   trace: false
@@ -214,6 +214,32 @@ memcached:
      cpu: 50m
      memory: 64Mi
   priorityClassName: ""
+
+###
+# EXPERIMENTAL
+###
+redis:
+  enabled: false
+  repository: redis
+  tag: 5.0.7
+  pullSecret:
+  addSecurityContext: true
+  securityContext:
+    runAsUser: 999
+    runAsGroup: 999
+    allowPrivilegeEscalation: false
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  resources: {}
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #  cpu: 100m
+    #  memory: 628Mi
+    # requests:
+    #  cpu: 50m
+    #  memory: 512Mi
 
 ssh:
   # Overrides for git over SSH. If you use your own git server, you

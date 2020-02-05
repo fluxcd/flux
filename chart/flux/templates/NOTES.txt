@@ -7,4 +7,11 @@ https://docs.fluxcd.io/en/latest/references/fluxctl#installing-fluxctl
 and running:
 
   fluxctl identity --k8s-fwd-ns {{ .Release.Namespace }}
+{{ if eq .Values.redis.enabled true }}
 
+WARNING
+-------
+You're running Redis as repository image cache backed, an experimental feature
+and not yet generally available at your own risk: feel free to ping maintainers
+on the WeaveCommunity Slack Workspace channel #flux.
+{{- end }}

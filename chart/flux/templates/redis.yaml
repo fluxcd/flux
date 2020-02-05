@@ -1,0 +1,82 @@
+{{- if and (and (eq .Values.redis.enabled true) (eq .Values.memcached.enabled false)) (eq .Values.registry.disableScanning false) }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "flux.fullname" . }}-redis
+  labels:
+    app: {{ template "flux.name" . }}-redis
+    chart: {{ template "flux.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: {{ template "flux.name" . }}-redis
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      {{- if .Values.redis.annotations }}
+      annotations:
+        {{- .Values.redis.annotations | toYaml | trimSuffix "\n" | nindent 8 }}
+      {{- end }}
+      labels:
+        app: {{ template "flux.name" . }}-redis
+        release: {{ .Release.Name }}
+    spec:
+      {{- if .Values.redis.pullSecret }}
+      imagePullSecrets:
+      - name: {{ .Values.redis.pullSecret }}
+      {{- end }}
+      {{- if .Values.rbac.pspEnabled }}
+      serviceAccountName: {{ template "flux.serviceAccountName" . }}
+      {{- end }}
+      containers:
+      - name: redis
+        image: {{ .Values.redis.repository }}:{{ .Values.redis.tag }}
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: redis
+          containerPort: 6379
+        resources:
+          {{- toYaml .Values.redis.resources | nindent 10 }}
+        {{- if .Values.redis.addSecurityContext }}
+        securityContext:
+          {{- toYaml .Values.redis.securityContext | nindent 10 }}
+        {{- end }}
+      nodeSelector:
+        beta.kubernetes.io/os: linux
+        {{- with .Values.redis.nodeSelector }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.redis.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.redis.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "flux.fullname" . }}-redis
+  labels:
+    app: {{ template "flux.name" . }}-redis
+    chart: {{ template "flux.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  type: ClusterIP
+  ports:
+  - port: 6379
+    targetPort: redis
+    protocol: TCP
+    name: redis
+  selector:
+    app: {{ template "flux.name" . }}-redis
+    release: {{ .Release.Name }}
+{{- end }}

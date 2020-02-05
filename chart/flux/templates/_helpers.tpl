@@ -84,3 +84,16 @@ Create the name of the Git config Secret.
 {{- end -}}
 {{- end }}
 {{- end }}
+
+{{/*
+Return the enabled registry images cache backend
+*/}}
+{{- define "flux.cache-backend" -}}
+{{- if and .Values.redis.enabled  .Values.memcached.enabled -}}
+{{ fail "A single cache backend can be selected" }}
+{{- else if .Values.redis.enabled -}}
+{{- printf "redis" -}}
+{{- else if .Values.memcached.enabled -}}
+{{- printf "memcached" -}}
+{{- end -}}
+{{- end }}
