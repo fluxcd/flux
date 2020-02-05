@@ -1,0 +1,7 @@
+# make sure automatic syncs don't kick in
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: --sync-interval=525600m
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: --git-poll-interval=525600m
