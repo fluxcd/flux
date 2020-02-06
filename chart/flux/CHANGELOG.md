@@ -1,3 +1,16 @@
+## 1.2.0 (2020-02-06)
+
+### Improvements
+
+ - Updated Flux to `1.18.0`
+   [fluxcd/flux#2825](https://github.com/fluxcd/flux/pull/2825)
+ - Add registry disable scanning to chart options
+   [fluxcd/flux#2828](https://github.com/fluxcd/flux/pull/2828)
+ - Add pod labels to chart options
+   [fluxcd/flux#2775](https://github.com/fluxcd/flux/pull/2775)
+ - Add sops decryption to chart options 
+   [fluxcd/flux#2762](https://github.com/fluxcd/flux/pull/2762)
+
 ## 1.1.0 (2020-01-14)
 
 ### Improvements
