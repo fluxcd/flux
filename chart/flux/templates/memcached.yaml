@@ -1,4 +1,4 @@
-{{- if and (eq .Values.memcached.enabled true) (eq .Values.git.readonly false) }}
+{{- if and (eq .Values.memcached.enabled true) (eq .Values.git.readonly false) (eq .Values.registry.disableScanning false)  }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
