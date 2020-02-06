@@ -70,6 +70,8 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, newRevision string
 		return err
 	}
 
+	d.Logger.Log("info", "trying to sync git changes to the cluster", "old", c.oldTagRev, "new", c.newTagRev)
+
 	// Run actual sync of resources on cluster
 	syncSetName := makeGitConfigHash(d.Repo.Origin(), d.GitConfig)
 	resourceStore, err := d.getManifestStore(working)
