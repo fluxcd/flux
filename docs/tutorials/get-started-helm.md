@@ -83,12 +83,14 @@ In this next step you install Flux using `helm`. Simply
       ```sh
       helm upgrade -i flux fluxcd/flux \
       --set git.url=git@github.com:YOURUSER/flux-get-started \
-      --namespace flux 
+      --namespace flux
 
       helm upgrade -i helm-operator fluxcd/helm-operator \
       --set git.ssh.secretName=flux-git-deploy \
       --namespace flux
       ```
+
+    > **Note:** By default the helm-operator chart will install with support for both Helm v2 (which requires Tiller) and v3.  You can target specific versions by setting the `helm.versions` value, e.g. `--set helm.versions=v3`.
 
     - Using a private git server:
 
