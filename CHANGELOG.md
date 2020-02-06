@@ -1,6 +1,155 @@
+## 1.18.0 (2020-02-06)
+
+This is a feature release with quite a few new features and fixes.
+
+It includes new flags for `fluxd` and `fluxctl`; namely, it includes a new
+flag to disable registry scanning completely  (`--registry-disable-scanning`)
+which allows deploying Flux without Memcached.
+
+There is a new `.flux.yaml` variant (`scanForFiles`) which allows telling
+Flux to scan the local files, which is useful when mixing
+`--manifest-generation` with raw manifests.
+
+This release also includes a few bugfixes. Namely, it comes with a fix for a
+filesystem leak in which git clone mirrors weren't being removed.
+
+### Enhancements
+
+- Disable Image Scanning with `--registry-disable-scanning`
+  fluxcd/flux{[#2745][fluxcd/flux#2745], [#2753][fluxcd/flux#2753]
+  [#2798][fluxcd/flux#2798], [#2813][fluxcd/flux#2813]}
+- Add `scanForFiles` variant of `.flux.yaml` to scan current directory
+  for manifests instead of generating them [fluxcd/flux#2638][]
+- Honor KUBECONFIG env variable in fluxd fluxcd/flux{[#2741][fluxcd/flux#2741],
+  [#2760][fluxcd/flux#2760]}
+- Make Kubernetes resource-exclusion configurable through
+  `--k8s-unsafe-exclude-resource` fluxcd/flux{[#2749][fluxcd/flux#2749],
+  [#2754][fluxcd/flux#2754]}
+- Add detailed error message in `fluxctl sync` [fluxcd/flux#2765][]
+- Add `--context` flag to fluxctl [fluxcd/flux#2715][]
+- Add `--container`flag to `fluxctl list-workloads` to filter by container name
+  [fluxcd/flux#2766][]
+- Add --no-headers to `fluxctl list-images` and `fluxctl list-workloads`
+  [fluxcd/flux#2767][]
+- Add `nodeSelector` to deployment templates for mixed-OS clusters
+  [fluxcd/flux#2692][]
+- Distinguish cached registry errors from live ones [fluxcd/flux#2782][]
+- Update `kustomize` to v3.5.4 [fluxcd/flux#2751][]
+- Update `kubectl` to 1.15 and base image to Alpine to 3.11 [fluxcd/flux#2781][]
+
+### Fixes
+
+- Fix git clone leak and make clone cleanups more robust [fluxcd/flux#2788][]
+- Fix syncing with --k8s-default-namespace [fluxcd/flux#2799][]
+- Unmarshal Docker image labels separately [fluxcd/flux#2785][]
+- Raise error if arguments are provided to `fluxctl version` and
+  `fluxctl install` [fluxcd/flux#2809][]
+
+### Maintenance and Documentation
+
+- Extend end-to-end tests fluxcd/flux{[#2752][fluxcd/flux#2752],
+  [#2800][fluxcd/flux#2800], [#2817][fluxcd/flux#2817]}
+- Make pkg/install a Go module to reduce its dependencies
+  fluxcd/flux{[#2778][fluxcd/flux#2778], [#2822][fluxcd/flux#2822],
+  [#2824][fluxcd/flux#2824]}
+- e2e: Make Kind cluster creation more verbose [fluxcd/flux#2791][]
+- e2e: Update Kind to v0.7.0 [fluxcd/flux#2743][]
+- e2e: check for GNU parallel and schedule defers before creation
+  [fluxcd/flux#2727][]
+- Update aws-sdk-go to v1.27.0 [fluxcd/flux#2722][]
+- Update packages to Kubernetes 1.16 [fluxcd/flux#2731][]
+- Remove obsolete `integration-test` target [fluxcd/flux#2819][]
+- Remove go-containerregistry replace directive [fluxcd/flux#2776][]
+- Fix `make generate-deploy` [fluxcd/flux#2789][]
+- snap: fix sorting of git tags [fluxcd/flux#2772][]
+- Make docker/image-tag work with multiple version tags [fluxcd/flux#2748][]
+- Update bug report template [fluxcd/flux#2756][]
+- Docs: update Sphinx [fluxcd/flux#2694][]
+- Update install docs to Helm v3 [fluxcd/flux#2770][]
+- Add Kiam whitelist to ECR docs fluxcd/flux{[#2744][fluxcd/flux#2744],
+  [#2821][fluxcd/flux#2821]}
+- Fix typo and mention sops in `.flux.yaml` docs [fluxcd/flux#2730][]
+- Update the get-started guide to recent versions of Kustomize
+  [fluxcd/flux#2732][]
+- Remove broken link from FAQ [fluxcd/flux#2733][]
+- Use table to display prod users [fluxcd/flux#2716][]
+- Add B3i, BlaBlaCar, Cloudlets, Mintel, UK Hydrographic Office, workarea and
+  zaaksysteem to list of production users
+  fluxcd/flux{[#2707][fluxcd/flux#2707], [#2783][fluxcd/flux#2783],
+  [#2773][fluxcd/flux#2773], [#2701][fluxcd/flux#2701],
+  [#2747][fluxcd/flux#2747], [#2784][fluxcd/flux#2784],
+  [#2714][fluxcd/flux#2714]}
+
+### Thanks
+
+Thanks to @2opremio, @Ant59, @dholbach, @dinosk, @fliphess, @hiddeco, @jurruh,
+@krymzonn, @mcfearsome, @michaelbeaumont, @nabadger, @ogerbron, @patrickwall57,
+@prometherion, @roffe, @rparsonsbb, @sa-spag, @squaremo and @stefanprodan
+for their contributions to this release.
+
+[fluxcd/flux#2824]: https://github.com/fluxcd/flux/pull/2824
+[fluxcd/flux#2822]: https://github.com/fluxcd/flux/pull/2822
+[fluxcd/flux#2821]: https://github.com/fluxcd/flux/pull/2821
+[fluxcd/flux#2819]: https://github.com/fluxcd/flux/pull/2819
+[fluxcd/flux#2817]: https://github.com/fluxcd/flux/pull/2817
+[fluxcd/flux#2813]: https://github.com/fluxcd/flux/pull/2813
+[fluxcd/flux#2809]: https://github.com/fluxcd/flux/pull/2809
+[fluxcd/flux#2800]: https://github.com/fluxcd/flux/pull/2800
+[fluxcd/flux#2799]: https://github.com/fluxcd/flux/pull/2799
+[fluxcd/flux#2798]: https://github.com/fluxcd/flux/pull/2798
+[fluxcd/flux#2791]: https://github.com/fluxcd/flux/pull/2791
+[fluxcd/flux#2789]: https://github.com/fluxcd/flux/pull/2789
+[fluxcd/flux#2788]: https://github.com/fluxcd/flux/pull/2788
+[fluxcd/flux#2785]: https://github.com/fluxcd/flux/pull/2785
+[fluxcd/flux#2784]: https://github.com/fluxcd/flux/pull/2784
+[fluxcd/flux#2783]: https://github.com/fluxcd/flux/pull/2783
+[fluxcd/flux#2782]: https://github.com/fluxcd/flux/pull/2782
+[fluxcd/flux#2781]: https://github.com/fluxcd/flux/pull/2781
+[fluxcd/flux#2778]: https://github.com/fluxcd/flux/pull/2778
+[fluxcd/flux#2776]: https://github.com/fluxcd/flux/pull/2776
+[fluxcd/flux#2773]: https://github.com/fluxcd/flux/pull/2773
+[fluxcd/flux#2772]: https://github.com/fluxcd/flux/pull/2772
+[fluxcd/flux#2770]: https://github.com/fluxcd/flux/pull/2770
+[fluxcd/flux#2767]: https://github.com/fluxcd/flux/pull/2767
+[fluxcd/flux#2766]: https://github.com/fluxcd/flux/pull/2766
+[fluxcd/flux#2765]: https://github.com/fluxcd/flux/pull/2765
+[fluxcd/flux#2760]: https://github.com/fluxcd/flux/pull/2760
+[fluxcd/flux#2756]: https://github.com/fluxcd/flux/pull/2756
+[fluxcd/flux#2754]: https://github.com/fluxcd/flux/pull/2754
+[fluxcd/flux#2753]: https://github.com/fluxcd/flux/pull/2753
+[fluxcd/flux#2752]: https://github.com/fluxcd/flux/pull/2752
+[fluxcd/flux#2751]: https://github.com/fluxcd/flux/pull/2751
+[fluxcd/flux#2750]: https://github.com/fluxcd/flux/pull/2750
+[fluxcd/flux#2749]: https://github.com/fluxcd/flux/pull/2749
+[fluxcd/flux#2748]: https://github.com/fluxcd/flux/pull/2748
+[fluxcd/flux#2747]: https://github.com/fluxcd/flux/pull/2747
+[fluxcd/flux#2745]: https://github.com/fluxcd/flux/pull/2745
+[fluxcd/flux#2744]: https://github.com/fluxcd/flux/pull/2744
+[fluxcd/flux#2743]: https://github.com/fluxcd/flux/pull/2743
+[fluxcd/flux#2742]: https://github.com/fluxcd/flux/pull/2742
+[fluxcd/flux#2741]: https://github.com/fluxcd/flux/pull/2741
+[fluxcd/flux#2740]: https://github.com/fluxcd/flux/pull/2740
+[fluxcd/flux#2733]: https://github.com/fluxcd/flux/pull/2733
+[fluxcd/flux#2732]: https://github.com/fluxcd/flux/pull/2732
+[fluxcd/flux#2731]: https://github.com/fluxcd/flux/pull/2731
+[fluxcd/flux#2730]: https://github.com/fluxcd/flux/pull/2730
+[fluxcd/flux#2728]: https://github.com/fluxcd/flux/pull/2728
+[fluxcd/flux#2727]: https://github.com/fluxcd/flux/pull/2727
+[fluxcd/flux#2726]: https://github.com/fluxcd/flux/pull/2726
+[fluxcd/flux#2722]: https://github.com/fluxcd/flux/pull/2722
+[fluxcd/flux#2716]: https://github.com/fluxcd/flux/pull/2716
+[fluxcd/flux#2715]: https://github.com/fluxcd/flux/pull/2715
+[fluxcd/flux#2714]: https://github.com/fluxcd/flux/pull/2714
+[fluxcd/flux#2707]: https://github.com/fluxcd/flux/pull/2707
+[fluxcd/flux#2701]: https://github.com/fluxcd/flux/pull/2701
+[fluxcd/flux#2700]: https://github.com/fluxcd/flux/pull/2700
+[fluxcd/flux#2694]: https://github.com/fluxcd/flux/pull/2694
+[fluxcd/flux#2692]: https://github.com/fluxcd/flux/pull/2692
+[fluxcd/flux#2638]: https://github.com/fluxcd/flux/pull/2638
+
 ## 1.17.1 (2020-01-13)
 
-This is a minor security patch release fixing a problem with the scoping
+This is a security patch release fixing a problem with the scoping
 of `imagePullSecret`s and removing git-URL HTTPS credentials server-side.
 
 ### Fixes
