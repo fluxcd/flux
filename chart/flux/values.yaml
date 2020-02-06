@@ -151,6 +151,8 @@ registry:
   insecureHosts:
   # Duration to keep cached image info. Must be < 1 month. (Deprecated)
   cacheExpiry:
+  # Disable registry scanning completely
+  disableScanning: false
   # Do not scan images that match these glob expressions
   excludeImage:
   # Allow usage of (RFC3339) timestamp labels from (canonical) image refs that match these glob expressions

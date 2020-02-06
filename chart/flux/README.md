@@ -239,6 +239,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `registry.trace`                                  | `false`                                              | Output trace of image registry requests to log
 | `registry.insecureHosts`                          | `None`                                               | Use HTTP rather than HTTPS for the image registry domains
 | `registry.cacheExpiry`                            | `None`                                               | Duration to keep cached image info (deprecated)
+| `registry.disableScanning`                        | `false`                                              | Disable registry scanning completely
 | `registry.excludeImage`                           | `None`                                               | Do not scan images that match these glob expressions; if empty, 'k8s.gcr.io/*' images are excluded
 | `registry.useTimestampLabels`                     | `None`                                               | Allow usage of (RFC3339) timestamp labels from (canonical) image refs that match these glob expressions; if empty, 'index.docker.io/{weaveworks,fluxcd}/*' images are allowed
 | `registry.ecr.region`                             | `None`                                               | Restrict ECR scanning to these AWS regions; if empty, only the cluster's region will be scanned
