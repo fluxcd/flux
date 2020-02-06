@@ -153,7 +153,7 @@ func main() {
 		memcachedService  = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
 		memcachedTimeout  = fs.Duration("memcached-timeout", time.Second, "maximum time to wait before giving up on memcached requests.")
 		// redis
-		redisService = fs.String("redis-service", "memcached", "service used to reach Redis service.")
+		redisService = fs.String("redis-service", "flux-redis", "service used to reach Redis service.")
 		redisPort    = fs.Int("redis-port", 6379, "redis service port.")
 
 		registryDisableScanning = fs.Bool("registry-disable-scanning", false, "do not scan container image registries to fill in the registry cache")

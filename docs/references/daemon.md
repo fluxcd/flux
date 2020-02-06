@@ -66,9 +66,12 @@ Version controlling of cluster manifests provides reproducibility and a historic
 | --sync-garbage-collection-dry                    | `false`                  | only log what would be garbage collected, rather than deleting. Implies --sync-garbage-collection
 | --sync-state                                     | `git`                    | Where to keep sync state; either a tag in the upstream repo (`git`), or as an annotation on the SSH secret (`secret`)
 | **registry cache:** (none of these need overriding, usually)
+| --cache-backend                                  | `memcached`                        | cache backend for image metadata (_redis_ still experimental feature)
+| --cache-request-timeout                          | `1s`                               | maximum time to wait before giving up on cache requests
 | --memcached-hostname                             | `memcached`                        | hostname for memcached service to use for caching image metadata
-| --memcached-timeout                              | `1s`                               | maximum time to wait before giving up on memcached requests
 | --memcached-service                              | `memcached`                        | SRV service used to discover memcache servers
+| --redis-service                                  | `flux-redis`                       | _Experimental_: Redis service as cache backend
+| --redis-port                                     | `6379`                             | _Experimental_: port where Redis service is listening on
 | --registry-cache-expiry                          | `1h`                               | Duration to keep cached registry tag info. Must be < 1 month.
 | --registry-rps                                   | `200`                              | maximum registry requests per second per host
 | --registry-burst                                 | `125`                              | maximum number of warmer connections to remote and memcache

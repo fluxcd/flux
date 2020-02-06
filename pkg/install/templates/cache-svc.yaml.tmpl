@@ -1,0 +1,31 @@
+{{- if or (eq .CacheBackend "memcached") (eq .CacheBackend "") -}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: memcached
+{{- if .Namespace }}
+  namespace: {{ .Namespace }}
+{{- end }}
+spec:
+  ports:
+    - name: memcached
+      port: 11211
+  selector:
+    name: memcached
+{{- else if eq .CacheBackend "redis" -}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  {{- if .Namespace }}
+  namespace: {{ .Namespace }}
+  {{- end }}
+spec:
+  ports:
+    - name: redis
+      port: 6379
+  selector:
+    name: redis
+{{- end }}

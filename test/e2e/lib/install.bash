@@ -47,7 +47,7 @@ function uninstall_flux_with_helm() {
   kubectl delete -f "$HELMRELEASE_CRD_URL" > /dev/null 2>&1
 }
 
-fluxctl_install_cmd="fluxctl install --git-url=ssh://git@gitsrv/git-server/repos/cluster.git --git-email=foo"
+fluxctl_install_cmd="fluxctl install --git-url=ssh://git@gitsrv/git-server/repos/cluster.git --git-email=foo --cache-backend ${CACHE_BACKEND}"
 
 function install_flux_with_fluxctl() {
   kustomization_dir=${1:-base/flux}

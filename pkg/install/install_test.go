@@ -5,7 +5,7 @@ import (
 
 	"github.com/instrumenta/kubeval/kubeval"
 	"github.com/stretchr/testify/assert"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 )
 
 func testFillInTemplates(t *testing.T, expectedNoManifests int, params TemplateParameters) map[string][]byte {
@@ -36,6 +36,7 @@ type Deployment struct {
 		Template struct {
 			Spec struct {
 				Containers []struct {
+					Name            string `yaml:"name"`
 					SecurityContext *struct {
 					} `yaml:"securityContext"`
 				} `yaml:"containers"`
@@ -47,7 +48,7 @@ type Deployment struct {
 func unmarshalDeployment(t *testing.T, data []byte) *Deployment {
 	deployment := &Deployment{}
 	if err := yaml.Unmarshal(data, deployment); err != nil {
-		t.Errorf("issue decoding memcache-dep.yaml into a deployment: %#v", err)
+		t.Errorf("issue decoding cache-dep.yaml into a deployment: %#v", err)
 	}
 	return deployment
 }
@@ -70,10 +71,10 @@ func TestFillInTemplatesAllParameters(t *testing.T) {
 
 func TestFillInTemplatesMissingValues(t *testing.T) {
 	testFillInTemplates(t, 5, TemplateParameters{
-		GitURL:                  "git@github.com:fluxcd/flux-get-started",
-		GitBranch:               "branch",
-		GitPaths:                []string{},
-		GitLabel:                "label",
+		GitURL:    "git@github.com:fluxcd/flux-get-started",
+		GitBranch: "branch",
+		GitPaths:  []string{},
+		GitLabel:  "label",
 	})
 }
 
@@ -104,7 +105,7 @@ func TestTestFillInTemplatesAddSecurityContext(t *testing.T) {
 
 	manifests := testFillInTemplates(t, 5, params)
 
-	memDeploy := manifests["memcache-dep.yaml"]
+	memDeploy := manifests["cache-dep.yaml"]
 	deployment := unmarshalDeployment(t, memDeploy)
 
 	if len(deployment.Spec.Template.Spec.Containers) < 1 {
@@ -132,9 +133,10 @@ func TestFillInTemplatesNoSecurityContext(t *testing.T) {
 	}
 
 	manifests := testFillInTemplates(t, 5, params)
-	memDeploy := manifests["memcache-dep.yaml"]
+	memDeploy := manifests["cache-dep.yaml"]
 
 	deployment := unmarshalDeployment(t, memDeploy)
+
 	if len(deployment.Spec.Template.Spec.Containers) < 1 {
 		t.Error("incorrect number of containers in deployment")
 	}
@@ -142,4 +144,51 @@ func TestFillInTemplatesNoSecurityContext(t *testing.T) {
 	if container.SecurityContext != nil {
 		t.Errorf("security context found when there should be none: %#v", container.SecurityContext)
 	}
+}
+
+func TestFillInTemplatesRedis(t *testing.T) {
+	params := TemplateParameters{
+		GitURL:                  "git@github.com:fluxcd/flux-get-started",
+		GitBranch:               "branch",
+		GitPaths:                []string{"dir1", "dir2"},
+		GitLabel:                "label",
+		GitUser:                 "User",
+		GitEmail:                "this.is@anemail.com",
+		Namespace:               "flux",
+		GitReadOnly:             false,
+		ManifestGeneration:      true,
+		AdditionalFluxArgs:      []string{"arg1=foo", "arg2=bar"},
+		RegistryDisableScanning: false,
+		AddSecurityContext:      false,
+		CacheBackend:            "redis",
+	}
+
+	manifests := testFillInTemplates(t, 5, params)
+	redisDeploy := manifests["cache-dep.yaml"]
+
+	deployment := unmarshalDeployment(t, redisDeploy)
+
+	assert.Equal(t, "redis", deployment.Spec.Template.Spec.Containers[0].Name)
+}
+
+func TestFillInTemplatesUnsupportedCacheBackend(t *testing.T) {
+	params := TemplateParameters{
+		GitURL:                  "git@github.com:fluxcd/flux-get-started",
+		GitBranch:               "branch",
+		GitPaths:                []string{"dir1", "dir2"},
+		GitLabel:                "label",
+		GitUser:                 "User",
+		GitEmail:                "this.is@anemail.com",
+		Namespace:               "flux",
+		GitReadOnly:             false,
+		ManifestGeneration:      true,
+		AdditionalFluxArgs:      []string{"arg1=foo", "arg2=bar"},
+		RegistryDisableScanning: true,
+		AddSecurityContext:      false,
+		CacheBackend:            "etcd",
+	}
+
+	_, err := FillInTemplates(params)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "not supported")
 }

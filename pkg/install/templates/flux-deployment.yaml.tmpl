@@ -125,7 +125,15 @@ spec:
         #     name: flux-git-auth
 
         args:
-
+{{ if eq .CacheBackend "redis" }}
+        - --cache-backend={{ .CacheBackend }}
+        # Redis as cache backend support is still experimental:
+        # if you deployed redis in a different namespace to flux,
+        # or with a different service name, you can update these
+        # following two arguments to tell fluxd how to connect to it.
+        - --redis-service=redis
+        - --redis-port=6379
+{{- else if or (eq .CacheBackend "memcached") (eq .CacheBackend "") }}
         # If you deployed memcached in a different namespace to flux,
         # or with a different service name, you can supply these
         # following two arguments to tell fluxd how to connect to it.
@@ -134,6 +142,7 @@ spec:
         # Use the memcached ClusterIP service name by setting the
         # memcached-service to string empty
         - --memcached-service=
+{{- end }}
 
         # This must be supplied, and be in the tmpfs (emptyDir)
         # mounted above, for K8s >= 1.10

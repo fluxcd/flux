@@ -27,10 +27,21 @@ type TemplateParameters struct {
 	ManifestGeneration      bool
 	AdditionalFluxArgs      []string
 	AddSecurityContext      bool
+	CacheBackend            string
 }
 
 func FillInTemplates(params TemplateParameters) (map[string][]byte, error) {
 	result := map[string][]byte{}
+
+	switch params.CacheBackend {
+	case "memcached":
+	case "redis":
+	case "":
+		break
+	default:
+		return nil, fmt.Errorf("the %s cache backend is not supported", params.CacheBackend)
+	}
+
 	err := vfsutil.WalkFiles(templates, "/", func(path string, info os.FileInfo, rs io.ReadSeeker, err error) error {
 		if err != nil {
 			return fmt.Errorf("cannot walk embedded files: %s", err)
@@ -38,8 +49,8 @@ func FillInTemplates(params TemplateParameters) (map[string][]byte, error) {
 		if info.IsDir() {
 			return nil
 		}
-		if params.RegistryDisableScanning && strings.Contains(info.Name(), "memcache") {
-			// do not include memcached resources when registry scanning is disabled
+		if params.RegistryDisableScanning && strings.Contains(info.Name(), "cache") {
+			// do not include cache resources in readonly mode or when registry scanning is disabled
 			return nil
 		}
 		manifestTemplateBytes, err := ioutil.ReadAll(rs)

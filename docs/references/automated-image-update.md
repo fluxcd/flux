@@ -3,7 +3,7 @@
 Flux can be used to automate container image updates in your cluster.
 Flux periodically scans the pods running in your cluster and builds a list of all container images.
 Using the image pull secrets, it connects to the container registries, pulls the images metadata
-and stores the image tag list in memcached.
+and stores the image tag list in the cache (memcached as default, redis is an experimental feature).
 
 You can enable the automate image tag updates by annotating your deployments, statefulsets,
 daemonsets or cronjobs objects. You can also control what tags should be considered for an

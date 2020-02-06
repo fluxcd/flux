@@ -29,17 +29,29 @@ Flux once you have your environment set up:
 
 3. Remote cluster development approach:
 
-     1. ensure local `kubectl` access to a remote Kubernetes cluster
-     2. have an available local memcached instance
-     3. make a change to the code
-     4. ```sh
-        go run cmd/fluxd/main.go \
-            --memcached-hostname localhost  \
-            --memcached-port 11211 \
-            --memcached-service "" \
-            --git-url git@github.com:fluxcd/flux-get-started \
-            --k8s-in-cluster=false
-        ```
+    > ensure local `kubectl` access to a remote Kubernetes cluster
+                                            >
+    - if you want to use memcached locally:
+        1. have an available local memcached instance
+        2. make a change to the code
+        3. ```sh
+           go run cmd/fluxd/main.go \
+             --memcached-hostname localhost  \
+             --memcached-port 11211 \
+             --memcached-service "" \
+             --git-url git@github.com:fluxcd/flux-get-started
+           ```
+
+    - if you want to use a local redis instance (experimental feature)
+        1. have an available local redis instance
+        2. make a change to the code
+        3. ```sh
+           go run cmd/fluxd/main.go \
+             --cache-backend redis \
+             --memcached-port <redis_listening_port> \
+             --redis-service <redis_instance_hostname_or_ip> \
+             --git-url git@github.com:fluxcd/flux-get-started
+           ```
 
 This guide covers approaches 1 and 2 using `minikube`. `freshpod` is
 superseded by `Skaffold` and is generally the future.  That said,

@@ -2,8 +2,8 @@ resources:
 - flux-account.yaml
 - flux-deployment.yaml
 - flux-secret.yaml
-- memcache-dep.yaml
-- memcache-svc.yaml
+- cache-dep.yaml
+- cache-svc.yaml
 patchesJson6902:
 - target:
     group: apps
