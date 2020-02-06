@@ -2,25 +2,24 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"os"
 	"sort"
-	"time"
 
 	"github.com/spf13/cobra"
 
 	v10 "github.com/fluxcd/flux/pkg/api/v10"
 	v6 "github.com/fluxcd/flux/pkg/api/v6"
-	"github.com/fluxcd/flux/pkg/registry"
 	"github.com/fluxcd/flux/pkg/resource"
 	"github.com/fluxcd/flux/pkg/update"
 )
 
 type imageListOpts struct {
 	*rootOpts
-	namespace   string
-	workload    string
-	limit       int
-	noHeaders   bool
+	namespace    string
+	workload     string
+	limit        int
+	noHeaders    bool
+	outputFormat string
 
 	// Deprecated
 	controller string
@@ -41,6 +40,7 @@ func (opts *imageListOpts) Command() *cobra.Command {
 	cmd.Flags().StringVarP(&opts.workload, "workload", "w", "", "Show images for this workload")
 	cmd.Flags().IntVarP(&opts.limit, "limit", "l", 10, "Number of images to show (0 for all)")
 	cmd.Flags().BoolVar(&opts.noHeaders, "no-headers", false, "Don't print headers (default print headers)")
+	cmd.Flags().StringVarP(&opts.outputFormat, "output-format", "o", "tab", "Output format (tab or json)")
 
 	// Deprecated
 	cmd.Flags().StringVarP(&opts.controller, "controller", "c", "", "Show images for this controller")
@@ -53,6 +53,11 @@ func (opts *imageListOpts) RunE(cmd *cobra.Command, args []string) error {
 	if len(args) != 0 {
 		return errorWantedNoArgs
 	}
+
+	if !outputFormatIsValid(opts.outputFormat) {
+		return errorInvalidOutputFormat
+	}
+
 	ns := getKubeConfigContextNamespaceOrDefault(opts.namespace, "default", opts.Context)
 	imageOpts := v10.ListImagesOptions{
 		Spec:      update.ResourceSpecAll,
@@ -61,7 +66,7 @@ func (opts *imageListOpts) RunE(cmd *cobra.Command, args []string) error {
 	// Backwards compatibility with --controller until we remove it
 	switch {
 	case opts.workload != "" && opts.controller != "":
-		return newUsageError("can't specify both the controller and workload")
+		return newUsageError("can't specify both the controller and image")
 	case opts.controller != "":
 		opts.workload = opts.controller
 	}
@@ -76,83 +81,20 @@ func (opts *imageListOpts) RunE(cmd *cobra.Command, args []string) error {
 
 	ctx := context.Background()
 
-	workloads, err := opts.API.ListImagesWithOptions(ctx, imageOpts)
+	images, err := opts.API.ListImagesWithOptions(ctx, imageOpts)
 	if err != nil {
 		return err
 	}
 
-	sort.Sort(imageStatusByName(workloads))
+	sort.Sort(imageStatusByName(images))
 
-	out := newTabwriter()
-
-	if !opts.noHeaders {
-		fmt.Fprintln(out, "WORKLOAD\tCONTAINER\tIMAGE\tCREATED")
+	switch opts.outputFormat {
+	case outputFormatJson:
+		return outputImagesJson(images, os.Stdout, opts)
+	default:
+		outputImagesTab(images, opts)
 	}
 
-	for _, workload := range workloads {
-		if len(workload.Containers) == 0 {
-			fmt.Fprintf(out, "%s\t\t\t\n", workload.ID)
-			continue
-		}
-
-		workloadName := workload.ID.String()
-		for _, container := range workload.Containers {
-			var lineCount int
-			containerName := container.Name
-			reg, repo, currentTag := container.Current.ID.Components()
-			if reg != "" {
-				reg += "/"
-			}
-			if len(container.Available) == 0 {
-				availableErr := container.AvailableError
-				if availableErr == "" {
-					availableErr = registry.ErrNoImageData.Error()
-				}
-				fmt.Fprintf(out, "%s\t%s\t%s%s\t%s\n", workloadName, containerName, reg, repo, availableErr)
-			} else {
-				fmt.Fprintf(out, "%s\t%s\t%s%s\t\n", workloadName, containerName, reg, repo)
-			}
-			foundRunning := false
-			for _, available := range container.Available {
-				running := "|  "
-				_, _, tag := available.ID.Components()
-				if currentTag == tag {
-					running = "'->"
-					foundRunning = true
-				} else if foundRunning {
-					running = "   "
-				}
-
-				lineCount++
-				var printEllipsis, printLine bool
-				if opts.limit <= 0 || lineCount <= opts.limit {
-					printEllipsis, printLine = false, true
-				} else if container.Current.ID == available.ID {
-					printEllipsis, printLine = lineCount > (opts.limit+1), true
-				}
-				if printEllipsis {
-					fmt.Fprintf(out, "\t\t%s (%d image(s) omitted)\t\n", ":", lineCount-opts.limit-1)
-				}
-				if printLine {
-					createdAt := ""
-					if !available.CreatedAt.IsZero() {
-						createdAt = available.CreatedAt.Format(time.RFC822)
-					}
-					fmt.Fprintf(out, "\t\t%s %s\t%s\n", running, tag, createdAt)
-				}
-			}
-			if !foundRunning {
-				running := "'->"
-				if currentTag == "" {
-					currentTag = "(untagged)"
-				}
-				fmt.Fprintf(out, "\t\t%s %s\t%s\n", running, currentTag, "?")
-
-			}
-			workloadName = ""
-		}
-	}
-	out.Flush()
 	return nil
 }
 

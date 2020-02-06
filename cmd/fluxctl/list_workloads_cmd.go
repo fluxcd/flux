@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -18,6 +18,7 @@ type workloadListOpts struct {
 	allNamespaces bool
 	containerName string
 	noHeaders     bool
+	outputFormat  string
 }
 
 func newWorkloadList(parent *rootOpts) *workloadListOpts {
@@ -36,12 +37,17 @@ func (opts *workloadListOpts) Command() *cobra.Command {
 	cmd.Flags().BoolVarP(&opts.allNamespaces, "all-namespaces", "a", false, "Query across all namespaces")
 	cmd.Flags().StringVarP(&opts.containerName, "container", "c", "", "Filter workloads by container name")
 	cmd.Flags().BoolVar(&opts.noHeaders, "no-headers", false, "Don't print headers (default print headers)")
+	cmd.Flags().StringVarP(&opts.outputFormat, "output-format", "o", "tab", "Output format (tab or json)")
 	return cmd
 }
 
 func (opts *workloadListOpts) RunE(cmd *cobra.Command, args []string) error {
 	if len(args) != 0 {
 		return errorWantedNoArgs
+	}
+
+	if !outputFormatIsValid(opts.outputFormat) {
+		return errorInvalidOutputFormat
 	}
 
 	var ns string
@@ -64,23 +70,13 @@ func (opts *workloadListOpts) RunE(cmd *cobra.Command, args []string) error {
 
 	sort.Sort(workloadStatusByName(workloads))
 
-	w := newTabwriter()
-	if !opts.noHeaders {
-		fmt.Fprintf(w, "WORKLOAD\tCONTAINER\tIMAGE\tRELEASE\tPOLICY\n")
+	switch opts.outputFormat {
+	case outputFormatJson:
+		outputWorkloadsJson(workloads, os.Stdout)
+	default:
+		outputWorkloadsTab(workloads, opts)
 	}
 
-	for _, workload := range workloads {
-		if len(workload.Containers) > 0 {
-			c := workload.Containers[0]
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", workload.ID, c.Name, c.Current.ID, workload.Status, policies(workload))
-			for _, c := range workload.Containers[1:] {
-				fmt.Fprintf(w, "\t%s\t%s\t\t\n", c.Name, c.Current.ID)
-			}
-		} else {
-			fmt.Fprintf(w, "%s\t\t\t%s\t%s\n", workload.ID, workload.Status, policies(workload))
-		}
-	}
-	w.Flush()
 	return nil
 }
 
@@ -115,8 +111,8 @@ func policies(s v6.ControllerStatus) string {
 
 // Extract workloads having its container name equal to containerName
 func filterByContainerName(workloads []v6.ControllerStatus, containerName string) (filteredWorkloads []v6.ControllerStatus) {
-    for _, workload := range workloads {
-        if len(workload.Containers) > 0 {
+	for _, workload := range workloads {
+		if len(workload.Containers) > 0 {
 			for _, c := range workload.Containers {
 				if c.Name == containerName {
 					filteredWorkloads = append(filteredWorkloads, workload)
@@ -124,6 +120,6 @@ func filterByContainerName(workloads []v6.ControllerStatus, containerName string
 				}
 			}
 		}
-    }
-    return
+	}
+	return
 }
