@@ -212,7 +212,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `sync.timeout`                                    | `None`                                               | Duration after which sync operations time out (defaults to `1m`)
 | `sync.interval`                                   | `<git.pollInterval>`                                 | Controls how often Flux will apply what’s in git, to the cluster, absent new commits (defaults to `git.pollInterval`)
 | `git.url`                                         | `None`                                               | URL of git repo with Kubernetes manifests
-| `git.readonly`                                    | `false`                                              | If `true`, the git repo will be considered read-only, Flux will not attempt to write to it, image scanning will be disabled and memcached will not be deployed
+| `git.readonly`                                    | `false`                                              | If `true`, the git repo will be considered read-only, Flux will not attempt to write to it
 | `git.branch`                                      | `master`                                             | Branch of git repo to use for Kubernetes manifests
 | `git.path`                                        | `None`                                               | Path within git repo to locate Kubernetes manifests (relative path)
 | `git.user`                                        | `Weave Flux`                                         | Username to use as git committer
@@ -239,7 +239,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `registry.trace`                                  | `false`                                              | Output trace of image registry requests to log
 | `registry.insecureHosts`                          | `None`                                               | Use HTTP rather than HTTPS for the image registry domains
 | `registry.cacheExpiry`                            | `None`                                               | Duration to keep cached image info (deprecated)
-| `registry.disableScanning`                        | `false`                                              | Disable registry scanning completely
+| `registry.disableScanning`                        | `false`                                              | Disable registry scanning completely. Flux will be deployed without memcached
 | `registry.excludeImage`                           | `None`                                               | Do not scan images that match these glob expressions; if empty, 'k8s.gcr.io/*' images are excluded
 | `registry.useTimestampLabels`                     | `None`                                               | Allow usage of (RFC3339) timestamp labels from (canonical) image refs that match these glob expressions; if empty, 'index.docker.io/{weaveworks,fluxcd}/*' images are allowed
 | `registry.ecr.region`                             | `None`                                               | Restrict ECR scanning to these AWS regions; if empty, only the cluster's region will be scanned
