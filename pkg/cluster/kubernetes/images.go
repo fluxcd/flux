@@ -1,13 +1,11 @@
 package kubernetes
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 	apiv1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fluxcd/flux/pkg/image"
@@ -72,7 +70,8 @@ func mergeCredentials(log func(...interface{}) error,
 			creds.Merge(seen)
 			continue
 		}
-
+		// TODO: this, and the service account request above, are the only remaining direct accesses to the API server.
+		//       We should probably cache service-account imagePullSecrets like we do with namespaces.
 		secret, err := client.CoreV1().Secrets(namespace).Get(name, meta_v1.GetOptions{})
 		if err != nil {
 			log("err", errors.Wrapf(err, "getting secret %q from namespace %q", name, namespace))
@@ -123,44 +122,31 @@ func mergeCredentials(log func(...interface{}) error,
 // ImagesToFetch is a k8s specific method to get a list of images to update along with their credentials
 func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 	allImageCreds := make(registry.ImageCreds)
-	ctx := context.Background()
 
-	namespaces, err := c.getAllowedAndExistingNamespaces(ctx)
+	imagePullSecretCache := make(map[string]registry.Credentials)
+	workloads, err := c.allWorkloads("")
 	if err != nil {
 		c.logger.Log("err", errors.Wrap(err, "getting namespaces"))
 		return allImageCreds
 	}
 
-	for _, ns := range namespaces {
-		imagePullSecretCache := make(map[string]registry.Credentials) // indexed by the namespace/name of pullImageSecrets
-		for kind, resourceKind := range resourceKinds {
-			workloads, err := resourceKind.getWorkloads(ctx, c, ns)
-			if err != nil {
-				if apierrors.IsNotFound(err) || apierrors.IsForbidden(err) {
-					// Skip unsupported or forbidden resource kinds
-					continue
-				}
-				c.logger.Log("err", errors.Wrapf(err, "getting kind %s for namespace %s", kind, ns))
-			}
+	imageCreds := make(registry.ImageCreds)
+	for id, workload := range workloads {
+		ns, kind, _ := id.Components()
+		logger := log.With(c.logger, "resource", resource.MakeID(ns, kind, workload.GetName()))
+		mergeCredentials(logger.Log, c.imageIncluder.IsIncluded, c.client, ns, workload.podTemplate, imageCreds, imagePullSecretCache)
+	}
 
-			imageCreds := make(registry.ImageCreds)
-			for _, workload := range workloads {
-				logger := log.With(c.logger, "resource", resource.MakeID(workload.GetNamespace(), kind, workload.GetName()))
-				mergeCredentials(logger.Log, c.imageIncluder.IsIncluded, c.client, workload.GetNamespace(), workload.podTemplate, imageCreds, imagePullSecretCache)
-			}
-
-			// Merge creds
-			for imageID, creds := range imageCreds {
-				existingCreds, ok := allImageCreds[imageID]
-				if ok {
-					mergedCreds := registry.NoCredentials()
-					mergedCreds.Merge(existingCreds)
-					mergedCreds.Merge(creds)
-					allImageCreds[imageID] = mergedCreds
-				} else {
-					allImageCreds[imageID] = creds
-				}
-			}
+	// Merge creds
+	for imageID, creds := range imageCreds {
+		existingCreds, ok := allImageCreds[imageID]
+		if ok {
+			mergedCreds := registry.NoCredentials()
+			mergedCreds.Merge(existingCreds)
+			mergedCreds.Merge(creds)
+			allImageCreds[imageID] = mergedCreds
+		} else {
+			allImageCreds[imageID] = creds
 		}
 	}
 

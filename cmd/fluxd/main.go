@@ -18,13 +18,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/argoproj/argo-cd/engine/pkg/utils/io"
 	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
-	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	k8sruntime "k8s.io/apimachinery/pkg/util/runtime"
-	k8sclientdynamic "k8s.io/client-go/dynamic"
 	k8sclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -404,6 +403,8 @@ func main() {
 	}()
 
 	// Cluster component.
+	fileinfo, err := os.Stat(k8sInClusterSecretsBaseDir)
+	isInCluster := err == nil && fileinfo.IsDir()
 
 	var restClientConfig *rest.Config
 	{
@@ -436,11 +437,6 @@ func main() {
 			logger.Log("err", err)
 			os.Exit(1)
 		}
-		dynamicClientset, err := k8sclientdynamic.NewForConfig(restClientConfig)
-		if err != nil {
-			logger.Log("err", err)
-			os.Exit(1)
-		}
 
 		fhrClientset, err := hrclient.NewForConfig(restClientConfig)
 		if err != nil {
@@ -454,13 +450,6 @@ func main() {
 			os.Exit(1)
 		}
 
-		crdClient, err := crd.NewForConfig(restClientConfig)
-		if err != nil {
-			logger.Log("error", fmt.Sprintf("Error building API extensions (CRD) clientset: %v", err))
-			os.Exit(1)
-		}
-		discoClientset := kubernetes.MakeCachedDiscovery(clientset.Discovery(), crdClient, shutdown)
-
 		serverVersion, err := clientset.ServerVersion()
 		if err != nil {
 			logger.Log("err", err)
@@ -468,8 +457,6 @@ func main() {
 		}
 		clusterVersion = "kubernetes-" + serverVersion.GitVersion
 
-		fileinfo, err := os.Stat(k8sInClusterSecretsBaseDir)
-		isInCluster := err == nil && fileinfo.IsDir()
 		if isInCluster && !httpGitURL {
 			namespace, err := ioutil.ReadFile(filepath.Join(k8sInClusterSecretsBaseDir, "serviceaccount/namespace"))
 			if err != nil {
@@ -502,6 +489,7 @@ func main() {
 
 		logger.Log("host", restClientConfig.Host, "version", clusterVersion)
 
+		// FIXME: This is currently not honored by the GitOps Engine
 		kubectl := *kubernetesKubectl
 		if kubectl == "" {
 			kubectl, err = exec.LookPath("kubectl")
@@ -514,17 +502,22 @@ func main() {
 		}
 		logger.Log("kubectl", kubectl)
 
-		client := kubernetes.MakeClusterClientset(clientset, dynamicClientset, fhrClientset, hrClientset, discoClientset)
-		kubectlApplier := kubernetes.NewKubectl(kubectl, restClientConfig)
-		allowedNamespaces := make(map[string]struct{})
-		for _, n := range append(*k8sNamespaceWhitelist, *k8sAllowNamespace...) {
-			allowedNamespaces[n] = struct{}{}
-		}
-
+		client := kubernetes.MakeClusterClientset(clientset, fhrClientset, hrClientset)
+		allowedNamespaces := append(*k8sNamespaceWhitelist, *k8sAllowNamespace...)
 		imageIncluder := cluster.ExcludeIncludeGlob{Exclude: *registryExcludeImage, Include: *registryIncludeImage}
-		k8sInst := kubernetes.NewCluster(client, kubectlApplier, sshKeyRing, logger, allowedNamespaces, imageIncluder, *k8sExcludeResource)
+		k8sInst, err := kubernetes.NewCluster(restClientConfig, *k8sDefaultNamespace, client, sshKeyRing, logger, allowedNamespaces, imageIncluder, *k8sExcludeResource)
+		if err != nil {
+			logger.Log("err", err)
+			os.Exit(1)
+		}
 		k8sInst.GC = *syncGC
 		k8sInst.DryGC = *dryGC
+		closer, err := k8sInst.Run()
+		if err != nil {
+			logger.Log("error", "Failed to initialize cluster", "err", err)
+			os.Exit(1)
+		}
+		defer io.Close(closer)
 
 		if err := k8sInst.Ping(); err != nil {
 			logger.Log("ping", err)
@@ -536,15 +529,14 @@ func main() {
 		imageCreds = k8sInst.ImagesToFetch
 		// There is only one way we currently interpret a repo of
 		// files as manifests, and that's as Kubernetes yamels.
-		namespacer, err := kubernetes.NewNamespacer(discoClientset, *k8sDefaultNamespace)
 		if err != nil {
 			logger.Log("err", err)
 			os.Exit(1)
 		}
 		if *sopsEnabled {
-			k8sManifests = kubernetes.NewSopsManifests(namespacer, logger)
+			k8sManifests = kubernetes.NewSopsManifests(k8sInst.Namespacer(), logger)
 		} else {
-			k8sManifests = kubernetes.NewManifests(namespacer, logger)
+			k8sManifests = kubernetes.NewManifests(k8sInst.Namespacer(), logger)
 		}
 	}
 

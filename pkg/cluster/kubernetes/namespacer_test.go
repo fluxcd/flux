@@ -1,43 +1,34 @@
 package kubernetes
 
 import (
+	"errors"
 	"io/ioutil"
 	"os"
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	corefake "k8s.io/client-go/kubernetes/fake"
+	"github.com/argoproj/argo-cd/engine/pkg/utils/kube"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	kresource "github.com/fluxcd/flux/pkg/cluster/kubernetes/resource"
 )
 
-var getAndList = metav1.Verbs([]string{"get", "list"})
+type mockResourceInfoProvider struct {
+	isNamespaced map[schema.GroupKind]bool
+}
 
-func makeFakeClient() *corefake.Clientset {
-	apiResources := []*metav1.APIResourceList{
-		{
-			GroupVersion: "apps/v1",
-			APIResources: []metav1.APIResource{
-				{Name: "deployments", SingularName: "deployment", Namespaced: true, Kind: "Deployment", Verbs: getAndList},
-			},
-		},
-		{
-			GroupVersion: "v1",
-			APIResources: []metav1.APIResource{
-				{Name: "namespaces", SingularName: "namespace", Namespaced: false, Kind: "Namespace", Verbs: getAndList},
-			},
-		},
-		{
-			GroupVersion: "apiextensions.k8s.io/v1beta1",
-			APIResources: []metav1.APIResource{
-				{Name: "customresourcedefinitions", SingularName: "customresourcedefinition", Namespaced: false, Kind: "CustomResourceDefinition", Verbs: getAndList},
-			},
-		},
+func (m *mockResourceInfoProvider) IsNamespaced(gk schema.GroupKind) (bool, error) {
+	if namespaced, ok := m.isNamespaced[gk]; ok {
+		return namespaced, nil
 	}
+	return false, errors.New("not found")
+}
 
-	coreClient := corefake.NewSimpleClientset()
-	coreClient.Fake.Resources = apiResources
-	return coreClient
+func newNamespacer(defaultNamespace string, scoper kube.ResourceInfoProvider) (*namespacerViaInfoProvider, error) {
+	fallbackNamespace, err := getFallbackNamespace(defaultNamespace)
+	if err != nil {
+		return nil, err
+	}
+	return &namespacerViaInfoProvider{infoProvider: scoper, fallbackNamespace: fallbackNamespace}, nil
 }
 
 func TestNamespaceDefaulting(t *testing.T) {
@@ -62,7 +53,6 @@ users: []
 
 	os.Setenv("KUBECONFIG", "testkubeconfig")
 	defer os.Unsetenv("KUBECONFIG")
-	coreClient := makeFakeClient()
 
 	ns, err := getKubeconfigDefaultNamespace()
 	if err != nil {
@@ -96,11 +86,12 @@ metadata:
 		t.Fatal(err)
 	}
 
-	defaultNser, err := NewNamespacer(coreClient.Discovery(), "")
+	scoper := &mockResourceInfoProvider{map[schema.GroupKind]bool{{"apps", "Deployment"}: true}}
+	defaultNser, err := newNamespacer("", scoper)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertEffectiveNamespace := func(nser namespaceViaDiscovery, id, expected string) {
+	assertEffectiveNamespace := func(nser namespacerViaInfoProvider, id, expected string) {
 		res, ok := manifests[id]
 		if !ok {
 			t.Errorf("manifest for %q not found", id)
@@ -120,7 +111,7 @@ metadata:
 	assertEffectiveNamespace(*defaultNser, "<cluster>:deployment/noNamespace", "namespace")
 	assertEffectiveNamespace(*defaultNser, "spurious:namespace/notNamespaced", "")
 
-	overrideNser, err := NewNamespacer(coreClient.Discovery(), "foo-override")
+	overrideNser, err := newNamespacer("foo-override", scoper)
 	if err != nil {
 		t.Fatal(err)
 	}

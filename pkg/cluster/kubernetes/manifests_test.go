@@ -9,15 +9,13 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/fluxcd/flux/pkg/cluster/kubernetes/testfiles"
 )
 
 func TestLocalCRDScope(t *testing.T) {
-	coreClient := makeFakeClient()
-
-	nser, err := NewNamespacer(coreClient.Discovery(), "")
+	nser, err := newNamespacer("", &mockResourceInfoProvider{})
 	assert.NoError(t, err)
 	manifests := NewManifests(nser, log.NewLogfmtLogger(os.Stdout))
 
@@ -62,9 +60,12 @@ metadata:
 }
 
 func TestUnKnownCRDScope(t *testing.T) {
-	coreClient := makeFakeClient()
-
-	nser, err := NewNamespacer(coreClient.Discovery(), "")
+	infoProvider := &mockResourceInfoProvider{
+		isNamespaced: map[schema.GroupKind]bool{
+			{"", "Namespace"}: false,
+		},
+	}
+	nser, err := newNamespacer("", infoProvider)
 	assert.NoError(t, err)
 	logBuffer := bytes.NewBuffer(nil)
 	manifests := NewManifests(nser, log.NewLogfmtLogger(logBuffer))
@@ -106,14 +107,7 @@ metadata:
 	assert.Equal(t, logBuffer.String(), savedLog)
 
 	// But getting the scope of the CRD should result in a log saying we found the scope
-	apiResourcesWithoutFoo := coreClient.Resources
-	apiResource := &metav1.APIResourceList{
-		GroupVersion: "foo.example.com/v1beta1",
-		APIResources: []metav1.APIResource{
-			{Name: "foos", SingularName: "foo", Namespaced: true, Kind: "Foo"},
-		},
-	}
-	coreClient.Resources = append(coreClient.Resources, apiResource)
+	infoProvider.isNamespaced[schema.GroupKind{"foo.example.com", "Foo"}] = true
 
 	logBuffer.Reset()
 	resources, err = manifests.LoadManifests(dir, []string{dir})
@@ -122,7 +116,7 @@ metadata:
 	assert.Contains(t, logBuffer.String(), "found scope of resource bar:foo/fooinstance")
 
 	// and missing the scope information again should result in another warning
-	coreClient.Resources = apiResourcesWithoutFoo
+	delete(infoProvider.isNamespaced, schema.GroupKind{"foo.example.com", "Foo"})
 	logBuffer.Reset()
 	resources, err = manifests.LoadManifests(dir, []string{dir})
 	assert.NoError(t, err)
