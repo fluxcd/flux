@@ -32,6 +32,10 @@ spec:
       {{- end }}
     spec:
       serviceAccountName: {{ template "flux.serviceAccountName" . }}
+      {{- if .Values.securityContext }}
+      securityContext:
+{{ toYaml .Values.securityContext | indent 8 }}
+      {{- end }}
       {{- if .Values.image.pullSecret }}
       imagePullSecrets:
         - name: {{ .Values.image.pullSecret }}
