@@ -2,8 +2,11 @@ package resource
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/ghodss/yaml"
+	"github.com/stretchr/testify/assert"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/fluxcd/flux/pkg/resource"
 )
@@ -23,25 +26,18 @@ func TestSortedContainers(t *testing.T) {
 
 func TestParseImageOnlyFormat(t *testing.T) {
 	expectedImage := "bitnami/ghost:1.21.5-r0"
-	doc := `---
-apiVersion: helm.fluxcd.io/v1
-kind: HelmRelease
-metadata:
-  name: ghost
-  namespace: ghost
-  labels:
-    chart: ghost
-spec:
-  chart:
-    git: git@github.com:fluxcd/flux-get-started
-    ref: master
-    path: charts/ghost
-  values:
-    first: post
-    image: ` + expectedImage + `
-    persistence:
-      enabled: false
-`
+
+	doc, err := NewHelmReleaseYAMLTestBuilder().
+		WithMetadata("ghost", "ghost", "ghost").
+		WithTestChartSpec().
+		WithChartValues(map[string]interface{}{
+			"first": "post",
+			"image": expectedImage,
+		}).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	resources, err := ParseMultidoc([]byte(doc), "test")
 	if err != nil {
@@ -71,26 +67,18 @@ func TestParseImageTagFormat(t *testing.T) {
 	expectedImageTag := "1.21.5-r0"
 	expectedImage := expectedImageName + ":" + expectedImageTag
 
-	doc := `---
-apiVersion: helm.fluxcd.io/v1
-kind: HelmRelease
-metadata:
-  name: ghost
-  namespace: ghost
-  labels:
-    chart: ghost
-spec:
-  chart:
-    git: git@github.com:fluxcd/flux-get-started
-    ref: master
-    path: charts/ghostb
-  values:
-    first: post
-    image: ` + expectedImageName + `
-    tag: ` + expectedImageTag + `
-    persistence:
-      enabled: false
-`
+	doc, err := NewHelmReleaseYAMLTestBuilder().
+		WithMetadata("ghost", "ghost", "ghost").
+		WithTestChartSpec().
+		WithChartValues(map[string]interface{}{
+			"first": "post",
+			"image": expectedImageName,
+			"tag":   expectedImageTag,
+		}).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	resources, err := ParseMultidoc([]byte(doc), "test")
 	if err != nil {
@@ -121,29 +109,19 @@ func TestParseRegistryImageTagFormat(t *testing.T) {
 	expectedImageTag := "1.21.5-r0"
 	expectedImage := expectedRegistry + "/" + expectedImageName + ":" + expectedImageTag
 
-	doc := `---
-apiVersion: helm.fluxcd.io/v1
-kind: HelmRelease
-metadata:
-  name: ghost
-  namespace: ghost
-  labels:
-    chart: ghost
-spec:
-  chart:
-    git: git@github.com:fluxcd/flux-get-started
-    ref: master
-    path: charts/ghost
-spec:
-  chartGitPath: mariadb
-  values:
-    first: post
-    registry: ` + expectedRegistry + `
-    image: ` + expectedImageName + `
-    tag: ` + expectedImageTag + `
-    persistence:
-      enabled: false
-`
+	doc, err := NewHelmReleaseYAMLTestBuilder().
+		WithMetadata("ghost", "ghost", "ghost").
+		WithTestChartSpec().
+		WithChartValues(map[string]interface{}{
+			"first":    "post",
+			"registry": expectedRegistry,
+			"image":    expectedImageName,
+			"tag":      expectedImageTag,
+		}).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	resources, err := ParseMultidoc([]byte(doc), "test")
 	if err != nil {
@@ -1387,4 +1365,75 @@ spec:
 			t.Errorf("images do not match %q != %q", c0image, c1.Image.String())
 		}
 	}
+}
+
+type HelmReleaseYAMLTestBuilder struct {
+	name       string
+	namespace  string
+	chartLabel string
+	chart      map[string]interface{}
+	values     map[string]interface{}
+}
+
+func NewHelmReleaseYAMLTestBuilder() HelmReleaseYAMLTestBuilder {
+	return HelmReleaseYAMLTestBuilder{}
+}
+
+func (b HelmReleaseYAMLTestBuilder) WithMetadata(name, namespace,
+	chartLabel string) HelmReleaseYAMLTestBuilder {
+	b.name = name
+	b.namespace = namespace
+	b.chartLabel = chartLabel
+	return b
+}
+
+func (b HelmReleaseYAMLTestBuilder) WithChartSpec(chart map[string]interface{}) HelmReleaseYAMLTestBuilder {
+	b.chart = chart
+	return b
+}
+
+func (b HelmReleaseYAMLTestBuilder) WithTestChartSpec() HelmReleaseYAMLTestBuilder {
+	b.chart = map[string]interface{}{
+		"git":  "git@github.com:fluxcd/flux-get-started",
+		"ref":  "master",
+		"path": "chart/ghost",
+	}
+	return b
+}
+
+func (b HelmReleaseYAMLTestBuilder) WithChartValues(values map[string]interface{}) HelmReleaseYAMLTestBuilder {
+	b.values = values
+	return b
+}
+
+func (b HelmReleaseYAMLTestBuilder) Build() ([]byte, error) {
+	u := new(unstructured.Unstructured)
+	u.SetAPIVersion("helm.fluxcd.io/v1")
+	u.SetKind("HelmRelease")
+	u.SetName(b.name)
+	u.SetNamespace(b.namespace)
+	u.SetLabels(map[string]string{
+		"chart": b.chartLabel,
+	})
+
+	if b.chart != nil {
+		err := unstructured.SetNestedField(u.Object, b.chart, "spec", "chart")
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if b.values != nil {
+		err := unstructured.SetNestedField(u.Object, b.values, "spec", "values")
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	bs, err := yaml.Marshal(u)
+	if err != nil {
+		return nil, err
+	}
+
+	return bs, nil
 }
