@@ -24,7 +24,7 @@ replace (
 	k8s.io/code-generator => k8s.io/code-generator v0.16.5-beta.1 // kubernetes-1.16.2
 )
 
-// github.com/fluxcd/flux/pkg/install lives in this very reprository, so use that
+// github.com/fluxcd/flux/pkg/install lives in this very repository, so use that
 replace github.com/fluxcd/flux/pkg/install => ./pkg/install
 
 require (
