@@ -27,6 +27,8 @@ type TemplateParameters struct {
 	ManifestGeneration      bool
 	AdditionalFluxArgs      []string
 	AddSecurityContext      bool
+	ImageRepository         string
+	ImagePullSecrets        []string
 }
 
 func FillInTemplates(params TemplateParameters) (map[string][]byte, error) {

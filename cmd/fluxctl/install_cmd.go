@@ -50,6 +50,10 @@ fluxctl install --git-url 'git@github.com:<your username>/flux-get-started' --gi
 		"cluster namespace where to install flux")
 	cmd.Flags().BoolVar(&opts.RegistryDisableScanning, "registry-disable-scanning", false,
 		"do not scan container image registries to fill in the registry cache")
+	cmd.Flags().StringVar(&opts.ImageRepository, "image-repository", "",
+		"image repository to pull flux and memcached from")
+	cmd.Flags().StringSliceVar(&opts.ImagePullSecrets, "image-pull-secrets", []string{},
+		"image pull secrets to use when pulling flux and memcached")
 	cmd.Flags().StringVarP(&opts.outputDir, "output-dir", "o", "", "a directory in which to write individual manifests, rather than printing to stdout")
 	cmd.Flags().BoolVar(&opts.AddSecurityContext, "add-security-context", true, "Ensure security context information is added to the pod specs. Defaults to 'true'")
 

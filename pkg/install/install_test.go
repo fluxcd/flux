@@ -65,6 +65,8 @@ func TestFillInTemplatesAllParameters(t *testing.T) {
 		ManifestGeneration: true,
 		AdditionalFluxArgs: []string{"arg1=foo", "arg2=bar"},
 		AddSecurityContext: true,
+		ImageRepository:    "arepository",
+		ImagePullSecrets:   []string{"foo"},
 	})
 }
 
