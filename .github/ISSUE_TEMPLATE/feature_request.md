@@ -12,10 +12,10 @@ A clear and concise description of the feature.
 
 **What would the new user story look like?**
 How would the new interaction with Flux look like? E.g.
-0. What are the prerequisites for this?
-1. User starts up Flux using the --add-frobnication flag
-2. New commits in git branch happen
-3. Deployments happen, which include frobnication
+1. What are the prerequisites for this?
+2. User starts up Flux using the --add-frobnication flag
+3. New commits in git branch happen
+4. Deployments happen, which include frobnication
 
 Feel free to add a diagram if that helps explaining things.
 
