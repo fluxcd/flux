@@ -21,7 +21,8 @@ spec:
       containers:
       - name: memcached
         image: {{ .ImageRepository }}memcached:1.5.20{{ if .ImagePullSecrets }}
-        imagePullSecrets:{{ range .ImagePullSecrets }} {{ printf "\n\t- name: %s" . }} {{ end }}{{ end }}
+        imagePullSecrets:{{ range .ImagePullSecrets }}
+        - name: {{ . }} {{ end }}{{ end }}
         imagePullPolicy: IfNotPresent
         args:
         - -m 512   # Maximum memory to use, in megabytes
