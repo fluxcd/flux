@@ -145,6 +145,11 @@ func (c *Cluster) collectGarbage(
 
 		switch {
 		case !ok: // was not recorded as having been staged for application
+			if res.Policies().Has(policy.DisableGarbageCollect) {
+				c.logger.Log("info", "not deleting resource; garbage colelction annotation in file", "resource", res.ResourceID())
+				continue
+			}
+
 			c.logger.Log("info", "cluster resource not in resources to be synced; deleting", "dry-run", dryRun, "resource", resourceID)
 			if !dryRun {
 				orphanedResources.stage("delete", res.ResourceID(), "<cluster>", res.IdentifyingBytes())

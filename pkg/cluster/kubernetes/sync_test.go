@@ -329,6 +329,8 @@ kind: Deployment
 metadata:
   name: dep1
   namespace: foobar
+  annotations:
+    fluxcd.io/disable_gc: "false"
 `
 
 	const defs2 = `---
@@ -352,6 +354,25 @@ kind: Deployment
 metadata:
   name: dep3
   namespace: other
+`
+
+	const ns4 = `---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: baz
+  annotations:
+    fluxcd.io/disable_gc: "true"
+`
+
+	const defs4 = `---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dep4
+  namespace: baz
+  annotations:
+    fluxcd.io/disable_gc: "true"
 `
 	// checkSame is a check that a result returned from the cluster is
 	// the same as an expected.  labels and annotations may be altered
@@ -462,6 +483,18 @@ metadata:
 		test(t, kube, ns1+defs2+ns3+defs3, ns1+defs1+defs2+ns3+defs3, false)
 		test(t, kube, ns1+defs1+defs2, ns1+defs1+defs2+ns3+defs3, false)
 		test(t, kube, "", ns1+defs1+defs2+ns3+defs3, false)
+	})
+
+	t.Run("sync adds and GCs skips resources", func(t *testing.T) {
+		kube, _, cancel := setup(t)
+		defer cancel()
+
+		// With GC switched on, resources disabling GC with an annoation wont be removed
+		kube.GC = true
+		test(t, kube, "", "", false)
+		test(t, kube, ns1+defs1+ns4+defs4, ns1+defs1+ns4+defs4, false)
+		test(t, kube, ns1+defs1, ns1+defs1+ns4+defs4, false)
+		test(t, kube, "", ns4+defs4, false)
 	})
 
 	t.Run("sync won't incorrectly delete non-namespaced resources", func(t *testing.T) {
