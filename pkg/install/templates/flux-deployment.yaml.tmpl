@@ -66,9 +66,13 @@ spec:
         # There are no ":latest" images for flux. Find the most recent
         # release or image version at https://hub.docker.com/r/fluxcd/flux/tags
         # and replace the tag here.
-        image: {{ if .ImageRepository }}{{ .ImageRepository }}flux:1.18.0{{ else }}docker.io/fluxcd/flux:1.18.0{{ end }}{{ if .ImagePullSecrets }}
-        imagePullSecrets:{{ range .ImagePullSecrets }}
-        - name: {{ . }} {{ end }}{{ end }}
+        image: {{ if .ImageRepository }}{{ .ImageRepository }}flux:1.18.0{{ else }}docker.io/fluxcd/flux:1.18.0{{ end }}
+        {{- if .ImagePullSecrets }}
+        imagePullSecrets:
+        {{- range .ImagePullSecrets }}
+        - name: {{ . }}
+        {{- end -}}
+        {{ end }}
         imagePullPolicy: IfNotPresent
         resources:
           requests:
