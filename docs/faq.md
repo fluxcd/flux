@@ -384,6 +384,12 @@ Here is the Helm install equivalent (note the `\,` separator):
 --set registry.excludeImage="docker.io/*\,quay.io/*"
 ```
 
+... and similarly for `--registry-include-image`:
+
+```
+--set registry.includeImage="docker.io/exampledotcom/*"
+```
+
 To exclude images containing `test` in the FQN, use:
 
 ```
