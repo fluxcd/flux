@@ -6,7 +6,6 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
-	"github.com/ryanuber/go-glob"
 	apiv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -147,7 +146,7 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 			imageCreds := make(registry.ImageCreds)
 			for _, workload := range workloads {
 				logger := log.With(c.logger, "resource", resource.MakeID(workload.GetNamespace(), kind, workload.GetName()))
-				mergeCredentials(logger.Log, c.includeImage, c.client, workload.GetNamespace(), workload.podTemplate, imageCreds, imagePullSecretCache)
+				mergeCredentials(logger.Log, c.imageIncluder.IsIncluded, c.client, workload.GetNamespace(), workload.podTemplate, imageCreds, imagePullSecretCache)
 			}
 
 			// Merge creds
@@ -166,13 +165,4 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 	}
 
 	return allImageCreds
-}
-
-func (c *Cluster) includeImage(imageName string) bool {
-	for _, exp := range c.imageExcludeList {
-		if glob.Glob(exp, imageName) {
-			return false
-		}
-	}
-	return true
 }
