@@ -155,6 +155,8 @@ registry:
   disableScanning: false
   # Do not scan images that match these glob expressions
   excludeImage:
+  # Only scan images that match these glob expressions
+  includeImage:
   # Allow usage of (RFC3339) timestamp labels from (canonical) image refs that match these glob expressions
   useTimestampLabels:
   # AWS ECR settings
