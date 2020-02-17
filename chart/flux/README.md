@@ -241,6 +241,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `registry.cacheExpiry`                            | `None`                                               | Duration to keep cached image info (deprecated)
 | `registry.disableScanning`                        | `false`                                              | Disable registry scanning completely. Flux will be deployed without memcached
 | `registry.excludeImage`                           | `None`                                               | Do not scan images that match these glob expressions; if empty, 'k8s.gcr.io/*' images are excluded
+| `registry.includeImage`                           | `None`                                               | Scan only images that match these glob expressions; if empty, all images are included
 | `registry.useTimestampLabels`                     | `None`                                               | Allow usage of (RFC3339) timestamp labels from (canonical) image refs that match these glob expressions; if empty, 'index.docker.io/{weaveworks,fluxcd}/*' images are allowed
 | `registry.ecr.region`                             | `None`                                               | Restrict ECR scanning to these AWS regions; if empty, only the cluster's region will be scanned
 | `registry.ecr.includeId`                          | `None`                                               | Restrict ECR scanning to these AWS account IDs; if empty, all account IDs that aren't excluded may be scanned

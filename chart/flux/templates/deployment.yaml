@@ -245,6 +245,9 @@ spec:
           {{- if .Values.registry.excludeImage }}
           - --registry-exclude-image={{ .Values.registry.excludeImage }}
           {{- end }}
+          {{- if .Values.registry.includeImage }}
+          - --registry-include-image={{ .Values.registry.includeImage }}
+          {{- end }}
           {{- if .Values.registry.useTimestampLabels }}
           - --registry-use-labels={{ .Values.registry.useTimestampLabels }}
           {{- end }}

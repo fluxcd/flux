@@ -353,26 +353,36 @@ You can completely disable registry scanning by using the
  Memcached.
 
 
-If you only want to disable scanning for certain images, don't set
-`--registry-disable-scanning`. Instead, you can tell Flux what images to exclude
-by supplying a list of glob expressions to the `--registry-exclude-image` flag.
+If you only want to scan certain images, don't set
+`--registry-disable-scanning`. Instead, you can tell Flux what images
+to include or exclude by supplying a list of glob expressions to the
+`--registry-include-image` and `--registry-exclude-image` flags:
 
-To exclude images from Docker Hub and Quay.io, use:
+ * `--registry-exclude-image` takes patterns to be excluded; the
+   default is to exclude the Kubernetes base images (`k8s.gcr.io/*`);
+   and,
+ * `--registry-include-image` takes patterns to be included; no
+   patterns (the default) means "include everything". If you provide a
+   pattern, _only_ images matching the pattern will be included (less
+   any that are explicitly excluded).
 
-```
---registry-exclude-image=docker.io/*,quay.io/*
-```
-
-Here is the Helm install equivalent (note the `\,` separator):
-
-```
---set registry.excludeImage="docker.io/*\,quay.io/*"
-```
-
-To exclude images containing `test` in the FQN, use:
+To restrict scanning to only images from organisations `example` and `example-dev`,
+you might use:
 
 ```
---registry-exclude-image=*test*
+--registry-include-image=*/example/*,*/example-dev/*
+```
+
+To exclude images from quay.io, use:
+
+```
+--registry-exclude-image=quay.io/*
+```
+
+Here are the Helm install equivalents (note the `\,` separator):
+
+```
+--set registry.includeImage="*/example/*\,*/example-dev/*" --set registry.excludeImage="quay.io/*"
 ```
 
 ### Does Flux support Kustomize/Templating/My favorite manifest factorization technology?
