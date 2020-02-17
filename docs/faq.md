@@ -354,10 +354,25 @@ You can completely disable registry scanning by using the
 
 
 If you only want to disable scanning for certain images, don't set
-`--registry-disable-scanning`. Instead, you can tell Flux what images to exclude
-by supplying a list of glob expressions to the `--registry-exclude-image` flag.
+`--registry-disable-scanning`. Instead, you can tell Flux what images
+to include or exclude by supplying a list of glob expressions to the
+`--registry-include-image` and `--registry-exclude-image` flags.
 
-To exclude images from Docker Hub and Quay.io, use:
+ * `--registry-include-image` takes patterns to be included; no values
+   (the default) means "include everything". If you provide a pattern,
+   _only_ images matching the pattern will be included (less any that
+   are explicitly excluded); and,
+ * `--registry-exclude-image` takes patterns to be excludes; the
+   default is to exclude the Kubernetes base images (`k8s.gcr.io/*`).
+
+To include only images from Docker Hub organisation `exampledotcom`,
+use:
+
+```
+--registry-include-image=docker.io/exampledotcom/*
+```
+
+To **exclude** images from Docker Hub and Quay.io, use:
 
 ```
 --registry-exclude-image=docker.io/*,quay.io/*

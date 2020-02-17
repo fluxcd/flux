@@ -73,6 +73,7 @@ Version controlling of cluster manifests provides reproducibility and a historic
 | --registry-burst                                 | `125`                              | maximum number of warmer connections to remote and memcache
 | --registry-insecure-host                         | []                                 | registry hosts to use HTTP for (instead of HTTPS)
 | --registry-exclude-image                         | `["k8s.gcr.io/*"]`                 | do not scan images that match these glob expressions
+| --registry-include-image                         | `nil`                              | scan _only_ images that match these glob expressions (the default, `nil`, means include everything)
 | --registry-use-labels                            | `["index.docker.io/weaveworks/*", "index.docker.io/fluxcd/*"]` | use the timestamp (RFC3339) from labels for (canonical) image refs that match these glob expressions
 | --docker-config                                  | `""`                               | path to a Docker config file with default image registry credentials
 | --registry-ecr-region                            | `[]`                               | allow these AWS regions when scanning images from ECR (multiple values allowed); defaults to the detected cluster region
