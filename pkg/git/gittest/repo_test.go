@@ -11,9 +11,9 @@ import (
 
 	"context"
 
-	"github.com/fluxcd/flux/pkg/cluster/kubernetes/testfiles"
 	"github.com/fluxcd/flux/pkg/git"
 	"github.com/fluxcd/flux/pkg/gpg/gpgtest"
+	"github.com/fluxcd/flux/test/testfiles"
 )
 
 type Note struct {

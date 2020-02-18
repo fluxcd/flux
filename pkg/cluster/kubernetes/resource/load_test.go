@@ -9,9 +9,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/fluxcd/flux/pkg/cluster/kubernetes/testfiles"
 	"github.com/fluxcd/flux/pkg/gpg/gpgtest"
 	"github.com/fluxcd/flux/pkg/resource"
+	"github.com/fluxcd/flux/test/testfiles"
 )
 
 // for convenience

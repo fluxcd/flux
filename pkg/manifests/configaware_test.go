@@ -11,10 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/fluxcd/flux/pkg/cluster/kubernetes"
-	"github.com/fluxcd/flux/pkg/cluster/kubernetes/testfiles"
 	"github.com/fluxcd/flux/pkg/image"
 	"github.com/fluxcd/flux/pkg/policy"
 	"github.com/fluxcd/flux/pkg/resource"
+	"github.com/fluxcd/flux/test/testfiles"
 )
 
 // represents, for the purpose of setting a test up, either a

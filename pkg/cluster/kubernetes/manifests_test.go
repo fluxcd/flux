@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/fluxcd/flux/pkg/cluster/kubernetes/testfiles"
+	"github.com/fluxcd/flux/test/testfiles"
 )
 
 func TestLocalCRDScope(t *testing.T) {

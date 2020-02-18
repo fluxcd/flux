@@ -7,13 +7,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fluxcd/flux/pkg/cluster/kubernetes/testfiles"
+	"github.com/fluxcd/flux/test/testfiles"
 )
 
 // ImportGPGKey imports a gpg key into a temporary home directory. It returns
 // the gpg home directory and a cleanup function to be called after the caller
 // is finished with this key.
-func ImportGPGKey(t *testing.T, key string) (string, func()){
+func ImportGPGKey(t *testing.T, key string) (string, func()) {
 	newDir, cleanup := testfiles.TempDir(t)
 
 	cmd := exec.Command("gpg", "--homedir", newDir, "--import", "--")

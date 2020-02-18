@@ -14,7 +14,6 @@ import (
 
 	"github.com/fluxcd/flux/pkg/cluster"
 	"github.com/fluxcd/flux/pkg/cluster/kubernetes"
-	"github.com/fluxcd/flux/pkg/cluster/kubernetes/testfiles"
 	"github.com/fluxcd/flux/pkg/cluster/mock"
 	"github.com/fluxcd/flux/pkg/event"
 	"github.com/fluxcd/flux/pkg/git"
@@ -24,6 +23,7 @@ import (
 	registryMock "github.com/fluxcd/flux/pkg/registry/mock"
 	"github.com/fluxcd/flux/pkg/resource"
 	fluxsync "github.com/fluxcd/flux/pkg/sync"
+	"github.com/fluxcd/flux/test/testfiles"
 	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	promdto "github.com/prometheus/client_model/go"

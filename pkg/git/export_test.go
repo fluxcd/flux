@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fluxcd/flux/pkg/cluster/kubernetes/testfiles"
+	"github.com/fluxcd/flux/test/testfiles"
 )
 
 func TestExportAtRevision(t *testing.T) {

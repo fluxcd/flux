@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/fluxcd/flux/pkg/cluster/kubernetes/testfiles"
 	"github.com/fluxcd/flux/pkg/git"
 	"github.com/fluxcd/flux/pkg/resource"
+	"github.com/fluxcd/flux/test/testfiles"
 )
 
 // Repo creates a new clone-able git repo, pre-populated with some kubernetes
