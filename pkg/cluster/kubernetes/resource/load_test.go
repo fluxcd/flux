@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/fluxcd/flux/pkg/cluster/kubernetes/testfiles/encrypted"
 	"github.com/fluxcd/flux/pkg/gpg/gpgtest"
 	"github.com/fluxcd/flux/pkg/resource"
 	"github.com/fluxcd/flux/test/testfiles"
@@ -344,21 +345,21 @@ func TestLoadSomeWithSopsNoneEncrypted(t *testing.T) {
 }
 
 func TestLoadSomeWithSopsAllEncrypted(t *testing.T) {
-	gpgHome, gpgCleanup := gpgtest.ImportGPGKey(t, testfiles.TestPrivateKey)
+	gpgHome, gpgCleanup := gpgtest.ImportGPGKey(t, encrypted.TestPrivateKey)
 	defer gpgCleanup()
 	os.Setenv("GNUPGHOME", gpgHome)
 	defer os.Unsetenv("GNUPGHOME")
 
 	dir, cleanup := testfiles.TempDir(t)
 	defer cleanup()
-	if err := testfiles.WriteSopsEncryptedTestFiles(dir); err != nil {
+	if err := encrypted.WriteSopsEncryptedTestFiles(dir); err != nil {
 		t.Fatal(err)
 	}
 	objs, err := Load(dir, []string{dir}, true)
 	if err != nil {
 		t.Error(err)
 	}
-	for expected := range testfiles.EncryptedResourceMap {
+	for expected := range encrypted.EncryptedResourceMap {
 		assert.NotNil(t, objs[expected.String()], "expected to find %s in manifest map after decryption", expected)
 	}
 }
