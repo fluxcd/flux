@@ -38,15 +38,3 @@ func TestEquivalent(t *testing.T) {
 		assert.Equal(t, u.equal, r.Equivalent(u.equivalent))
 	}
 }
-
-func TestHasValidHostname(t *testing.T) {
-	for _, url := range []string{
-		"git@github.com:fluxcd/flux",
-		"https://user@example.com:5050/repo.git",
-	} {
-		u := Remote{url}
-		if hostname, isValid := u.HasValidHostname(); !isValid {
-			t.Errorf("git repo URL %s contains invalid hostname %s", url, hostname)
-		}
-	}
-}

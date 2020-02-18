@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 	"sync"
 
 	"context"
@@ -23,7 +24,7 @@ var (
 	ErrNoConfig    = errors.New("git repo does not have valid config")
 	ErrNotCloned   = errors.New("git repo has not been cloned yet")
 	ErrClonedOnly  = errors.New("git repo has been cloned but not yet checked for write access")
-	ErrUnreachable = errors.New("hostname in git repo URL is unreachable")
+	ErrUnreachable = errors.New("git repo is unreachable")
 )
 
 type NotReadyError struct {
@@ -46,7 +47,7 @@ const (
 	RepoNew         GitRepoStatus = "new"          // no attempt made to clone it yet
 	RepoCloned      GitRepoStatus = "cloned"       // has been read (cloned); no attempt made to write
 	RepoReady       GitRepoStatus = "ready"        // has been written to, so ready to sync
-	RepoUnreachable GitRepoStatus = "unreachable"  // hostname in repo URL is an invalid hostname
+	RepoUnreachable GitRepoStatus = "unreachable"  // git repo URL is invalid
 )
 
 type Repo struct {
@@ -323,6 +324,11 @@ func (r *Repo) step(bg context.Context) bool {
 			r.setUnready(RepoCloned, ErrClonedOnly)
 			return true
 		}
+		// check err
+		if strings.Contains(err.Error(), "Could not resolve hostname") {
+			r.setUnready(RepoUnreachable, ErrUnreachable)
+			return false
+		}
 		dir = ""
 		os.RemoveAll(rootdir)
 		r.setUnready(RepoNew, err)
@@ -368,6 +374,9 @@ func (r *Repo) step(bg context.Context) bool {
 		// that any listeners can respond in the same way.
 		r.refreshed()
 		return true
+
+	case RepoUnreachable:
+		return false
 
 	case RepoReady:
 		return false

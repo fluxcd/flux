@@ -46,7 +46,7 @@ func (opts *syncOpts) RunE(cmd *cobra.Command, args []string) error {
 	case git.RepoReady:
 		break
 	case git.RepoUnreachable:
-		return fmt.Errorf("invalid hostname in git repo: %s", gitConfig.Remote.URL)
+		return fmt.Errorf("can't connect to git repo with url %s", gitConfig.Remote.URL)
 	default:
 		if gitConfig.Error != "" {
 			return fmt.Errorf("git repository %s is not ready to sync\n\nFull error message: %v", gitConfig.Remote.URL, gitConfig.Error)

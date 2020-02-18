@@ -622,19 +622,6 @@ func (d *Daemon) GitRepoConfig(ctx context.Context, regenerate bool) (v6.GitConf
 	}
 
 	origin := d.Repo.Origin()
-	// Check git repo URL
-	if _, isValid := origin.HasValidHostname(); !isValid {
-		return v6.GitConfig{
-			Remote: v6.GitRemoteConfig{
-				Remote: d.Repo.Origin(),
-				Branch: d.GitConfig.Branch,
-				Path:   "",
-			},
-			PublicSSHKey: publicSSHKey,
-			Status:       git.RepoUnreachable,
-			Error:        git.ErrUnreachable.Error(),
-		}, nil
-	}
 	// Sanitize the URL before sharing it
 	origin.URL = origin.SafeURL()
 	status, err := d.Repo.Status()
