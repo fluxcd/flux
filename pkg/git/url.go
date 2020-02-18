@@ -3,6 +3,7 @@ package git
 import (
 	"fmt"
 	"net/url"
+	"regexp"
 	"strings"
 
 	"github.com/whilp/git-urls"
@@ -40,4 +41,16 @@ func (r Remote) Equivalent(u string) bool {
 		return strings.TrimSuffix(strings.TrimPrefix(p, "/"), ".git")
 	}
 	return lu.Host == ru.Host && trimPath(lu.Path) == trimPath(ru.Path)
+}
+
+// HasValidHostname checks the hostname in repo url is valid format
+func (r Remote) HasValidHostname() (string, bool) {
+	arr := strings.Split(r.URL, "@")
+	hostname := strings.Split(arr[1], ":")[0]
+
+	re, _ := regexp.Compile(`^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$`)
+	if re.MatchString(hostname) {
+		return hostname, true
+	}
+	return hostname, false
 }

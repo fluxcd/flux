@@ -19,10 +19,11 @@ const (
 )
 
 var (
-	ErrNoChanges  = errors.New("no changes made in repo")
-	ErrNoConfig   = errors.New("git repo does not have valid config")
-	ErrNotCloned  = errors.New("git repo has not been cloned yet")
-	ErrClonedOnly = errors.New("git repo has been cloned but not yet checked for write access")
+	ErrNoChanges   = errors.New("no changes made in repo")
+	ErrNoConfig    = errors.New("git repo does not have valid config")
+	ErrNotCloned   = errors.New("git repo has not been cloned yet")
+	ErrClonedOnly  = errors.New("git repo has been cloned but not yet checked for write access")
+	ErrUnreachable = errors.New("hostname in git repo URL is unreachable")
 )
 
 type NotReadyError struct {
@@ -41,10 +42,11 @@ func (err NotReadyError) Error() string {
 type GitRepoStatus string
 
 const (
-	RepoNoConfig GitRepoStatus = "unconfigured" // configuration is empty
-	RepoNew      GitRepoStatus = "new"          // no attempt made to clone it yet
-	RepoCloned   GitRepoStatus = "cloned"       // has been read (cloned); no attempt made to write
-	RepoReady    GitRepoStatus = "ready"        // has been written to, so ready to sync
+	RepoNoConfig    GitRepoStatus = "unconfigured" // configuration is empty
+	RepoNew         GitRepoStatus = "new"          // no attempt made to clone it yet
+	RepoCloned      GitRepoStatus = "cloned"       // has been read (cloned); no attempt made to write
+	RepoReady       GitRepoStatus = "ready"        // has been written to, so ready to sync
+	RepoUnreachable GitRepoStatus = "unreachable"  // hostname in repo URL is an invalid hostname
 )
 
 type Repo struct {

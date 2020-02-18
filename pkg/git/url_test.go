@@ -1,9 +1,10 @@
 package git
 
 import (
-	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSafeURL(t *testing.T) {
@@ -35,5 +36,19 @@ func TestEquivalent(t *testing.T) {
 	for _, u := range urls {
 		r := Remote{u.remote}
 		assert.Equal(t, u.equal, r.Equivalent(u.equivalent))
+	}
+}
+
+func TestHasValidHostname(t *testing.T) {
+	for _, url := range []string{
+		"git@github.com:fluxcd/flux",
+		"git@github:fluxcd/flux",
+		"git@github_com:fluxcd/flux",
+		"https://user@example.com:5050/repo.git",
+	} {
+		u := Remote{url}
+		if hostname, isValid := u.HasValidHostname(); !isValid {
+			t.Errorf("git repo URL %s contains invalid hostname %s", url, hostname)
+		}
 	}
 }
