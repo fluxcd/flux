@@ -42,8 +42,6 @@ func TestEquivalent(t *testing.T) {
 func TestHasValidHostname(t *testing.T) {
 	for _, url := range []string{
 		"git@github.com:fluxcd/flux",
-		"git@github:fluxcd/flux",
-		"git@github_com:fluxcd/flux",
 		"https://user@example.com:5050/repo.git",
 	} {
 		u := Remote{url}
