@@ -240,3 +240,32 @@ b. Sign the sync tag by yourself, with a key that is imported, to point
    $ git tag --force --local-user=<key id> -a -m "Sync pointer" <tag name> <revision>
    $ git push --force origin <tag name>
    ```
+
+### Choosing a `--git-verify-signatures-mode`
+
+#### `"none"` (default)
+
+By default, Flux skips GPG verification of all commits.
+
+#### `"all"`
+
+This is the regular verification behavior, consistent with the original
+`--gitVerifySignatures` flag. It will perform GPG verification on every commit
+between the tip of the Flux branch and the Flux sync tag, including all parents.
+If your `master` branch contains only signed commits ([a flow which GitHub
+supports][github-required-gpg]), then this flow ought to work.
+
+#### `"first-parent"`
+
+However, there are some arguments for more limited signing behaviors, e.g. [this
+parable][gpg-dontsign-horror] and [this thread][gpg-dontsign-linus]). In
+particular, it can be useful to allow unsigned commits into `master`, and to
+point Flux at a `release` branch containing signed merges from `master`. A merge
+commit has two parents: the previous commit "in the branch," as well as the last
+commit in the merged branch. In this scenario, use the `"first-parent"` mode --
+only the merge commits "in the branch" should be GPG-verified, since the commits
+from master have no signature.
+
+[github-required-gpg]:https://help.github.com/en/github/administering-a-repository/about-required-commit-signing
+[gpg-dontsign-horror]:https://mikegerwitz.com/2012/05/a-git-horror-story-repository-integrity-with-signed-commits
+[gpg-dontsign-linus]:http://git.661346.n2.nabble.com/GPG-signing-for-git-commit-tp2582986p2583316.html

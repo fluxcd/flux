@@ -14,13 +14,13 @@ import (
 )
 
 type LoopVars struct {
-	SyncInterval        time.Duration
-	SyncTimeout         time.Duration
-	AutomationInterval  time.Duration
-	GitTimeout          time.Duration
-	GitVerifySignatures bool
-	SyncState           fluxsync.State
-	ImageScanDisabled   bool
+	SyncInterval            time.Duration
+	SyncTimeout             time.Duration
+	AutomationInterval      time.Duration
+	GitTimeout              time.Duration
+	GitVerifySignaturesMode fluxsync.VerifySignaturesMode
+	SyncState               fluxsync.State
+	ImageScanDisabled       bool
 
 	initOnce               sync.Once
 	syncSoon               chan struct{}
@@ -115,8 +115,8 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 			var err error
 
 			ctx, cancel := context.WithTimeout(context.Background(), d.GitTimeout)
-			if d.GitVerifySignatures {
-				newSyncHead, invalidCommit, err = latestValidRevision(ctx, d.Repo, d.SyncState)
+			if d.GitVerifySignaturesMode != fluxsync.VerifySignaturesModeNone {
+				newSyncHead, invalidCommit, err = latestValidRevision(ctx, d.Repo, d.SyncState, d.GitVerifySignaturesMode)
 			} else {
 				newSyncHead, err = d.Repo.BranchHead(ctx)
 			}

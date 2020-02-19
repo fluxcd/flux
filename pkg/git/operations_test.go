@@ -192,13 +192,59 @@ func TestOnelinelog_NoGitpath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	commits, err := onelinelog(context.Background(), newDir, "HEAD~2..HEAD", nil)
+	commits, err := onelinelog(context.Background(), newDir, "HEAD~2..HEAD", nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if len(commits) != 2 {
 		t.Fatal(err)
+	}
+}
+
+func TestOnelinelog_NoGitpath_Merged(t *testing.T) {
+	newDir, cleanup := testfiles.TempDir(t)
+	defer cleanup()
+
+	subdirs := []string{"dev", "prod"}
+	err := createRepo(newDir, subdirs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	branch := "tmp"
+	if err = execCommand("git", "-C", newDir, "checkout", "-b", branch); err != nil {
+		t.Fatal(err)
+	}
+	if err = updateDirAndCommit(newDir, "dev", testfiles.FilesUpdated); err != nil {
+		t.Fatal(err)
+	}
+	if err = updateDirAndCommit(newDir, "prod", testfiles.FilesUpdated); err != nil {
+		t.Fatal(err)
+	}
+	if err = execCommand("git", "-C", newDir, "checkout", "master"); err != nil {
+		t.Fatal(err)
+	}
+	if err = execCommand("git", "-C", newDir, "merge", "--no-ff", branch); err != nil {
+		t.Fatal(err)
+	}
+
+	commits, err := onelinelog(context.Background(), newDir, "HEAD", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(commits) != 6 {
+		t.Fatal(commits)
+	}
+
+	commits, err = onelinelog(context.Background(), newDir, "HEAD", nil, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(commits) != 4 {
+		t.Fatal(commits)
 	}
 }
 
@@ -220,12 +266,60 @@ func TestOnelinelog_WithGitpath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	commits, err := onelinelog(context.Background(), newDir, "HEAD~2..HEAD", []string{"dev"})
+	commits, err := onelinelog(context.Background(), newDir, "HEAD~2..HEAD", []string{"dev"}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if len(commits) != 1 {
+		t.Fatal(err)
+	}
+}
+
+func TestOnelinelog_WithGitpath_Merged(t *testing.T) {
+	newDir, cleanup := testfiles.TempDir(t)
+	defer cleanup()
+
+	subdirs := []string{"dev", "prod"}
+	err := createRepo(newDir, subdirs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	branch := "tmp"
+	if err = execCommand("git", "-C", newDir, "checkout", "-b", branch); err != nil {
+		t.Fatal(err)
+	}
+	if err = updateDirAndCommit(newDir, "dev", testfiles.FilesUpdated); err != nil {
+		t.Fatal(err)
+	}
+	if err = updateDirAndCommit(newDir, "prod", testfiles.FilesUpdated); err != nil {
+		t.Fatal(err)
+	}
+	if err = execCommand("git", "-C", newDir, "checkout", "master"); err != nil {
+		t.Fatal(err)
+	}
+	if err = execCommand("git", "-C", newDir, "merge", "--no-ff", branch); err != nil {
+		t.Fatal(err)
+	}
+
+	// show the 2 update commits as well as init commit
+	commits, err := onelinelog(context.Background(), newDir, "HEAD", []string{"prod"}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(commits) != 2 {
+		t.Fatal(err)
+	}
+
+	// show the merge commit as well as init commit
+	commits, err = onelinelog(context.Background(), newDir, "HEAD", []string{"prod"}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(commits) != 2 {
 		t.Fatal(err)
 	}
 }

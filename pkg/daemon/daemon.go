@@ -249,7 +249,7 @@ func (d *Daemon) makeJobFromUpdate(update updateFunc) jobFunc {
 		var result job.Result
 		err := d.WithWorkingClone(ctx, func(working *git.Checkout) error {
 			var err error
-			if err = verifyWorkingRepo(ctx, d.Repo, working, d.SyncState); d.GitVerifySignatures && err != nil {
+			if err = verifyWorkingRepo(ctx, d.Repo, working, d.SyncState, d.GitVerifySignaturesMode); d.GitVerifySignaturesMode != sync.VerifySignaturesModeNone && err != nil {
 				return err
 			}
 			result, err = update(ctx, jobID, working, logger)
@@ -373,9 +373,9 @@ func (d *Daemon) sync() jobFunc {
 		if err != nil {
 			return result, err
 		}
-		if d.GitVerifySignatures {
+		if d.GitVerifySignaturesMode != sync.VerifySignaturesModeNone {
 			var latestValidRev string
-			if latestValidRev, _, err = latestValidRevision(ctx, d.Repo, d.SyncState); err != nil {
+			if latestValidRev, _, err = latestValidRevision(ctx, d.Repo, d.SyncState, d.GitVerifySignaturesMode); err != nil {
 				return result, err
 			} else if head != latestValidRev {
 				result.Revision = latestValidRev
@@ -566,7 +566,7 @@ func (d *Daemon) JobStatus(ctx context.Context, jobID job.ID) (job.Status, error
 	if err != nil {
 		return status, errors.Wrap(err, "enumerating commit notes")
 	}
-	commits, err := d.Repo.CommitsBefore(ctx, "HEAD", d.GitConfig.Paths...)
+	commits, err := d.Repo.CommitsBefore(ctx, "HEAD", false, d.GitConfig.Paths...)
 	if err != nil {
 		return status, errors.Wrap(err, "checking revisions for status")
 	}
@@ -602,7 +602,7 @@ func (d *Daemon) SyncStatus(ctx context.Context, commitRef string) ([]string, er
 		return nil, err
 	}
 
-	commits, err := d.Repo.CommitsBetween(ctx, syncMarkerRevision, commitRef, d.GitConfig.Paths...)
+	commits, err := d.Repo.CommitsBetween(ctx, syncMarkerRevision, commitRef, false, d.GitConfig.Paths...)
 	if err != nil {
 		return nil, err
 	}
@@ -880,7 +880,7 @@ func policyEventTypes(u resource.PolicyUpdate) []string {
 // In case the signature of the tag can not be verified, or it points
 // towards a revision we can not get a commit range for, it returns an
 // error.
-func latestValidRevision(ctx context.Context, repo *git.Repo, syncState sync.State) (string, git.Commit, error) {
+func latestValidRevision(ctx context.Context, repo *git.Repo, syncState sync.State, gitVerifySignaturesMode sync.VerifySignaturesMode) (string, git.Commit, error) {
 	var invalidCommit = git.Commit{}
 	newRevision, err := repo.BranchHead(ctx)
 	if err != nil {
@@ -893,15 +893,17 @@ func latestValidRevision(ctx context.Context, repo *git.Repo, syncState sync.Sta
 		return "", invalidCommit, err
 	}
 
+	var gitFirstParent = gitVerifySignaturesMode == sync.VerifySignaturesModeFirstParent
+
 	var commits []git.Commit
 	if tagRevision == "" {
-		commits, err = repo.CommitsBefore(ctx, newRevision)
+		commits, err = repo.CommitsBefore(ctx, newRevision, gitFirstParent)
 	} else {
 		// Assure the commit _at_ the high water mark is a signed and valid commit
 		if err = repo.VerifyCommit(ctx, tagRevision); err != nil {
 			return "", invalidCommit, errors.Wrap(err, "failed to verify signature of last sync'ed revision")
 		}
-		commits, err = repo.CommitsBetween(ctx, tagRevision, newRevision)
+		commits, err = repo.CommitsBetween(ctx, tagRevision, newRevision, gitFirstParent)
 	}
 
 	if err != nil {
@@ -925,8 +927,8 @@ func latestValidRevision(ctx context.Context, repo *git.Repo, syncState sync.Sta
 }
 
 // verifyWorkingRepo checks that a working clone is safe to be used for a write operation
-func verifyWorkingRepo(ctx context.Context, repo *git.Repo, working *git.Checkout, syncState sync.State) error {
-	if latestVerifiedRev, _, err := latestValidRevision(ctx, repo, syncState); err != nil {
+func verifyWorkingRepo(ctx context.Context, repo *git.Repo, working *git.Checkout, syncState sync.State, gitVerifySignaturesMode sync.VerifySignaturesMode) error {
+	if latestVerifiedRev, _, err := latestValidRevision(ctx, repo, syncState, gitVerifySignaturesMode); err != nil {
 		return err
 	} else if headRev, err := working.HeadRevision(ctx); err != nil {
 		return err
