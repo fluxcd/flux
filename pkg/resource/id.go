@@ -13,7 +13,9 @@ import (
 var (
 	ErrInvalidServiceID = errors.New("invalid service ID")
 
-	LegacyServiceIDRegexp = regexp.MustCompile("^([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)$")
+	LegacyServiceIDRegexp       = regexp.MustCompile("^([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)$")
+	WildcardIDRegexp            = regexp.MustCompile("^(<cluster>|[a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)/([*]+)$")
+	WildcardUnqualifiedIDRegexp = regexp.MustCompile("^([a-zA-Z0-9_-]+)/([*]+)$")
 	// The namespace and name components are (apparently
 	// non-normatively) defined in
 	// https://github.com/kubernetes/community/blob/master/contributors/design-proposals/architecture/identifiers.md
@@ -77,6 +79,12 @@ func MustParseID(s string) ID {
 // qualified string representation, or an unqualified kind/name representation
 // and the supplied namespace.
 func ParseIDOptionalNamespace(namespace, s string) (ID, error) {
+	if m := WildcardIDRegexp.FindStringSubmatch(s); m != nil {
+		return ID{resourceID{m[1], strings.ToLower(m[2]), m[3]}}, nil
+	}
+	if m := WildcardUnqualifiedIDRegexp.FindStringSubmatch(s); m != nil {
+		return ID{resourceID{namespace, strings.ToLower(m[1]), m[2]}}, nil
+	}
 	if m := IDRegexp.FindStringSubmatch(s); m != nil {
 		return ID{resourceID{m[1], strings.ToLower(m[2]), m[3]}}, nil
 	}

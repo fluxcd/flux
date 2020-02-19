@@ -137,6 +137,19 @@ func (opts *workloadReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
+		// check wildcard exclude
+		ns, _, srv := s.Components()
+		if srv == "*" {
+			ctx := context.Background()
+			cs, err := opts.API.ListServices(ctx, ns)
+			if err != nil {
+				return err
+			}
+			for _, c := range cs {
+				excludes = append(excludes, c.ID)
+			}
+			continue
+		}
 		excludes = append(excludes, s)
 	}
 
