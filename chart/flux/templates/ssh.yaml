@@ -5,13 +5,5 @@ metadata:
   name: {{ template "flux.fullname" . }}-ssh-config
 data:
   known_hosts: |
-    {{- if .Values.ssh.known_hosts }}
-      {{- if contains "\n" .Values.ssh.known_hosts }}
-        {{- range $value := .Values.ssh.known_hosts | splitList "\n" }}
-          {{ print $value }}
-        {{- end }}
-      {{- else }}
-        {{ .Values.ssh.known_hosts }}
-      {{- end }}
-    {{- end }}
+    {{- .Values.ssh.known_hosts | nindent 4 }}
 {{- end -}}
