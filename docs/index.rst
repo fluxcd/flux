@@ -24,7 +24,7 @@ Welcome to the Flux documentation!
 .. toctree::
    :caption: Helm Operator
 
-   Documentation <https://docs.fluxcd.io/projects/helm-operator>
+   Documentation <https://docs.fluxcd.io/projects/helm-operator/>
 
 .. toctree::
    :maxdepth: 2
