@@ -57,6 +57,25 @@ The above configuration will make Flux update the image when you push
 an image tag that matches the [semantic version](https://semver.org/)
 expression e.g `my-app:1.0.1` but not `my-app:1.2.0`. 
 
+Flux also support all the other ranges and operators available [here](https://github.com/Masterminds/semver) in addition to the `~` range.
+
+Restrict image to deploy prerelease version up until `myapp:1.0.0` but not `myapp:1.0.1`:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    fluxcd.io/automated: "true"
+    fluxcd.io/tag.app: "semver: >= 1.0.0-rc.0, <1.0.1"
+spec:
+  template:
+    spec:
+      containers:
+      - name: app
+        image: docker.io/org/my-app:1.0.0-rc.1
+```
+
 Restrict image updates with glob and regex expressions:
 
 ```yaml
@@ -85,3 +104,4 @@ For the `app` container, Flux will update it when you push a tag for the
 To target a specific container the annotation format is `fluxcd.io/tag.<CONTAINER>: <TYPE>:<EXPRESSION>`.
 
 You can turn off the automation with `fluxcd.io/automated: "false"` or with `fluxcd.io/locked: "true"`.
+
