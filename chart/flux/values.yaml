@@ -127,6 +127,9 @@ git:
   # 4. Add ./identity.pub as a deployment key with write access in your Git repo
   # 5. Set the secret name (flux-ssh) below
   secretName: ""
+  # Sets --git-secret flag
+  secret:
+    enabled: false
   # Global Git configuration See https://git-scm.com/docs/git-config for more details.
   config:
     enabled: false
