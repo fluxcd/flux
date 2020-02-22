@@ -265,6 +265,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `memcached.nodeSelector`                          | `{}`                                                 | Node Selector properties for the memcached deployment
 | `memcached.tolerations`                           | `[]`                                                 | Tolerations properties for the memcached deployment
 | `kube.config`                                     | [See values.yaml](/chart/flux/values.yaml#L200-L212) | Override for kubectl default config in the Flux pod(s).
+| `priorityClassName`                               | `""`                                                 | Set priority class for Flux
 | `prometheus.enabled`                              | `false`                                              | If enabled, adds prometheus annotations to Flux and helmOperator pod(s)
 | `prometheus.serviceMonitor.create`                | `false`                                              | Set to true if using the Prometheus Operator
 | `prometheus.serviceMonitor.interval`              | ``                                                   | Interval at which metrics should be scraped

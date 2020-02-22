@@ -31,6 +31,9 @@ spec:
       {{- end }}
       {{- end }}
     spec:
+      {{- if .Values.priorityClassName }}
+      priorityClassName: "{{ .Values.priorityClassName }}"
+      {{- end }}
       serviceAccountName: {{ template "flux.serviceAccountName" . }}
       {{- if .Values.image.pullSecret }}
       imagePullSecrets:

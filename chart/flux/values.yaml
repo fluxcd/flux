@@ -49,6 +49,8 @@ resources:
     cpu: 50m
     memory: 64Mi
 
+priorityClassName: ""
+
 nodeSelector: {}
 
 annotations: {}
