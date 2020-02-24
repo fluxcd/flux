@@ -216,7 +216,9 @@ spec:
           {{- end }}
           - --git-verify-signatures={{ .Values.git.verifySignatures }}
           - --git-set-author={{ .Values.git.setAuthor }}
-          - --git-secret={{ .Values.git.secret.enabled }}
+          {{- if .Values.git.secret.enabled }}
+          - --git-secret
+          {{- end }}
           - --git-poll-interval={{ .Values.git.pollInterval }}
           - --git-timeout={{ .Values.git.timeout }}
           - --sync-interval={{ .Values.sync.interval | default .Values.git.pollInterval }}
