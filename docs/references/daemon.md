@@ -52,6 +52,7 @@ Version controlling of cluster manifests provides reproducibility and a historic
 | --git-set-author                                 | false                    | if set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer
 | --git-gpg-key-import                             |                          | if set, fluxd will attempt to import the gpg key(s) found on the given path
 | --git-signing-key                                |                          | if set, commits made by fluxd to the user git repo will be signed with the provided GPG key.
+| --git-secret                                     |                          | if set and a `.gitsecret` directory exist in the root of the git repository, Flux will execute a `git secret reveal -f` in the working clone before performing any operations
 | --git-label                                      |                          | label to keep track of sync progress; overrides both --git-sync-tag and --git-notes-ref
 | --git-sync-tag                                   | `flux-sync`              | tag to use to mark sync progress for this cluster (old config, still used if --git-label is not supplied)
 | --git-notes-ref                                  | `flux`                   | ref to use for keeping commit annotations in git notes
