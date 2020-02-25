@@ -30,7 +30,7 @@ func Load(base string, paths []string, sopsEnabled bool) (map[string]KubeManifes
 	for _, root := range paths {
 		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
-				return errors.Wrapf(err, "walking %q for yamels", path)
+				return errors.Wrapf(err, "walking %q for yaml files", path)
 			}
 
 			if charts.isDirChart(path) {
