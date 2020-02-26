@@ -14,7 +14,7 @@ func TestInstallCommand_ExtraArgumentFailure(t *testing.T) {
 		{"foo", "bar", "bizz", "buzz"},
 	} {
 		t.Run(fmt.Sprintf("%d", k), func(t *testing.T) {
-			cmd := newInstall().Command()
+			cmd := newBaseConfig().Command()
 			buf := new(bytes.Buffer)
 			cmd.SetOut(buf)
 			cmd.SetArgs(v)
@@ -33,7 +33,7 @@ func TestInstallCommand_MissingRequiredFlag(t *testing.T) {
 		"git-email": "testcase@weave.works",
 	} {
 		t.Run(fmt.Sprintf("only --%s", k), func(t *testing.T) {
-			cmd := newInstall().Command()
+			cmd := newBaseConfig().Command()
 			buf := new(bytes.Buffer)
 			cmd.SetOut(buf)
 			cmd.SetArgs([]string{})
@@ -50,7 +50,7 @@ func TestInstallCommand_Success(t *testing.T) {
 	f["git-url"] = "git@github.com:testcase/flux-get-started"
 	f["git-email"] = "testcase@weave.works"
 
-	cmd := newInstall().Command()
+	cmd := newBaseConfig().Command()
 	buf := new(bytes.Buffer)
 	cmd.SetOut(buf)
 	cmd.SetArgs([]string{})

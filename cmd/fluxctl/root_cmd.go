@@ -97,6 +97,7 @@ func (opts *rootOpts) Command() *cobra.Command {
 		newIdentity(opts).Command(),
 		newSync(opts).Command(),
 		newInstall().Command(),
+		newBaseConfig().Command(),
 		newCompletionCommand(),
 	)
 
