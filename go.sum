@@ -5,8 +5,6 @@ cloud.google.com/go v0.43.0 h1:banaiRPAM8kUVYneOSkhgcDsLzEvL25FinuiSZaH/2w=
 cloud.google.com/go v0.43.0/go.mod h1:BOSR3VbTLkk6FDC/TcffxP4NF/FFBGA5ku+jvKOP7pg=
 contrib.go.opencensus.io/exporter/ocagent v0.4.12 h1:jGFvw3l57ViIVEPKKEUXPcLYIXJmQxLUh6ey1eJhwyc=
 contrib.go.opencensus.io/exporter/ocagent v0.4.12/go.mod h1:450APlNTSR6FrvC3CTRqYosuDstRB9un7SOx2k/9ckA=
-github.com/2opremio/distribution v0.0.0-20190419185413-6c9727e5e5de h1:BNSXHiWNaMNhx2g1bbIubySvhdKyNF+0bepwZVa1Q6k=
-github.com/2opremio/distribution v0.0.0-20190419185413-6c9727e5e5de/go.mod h1:QHT6cqKT8fLkQMioAxx43yuZxuzwV655sKt60H8N17Q=
 github.com/Azure/azure-sdk-for-go v31.2.0+incompatible h1:kZFnTLmdQYNGfakatSivKHUfUnDZhqNdchHD4oIhp5k=
 github.com/Azure/azure-sdk-for-go v31.2.0+incompatible/go.mod h1:9XXNKU+eRnpl9moKnB4QOLf1HestfXbmab5FXxiDBjc=
 github.com/Azure/azure-sdk-for-go v35.0.0+incompatible/go.mod h1:9XXNKU+eRnpl9moKnB4QOLf1HestfXbmab5FXxiDBjc=
@@ -210,6 +208,8 @@ github.com/fatih/camelcase v1.0.0/go.mod h1:yN2Sb0lFhZJUdVvtELVWefmrXpuZESvPmqwo
 github.com/fatih/color v1.7.0 h1:DkWD4oS2D8LGGgTQ6IvwJJXSL5Vp2ffcQg58nFV38Ys=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
 github.com/fatih/structs v1.1.0/go.mod h1:9NiDSp5zOcgEDl+j00MP/WkGVPOlPRLejGD8Ga6PJ7M=
+github.com/fluxcd/distribution v0.0.0-20190419185413-6c9727e5e5de h1:0HEQXSlZuTWQo/7Q5QwDWmKG5z7qBEJnPyqyXbdBAUg=
+github.com/fluxcd/distribution v0.0.0-20190419185413-6c9727e5e5de/go.mod h1:ASaOpZRHjp+wRRJITxpCeWvc/eSk38vsvzXGKcp3rP8=
 github.com/fluxcd/flux v1.15.0/go.mod h1:eKTHFkxOIEQL23j5Uz+OY1NLcWDjppTPlsRlDol6JZk=
 github.com/fluxcd/helm-operator v1.0.0-rc6 h1:S78osvwNm/VRwKrCK0jfa5ciCXNm6XiIDCCcv/rnH18=
 github.com/fluxcd/helm-operator v1.0.0-rc6/go.mod h1:a3RbngauN4uJDi/sBBpk1JOCZNCCyjGps69J2uEC9J0=
