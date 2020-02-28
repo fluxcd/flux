@@ -33,7 +33,7 @@ function setup() {
   local -A template_values
   # shellcheck disable=SC2034
   template_values['REGISTRY_SERVICE_IP']="$REGISTRY_SERVICE_IP"
-  install_flux_with_fluxctl '14_release_image' 'template_values'
+  install_flux_with_fluxctl '14_release_image' 'template_values' 'redis'
 }
 
 @test "Image releases" {
@@ -48,7 +48,7 @@ function setup() {
   clone_dir="$(mktemp -d)"
   defer rm -rf "'$clone_dir'"
   git clone -b master ssh://git@localhost/git-server/repos/cluster.git "$clone_dir"
-  cd "$clone_dir"
+  cd "$clone_dir" || exit 1
   head_hash=$(git rev-list -n 1 HEAD)
   poll_until_equals "sync tag" "$head_hash" 'git pull -f --tags > /dev/null 2>&1; git rev-list -n 1 flux'
 
@@ -94,7 +94,7 @@ function teardown() {
   run_deferred
   # Although the namespace delete below takes care of removing most Flux
   # elements, the global resources will not be removed without this.
-  uninstall_flux_with_fluxctl
+  uninstall_flux_with_fluxctl 'redis'
   # Removing the namespace also takes care of removing Flux and gitsrv.
   kubectl delete namespace "$FLUX_NAMESPACE"
   # Only remove the demo workloads after Flux, so that they cannot be recreated.

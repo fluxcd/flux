@@ -16,7 +16,6 @@ GITSRV_VERSION=v1.0.0
 KIND_CACHE_PATH="${CACHE_DIR}/kind-$KIND_VERSION"
 KIND_CLUSTER_PREFIX=flux-e2e
 BATS_EXTRA_ARGS=""
-CACHE_BACKEND="${CACHE_BACKEND:-memcached}"
 
 # shellcheck disable=SC1090
 source "${E2E_DIR}/lib/defer.bash"

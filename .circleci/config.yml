@@ -24,7 +24,7 @@ jobs:
             rm -rf go${GO_VERSION}.linux-amd64.tar.gz
             go version
       - run:
-          name: Update packages and start Memcached and Redis
+          name: Update packages and start Memcached
           no_output_timeout: 10m
           command: |
             # Kill any apt-get processes that may be hanging due to
@@ -34,7 +34,7 @@ jobs:
             sudo killall apt-get || true
 
             sudo apt-get update
-            sudo apt-get install -y git rng-tools memcached redis parallel
+            sudo apt-get install -y git rng-tools memcached redis-server parallel
             # avoid needing to invoke parallel with --will-cite,
             # see e.g see https://bugs.launchpad.net/ubuntu/+source/parallel/+bug/1779764
             mkdir -p "$HOME/.parallel" && touch "$HOME/.parallel/will-cite"

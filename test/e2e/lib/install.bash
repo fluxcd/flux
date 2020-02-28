@@ -47,7 +47,7 @@ function uninstall_flux_with_helm() {
   kubectl delete -f "$HELMRELEASE_CRD_URL" > /dev/null 2>&1
 }
 
-fluxctl_install_cmd="fluxctl install --git-url=ssh://git@gitsrv/git-server/repos/cluster.git --git-email=foo --cache-backend ${CACHE_BACKEND}"
+fluxctl_install_cmd="fluxctl install --git-url=ssh://git@gitsrv/git-server/repos/cluster.git --git-email=foo"
 
 function install_flux_with_fluxctl() {
   kustomization_dir=${1:-base/flux}
@@ -59,7 +59,7 @@ function install_flux_with_fluxctl() {
   mkdir -p "${kustomtmp}/base/flux"
   # This generates the base manifests, which we'll then patch with a kustomization
   echo ">>> writing base configuration to ${kustomtmp}/base/flux" >&3
-  $fluxctl_install_cmd --namespace "${FLUX_NAMESPACE}" -o "${kustomtmp}/base/flux"
+  $fluxctl_install_cmd --namespace "${FLUX_NAMESPACE}" --cache-backend "${3:-memcached}" -o "${kustomtmp}/base/flux"
   # Everything goes into one directory, but not everything is
   # necessarily used by the kustomization
   cp -R "${E2E_DIR}"/fixtures/kustom/* "${kustomtmp}/"
@@ -73,7 +73,7 @@ function install_flux_with_fluxctl() {
 
 function uninstall_flux_with_fluxctl() {
   kubectl delete -n "${FLUX_NAMESPACE}" configmap flux-known-hosts
-  $fluxctl_install_cmd --namespace "${FLUX_NAMESPACE}" | kubectl delete -f -
+  $fluxctl_install_cmd --namespace "${FLUX_NAMESPACE}" --cache-backend "${1:-memcached}" | kubectl delete -f -
   kubectl delete -f "$HELMRELEASE_CRD_URL" > /dev/null 2>&1
 }
 
