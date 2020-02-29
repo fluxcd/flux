@@ -6,13 +6,12 @@ import (
 )
 
 const (
-	DisableGarbageCollect = Policy("disable_gc")
-	Ignore                = Policy("ignore")
-	Locked                = Policy("locked")
-	LockedUser            = Policy("locked_user")
-	LockedMsg             = Policy("locked_msg")
-	Automated             = Policy("automated")
-	TagAll                = Policy("tag_all")
+	Ignore     = Policy("ignore")
+	Locked     = Policy("locked")
+	LockedUser = Policy("locked_user")
+	LockedMsg  = Policy("locked_msg")
+	Automated  = Policy("automated")
+	TagAll     = Policy("tag_all")
 )
 
 // Policy is an string, denoting the current deployment policy of a service,
@@ -21,7 +20,7 @@ type Policy string
 
 func Boolean(policy Policy) bool {
 	switch policy {
-	case Locked, Automated, Ignore, DisableGarbageCollect:
+	case Locked, Automated, Ignore:
 		return true
 	}
 	return false
