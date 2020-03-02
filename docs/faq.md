@@ -341,7 +341,7 @@ how/where to undo the change (cf [flux#1211](https://github.com/fluxcd/flux/issu
 annotation exists in either the cluster or in git, it will be respected, so you may need to remove
 it from both places.
 
-Additionally when garbage collection is enabled. Flux will not garbage collect resources in the cluster
+Additionally, when garbage collection is enabled, Flux will not garbage collect resources in the cluster
 with the ignore annotation if the resource is removed from git.
 
 ### Can I disable garbage collection for a specific resource?
