@@ -58,7 +58,7 @@ helm repo add fluxcd https://charts.fluxcd.io
 Apply the Helm Release CRD:
 
 ```sh
-kubectl apply -f https://raw.githubusercontent.com/fluxcd/helm-operator/master/deploy/flux-helm-release-crd.yaml
+kubectl apply -f https://raw.githubusercontent.com/fluxcd/helm-operator/master/deploy/helm-operator-crds.yaml
 ```
 
 In this next step you install Flux using `helm`. Simply
