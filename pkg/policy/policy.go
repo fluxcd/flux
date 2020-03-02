@@ -14,6 +14,8 @@ const (
 	TagAll     = Policy("tag_all")
 )
 
+const IgnoreSyncOnly = "sync_only"
+
 // Policy is an string, denoting the current deployment policy of a service,
 // e.g. automated, or locked.
 type Policy string
