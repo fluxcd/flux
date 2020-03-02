@@ -710,4 +710,4 @@ Things to notice:
 3. The value for the `fluxcd.io/tag.`... annotation should includes the filter pattern type, in this case `semver`.
 
 Annotations can also be used to tell Flux to temporarily ignore certain manifests
-using `fluxcd.io/ignore: "true"`. Read more about this in the [FAQ](../faq.md).
+using `flux.weave.works/ignore: "true"`. Read more about this in the [FAQ](../faq.md).
