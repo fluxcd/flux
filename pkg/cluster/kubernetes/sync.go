@@ -145,6 +145,17 @@ func (c *Cluster) collectGarbage(
 
 		switch {
 		case !ok: // was not recorded as having been staged for application
+			if res.Policies().Has(policy.Ignore) {
+				c.logger.Log("info", "skipping GC of cluster resource; resource has ignore policy true", "dry-run", dryRun, "resource", resourceID)
+				continue
+			}
+
+			v, ok := res.Policies().Get(policy.Ignore)
+			if ok && v == policy.IgnoreSyncOnly {
+				c.logger.Log("info", "skipping GC of cluster resource; resource has ignore policy sync_only ", "dry-run", dryRun, "resource", resourceID)
+				continue
+			}
+
 			c.logger.Log("info", "cluster resource not in resources to be synced; deleting", "dry-run", dryRun, "resource", resourceID)
 			if !dryRun {
 				orphanedResources.stage("delete", res.ResourceID(), "<cluster>", res.IdentifyingBytes())

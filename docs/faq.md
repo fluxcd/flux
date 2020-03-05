@@ -234,7 +234,7 @@ Now restart `fluxd` to re-read the k8s secret (if it is running):
 
 `kubectl delete $(kubectl get pod -o name -l name=flux)`
 
-If you have installed flux through Helm, make sure to pass 
+If you have installed flux through Helm, make sure to pass
 `--set git.secretName=flux-git-deploy` when installing/upgrading the chart.
 
 ### How do I use a private git host (or one that's not github.com, gitlab.com, bitbucket.org, dev.azure.com, or vs-ssh.visualstudio.com)?
@@ -340,6 +340,18 @@ Mixing both kinds of annotations (in git, and in the cluster), can make it a bit
 how/where to undo the change (cf [flux#1211](https://github.com/fluxcd/flux/issues/1211)). If the
 annotation exists in either the cluster or in git, it will be respected, so you may need to remove
 it from both places.
+
+Additionally, when garbage collection is enabled, Flux will not garbage collect resources in the cluster
+with the ignore annotation if the resource is removed from git.
+
+### Can I disable garbage collection for a specific resource?
+
+Yes. By adding the annotation below to a resource Flux will sync updates from git, but it will not
+garbage collect when the resource is removed from git.
+
+```yaml
+    fluxcd.io/ignore: sync_only
+```
 
 ### How can I prevent Flux overriding the replicas when using HPA?
 

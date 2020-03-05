@@ -353,6 +353,7 @@ metadata:
   name: dep3
   namespace: other
 `
+
 	// checkSame is a check that a result returned from the cluster is
 	// the same as an expected.  labels and annotations may be altered
 	// by the sync process; we'll look at the "spec" field as an
@@ -607,7 +608,7 @@ metadata:
 		test(t, kube, ns1+defs1invalid, ns1+defs1invalid, true)
 	})
 
-	t.Run("sync doesn't apply or delete manifests marked with ignore", func(t *testing.T) {
+	t.Run("sync doesn't apply or GC manifests marked with ignore: 'true'", func(t *testing.T) {
 		kube, _, cancel := setup(t)
 		defer cancel()
 		kube.GC = true
@@ -651,7 +652,7 @@ spec:
 		test(t, kube, ns1+dep1ignored+dep2, ns1+dep1, false)
 	})
 
-	t.Run("sync doesn't update a cluster resource marked with ignore", func(t *testing.T) {
+	t.Run("sync doesn't update a cluster resource marked with ignore: 'true'", func(t *testing.T) {
 		const dep1 = `---
 apiVersion: apps/v1
 kind: Deployment
@@ -703,7 +704,74 @@ spec:
 		test(t, kube, ns1+mod1, ns1+dep1, false)
 	})
 
-	t.Run("sync doesn't update or delete a pre-existing resource marked with ignore", func(t *testing.T) {
+	t.Run("sync doesn't GC resources annotated with ignore: 'sync_only'", func(t *testing.T) {
+		kube, _, cancel := setup(t)
+		defer cancel()
+		kube.GC = true
+
+		const dep1 = `---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dep1
+  namespace: foobar
+  annotations: {flux.weave.works/ignore: "sync_only"}
+`
+
+		// sync namespace and deployment
+		test(t, kube, ns1+dep1, ns1+dep1, false)
+
+		// sync namespace only but expect deployment to not be GC
+		test(t, kube, ns1, ns1+dep1, false)
+	})
+
+	t.Run("sync doesn't GC resources annotated with ignore: 'true'", func(t *testing.T) {
+		kube, _, cancel := setup(t)
+		defer cancel()
+		kube.GC = true
+
+		const dep1 = `---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dep1
+  namespace: foobar
+`
+		const dep2 = `---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dep2
+  namespace: foobar
+  annotations: {flux.weave.works/ignore: "false"}
+`
+
+		// dep1 is created
+		test(t, kube, ns1+dep1+dep2, ns1+dep1+dep2, false)
+
+		// add ignore: 'true' annotation outside of sync loop
+		dc := kube.client.dynamicClient
+		rc := dc.Resource(schema.GroupVersionResource{
+			Group:    "apps",
+			Version:  "v1",
+			Resource: "deployments",
+		})
+		res, err := rc.Namespace("foobar").Get("dep1", metav1.GetOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		annots := res.GetAnnotations()
+		annots["flux.weave.works/ignore"] = "true"
+		res.SetAnnotations(annots)
+		if _, err = rc.Namespace("foobar").Update(res, metav1.UpdateOptions{}); err != nil {
+			t.Fatal(err)
+		}
+
+		// only sync ns1 but expect nothing to be GC
+		test(t, kube, ns1, ns1+dep1, false)
+	})
+
+	t.Run("sync doesn't update or delete a pre-existing resource marked with ignore: 'true'", func(t *testing.T) {
 		kube, _, cancel := setup(t)
 		defer cancel()
 
