@@ -76,6 +76,8 @@ func (c *Cluster) Sync(syncSet cluster.SyncSet) error {
 		checkHex := hex.EncodeToString(csum[:])
 		checksums[id] = checkHex
 		if res.Policies().Has(policy.Ignore) {
+			// Mark the resource as currently ignored.
+			ignored.With("resource", res.ResourceID().String()).Set(1)
 			logger.Log("info", "not applying resource; ignore annotation in file", "resource", res.ResourceID(), "source", res.Source())
 			continue
 		}
@@ -83,9 +85,13 @@ func (c *Cluster) Sync(syncSet cluster.SyncSet) error {
 		// annotation directly -- e.g., with `kubectl annotate` -- so
 		// we need to examine the cluster resource here too.
 		if cres, ok := clusterResources[id]; ok && cres.Policies().Has(policy.Ignore) {
+			// Mark the resource as currently ignored.
+			ignored.With("resource", res.ResourceID().String()).Set(1)
 			logger.Log("info", "not applying resource; ignore annotation in cluster resource", "resource", cres.ResourceID())
 			continue
 		}
+		// Mark the resource as currently not ignored.
+		ignored.With("resource", res.ResourceID().String()).Set(0)
 		resBytes, err := applyMetadata(res, syncSet.Name, checkHex)
 		if err == nil {
 			cs.stage("apply", res.ResourceID(), res.Source(), resBytes)
