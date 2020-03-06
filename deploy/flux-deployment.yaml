@@ -18,6 +18,8 @@ spec:
       labels:
         name: flux
     spec:
+      nodeSelector:
+        beta.kubernetes.io/os: linux
       serviceAccountName: flux
       volumes:
       - name: git-key
@@ -64,7 +66,7 @@ spec:
         # There are no ":latest" images for flux. Find the most recent
         # release or image version at https://hub.docker.com/r/fluxcd/flux/tags
         # and replace the tag here.
-        image: docker.io/fluxcd/flux:1.15.0
+        image: docker.io/fluxcd/flux:1.18.0
         imagePullPolicy: IfNotPresent
         resources:
           requests:
@@ -166,6 +168,9 @@ spec:
         # (e.g., Weave Cloud). The token is particular to the service.
         # - --connect=wss://cloud.weave.works/api/flux
         # - --token=abc123abc123abc123abc123
+
+        # Enable manifest generation (default `false`)
+        # - --manifest-generation=false
 
         # Serve /metrics endpoint at different port;
         # make sure to set prometheus' annotation to scrape the port value.

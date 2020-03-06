@@ -224,6 +224,7 @@ Available Commands:
   version        Output the version of fluxctl
 
 Flags:
+      --context string                  The kubeconfig context to use
   -h, --help                            help for fluxctl
       --k8s-fwd-labels stringToString   Labels used to select the fluxd pod a port forward should be created for. You can also set the environment variable FLUX_FORWARD_LABELS (default [app=flux])
       --k8s-fwd-ns string               Namespace in which fluxd is running, for creating a port forward to access the API. No port forward will be created if a URL or token is given. You can also set the environment variable FLUX_FORWARD_NAMESPACE (default "default")
@@ -264,9 +265,20 @@ $ fluxctl list-workloads
 WORKLOAD                       CONTAINER   IMAGE                                         RELEASE  POLICY
 default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld:master-a000001  ready
                                sidecar     quay.io/weaveworks/sidecar:master-a000002
+default:deployment/busybox     busybox     busybox:1.31.1                                ready
+default:deployment/nginx       nginx       nginx:stable-alpine                           ready
 ```
 
 Note that the actual images running will depend on your cluster.
+
+You can also filter workloads by container name, using the `--container|-c` option:
+
+```sh
+$ fluxctl list-workloads --container helloworld
+WORKLOAD                       CONTAINER   IMAGE                                         RELEASE  POLICY
+default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld:master-a000001  ready
+                               sidecar     quay.io/weaveworks/sidecar:master-a000002
+```
 
 ### Inspecting the Version of a Container
 
@@ -288,6 +300,16 @@ default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld
 
 The arrows will point to the version that is currently running
 alongside a list of other versions and their timestamps.
+
+When using `fluxctl` in scripts, you can remove the table headers with `--no-headers` for both `list-images` and `list-workloads` command to suppress the header:
+
+```sh
+$ fluxctl list-workloads --no-headers
+default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld:master-a000001  ready
+                               sidecar     quay.io/weaveworks/sidecar:master-a000002
+$ fluxctl list-images --workload default:deployment/helloworld --no-headers
+default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld
+```
 
 ### Releasing a Workload
 
@@ -535,6 +557,11 @@ fluxctl policy --workload=default:deployment/helloworld --tag-all='semver:*'
 
 Using a semver filter will also affect how Flux sorts images, so
 that the higher versions will be considered newer.
+
+Semver has a concept of "pre-release" versions which have an extra
+label like `-beta` at the end.  If you want to include these then
+write a policy with a hyphen; for example `>=1.2.3` will skip
+prereleases while `>=1.2.3-0` will include prereleases.
 
 #### Regexp
 

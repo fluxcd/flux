@@ -1,146 +1,309 @@
-# Manifest factorization through `.flux.yaml` configuration files
+# Manifest generation through `.flux.yaml` configuration files
 
-## Enabling search of `.flux.yaml` files
+This feature lets you generate Kubernetes manifests with a program,
+instead of having to include them in your git repo as YAML files. For
+example, you can use `kustomize` to patch a common set of resources to
+suit a particular environment.
 
-To enable it supply the command-line flag `--manifest-generation=true` to `fluxd`.
+> Note: For a full, self-contained example of Flux generating manifests
+> with `kustomize` you can go to [https://github.com/fluxcd/flux-kustomize-example](https://github.com/fluxcd/flux-kustomize-example)
 
-## Goal
+Manifest generation is controlled by the flags given to `fluxd`, and
+`.flux.yaml` files in your git repo.
 
-It is a common pattern to run very similar resources in separate clusters. There are various scenarios in which this is
-required, the two main ones being:
+To enable it, you will need to
 
-* Having a staging/canary cluster and production cluster. The resources from the staging cluster are regularly promoted
-  to the production cluster. In addition, there are long-term differences between the cluster resources (e.g. different
-  security keys, different database endpoints etc ...).
-* Federation. Different clusters run in separate regions, usually with very similar resources but different
-  configurations.
+ 1. pass the command-line flag `--manifest-generation=true`
+to `fluxd`.
+ 2. put at least one `.flux.yaml` file in the git repository.
 
-The main goal of `.flux.yaml` configuration files is to help deploying similar resources/clusters:
+Where to put `.flux.yaml`, and what should be in it, are described in
+the sections following.
 
-* with minimal replication of resource definitions
-* while keeping Flux neutral about the factorization technology used
+## Setting manifest generation up
 
-## File-access behaviour in Flux
+The command-line flag `--git-path` (which can be given multiple
+values) marks a "target path" within the git repository in which to
+find manifests. If `--git-path` is not supplied, the top of the git
+repository is assumed to be the sole target path.
 
-Flux performs two types of actions on raw manifest files from the Git repository:
+Without manifest generation, fluxd will recursively walk the
+directories under each target path, to look for YAML files.
 
-1. Read manifest files when performing a sync operation (i.e making sure that the status of the cluster reflects what's
-   in the manifest files, adjusting it if necessary)
-2. Update the manifest files of [workload](fluxctl.html#workloads).
-   Specifically, flux can update:
-    * container images, when releasing a new image version. A release can happen manually or automatically, when a new
-      container image is pushed to a repository.
-    * annotations, which establish the release policy of a workload (e.g. whether it should be automatically released,
-      whether it should be locked from releasing, what image tags should be considered for automated releases …)
+With manifest generation **enabled**, fluxd will look for processing
+instructions in a file `.flux.yaml`, which can be located _at_ the
+target path, or in a directory _above_ it in the git repository.
 
-Flux can be configured to confine the scope of (1) and (2):
+ - if a `.flux.yaml` file is found, it is used **instead** of looking
+   for YAML files, and no other files are examined for that target
+   path;
 
-* To specific (sub)directories (flag `--git-path`)
-* To a Git branch other than `master` (flag `--git-branch`)
+ - if no `.flux.yaml` file is found, the usual behaviour of looking
+   for YAML files is adopted for that target path.
 
-## Abstracting out file-access: generators and updaters
+ - a `.flux.yaml` file containing the `scanForFiles` directive resets
+   the behaviour to looking for YAML files. This is explained below.
 
-Flux allows you to declare configuration files to override file operations (1) and (2), by declaring commands which
-perform equivalent actions.
+The manifests from all the target paths -- read from YAML files or
+generated -- are combined before applying to the cluster. If
+duplicates are detected, an error is logged and fluxd will abandon the
+attempt to apply manifests to the cluster.
 
-The configuration files are formatted in `YAML` and named `.flux.yaml`. They must be located on the Git repository
-(more on this later).
+Here are some examples:
 
-A `commandUpdated` `.flux.yaml` file has the following loosely specified format:
-
-```yaml
-version: X
-commandUpdated:
-  generators:
-    - command: generator_command1 g1arg1 g1arg2 ...
-    - command: generator_command2 g2arg2 g2arg2 ...
-  updaters:
-    - containerImage:
-        command: containerImage_updater_command1 ciu1arg1 ciu1arg2 ...
-      policy:
-        command: policy_updater_command1 pu1arg1 pu1arg2 ...
-    - containerImage:
-        command: containerImage_updater_command2 ciu2arg1 ciu2arg2 ...
-      policy:
-        command: policy_updater_command2 pu2arg1 pu2arg2 ...
+```
+.
+├── base
+│   ├── demo-ns.yaml
+│   ├── kustomization.yaml
+│   ├── podinfo-dep.yaml
+│   ├── podinfo-hpa.yaml
+│   └── podinfo-svc.yaml
+├── .flux.yaml
+├── production
+│   ├── flux-patch.yaml
+│   ├── kustomization.yaml
+│   └── replicas-patch.yaml
+└── staging
+    ├── flux-patch.yaml
+    └── kustomization.yaml
 ```
 
-> **Note:** For a simpler approach to updates, Flux provides a `patchUpdated` configuration file variant.
+In this case, say you started `fluxd` with `--git-path=staging`, it
+would find `.flux.yaml` in the top directory and use that to generate
+manifests.  The other files and directories (if there were any) in
+`staging/` are not examined by fluxd, in favour of following the
+instructions given in the `.flux.yaml` file.
 
-The file above is versioned (in order to account for future file format changes). Current version is `1`,
-which is enforced.
+This layout could also be used with `--git-path=production`.
 
-Also, the file contains two generators (declared in the `generators` entry), used to generate manifests and two updaters
-(declared in the `updaters` entry), used to update resources in the Git repository.
+In this modified example, the `.flux.yaml` file has been moved under
+`staging/`:
 
-The generators are meant as an alternative to Flux manifest reads (1). Each updater is split into a `containerImage`
-command and a `policy` command, covering the corresponding two types of workload manifest updates mentioned in (2).
+```
+.
+├── base
+│   ├── demo-ns.yaml
+│   ├── kustomization.yaml
+│   ├── podinfo-dep.yaml
+│   ├── podinfo-hpa.yaml
+│   └── podinfo-svc.yaml
+├── production
+│   ├── flux-patch.yaml
+│   ├── kustomization.yaml
+│   └── replicas-patch.yaml
+└── staging
+    ├── flux-patch.yaml
+    ├── .flux.yaml
+    └── kustomization.yaml
+```
 
-> **Note** Update commands operate on policies, rather than annotations. That is for two reasons:
->
-> * It is an implementation detail for Kubernetes manifests specifically that policies are represented as annotations.
-> * Some configurations (even those for Kubernetes clusters) may encode policies symbolically.
+… since the `.flux.yaml` file is now under `staging/`, it will still
+take effect for `--git-path=staging`. However:
 
-Here is a specific `.flux.yaml` example, declaring a generator and an updater using [Kustomize](https://github.com/kubernetes-sigs/kustomize)
-(see [https://github.com/weaveworks/flux-kustomize-example](https://github.com/weaveworks/flux-kustomize-example)
-for a complete example).
+Using `--git-path=production` would **not produce a usable
+configuration**, because without an applicable `.flux.yaml`, the files
+under `production/` would be treated as plain Kubernetes manifests,
+which they are plainly not.
+
+Note also that the configuration file would **not** take effect for
+`--git-path=.` (i.e., the top directory), because manifest generation
+will not look in subdirectories for a `.flux.yaml` file.
+
+### The `scanForFiles` directive
+
+The `scanForFiles` directive indicates that the target path should be
+treated as though it had _no_ `.flux.yaml` in effect. In other words,
+fluxd will look for YAML files under the directory, and update
+manifests directly by rewriting the YAML files.
+
+Here's an example `.flux.yaml` with the `scanForFiles` directive:
+
+```
+version: 1
+scanForFiles: {}
+```
+
+(The `{}` is an empty map, which acts as a placeholder value).
+
+This is to account for the case in which you have a `.flux.yaml`
+higher in the directory tree, applying to several target paths beneath
+it, but want to have a directory wth regular YAMLs as well.
+
+In the following example, the top-level `.flux.yaml` would take effect
+for `--git-path=staging` or `--git-path=production`.
+
+But if you wanted `yamls/permissions.yaml` to be applied (as it is),
+you could put a `.flux.yaml` containing `scanForFiles` in that directory, and
+specify `--git-path=staging,yamls`.
+
+```
+.
+├── .flux.yaml
+├── base
+│   ├── demo-ns.yaml
+│   ├── kustomization.yaml
+│   ├── podinfo-dep.yaml
+│   ├── podinfo-hpa.yaml
+│   └── podinfo-svc.yaml
+├── production
+│   ├── flux-patch.yaml
+│   ├── kustomization.yaml
+│   └── replicas-patch.yaml
+├── yamls
+│   ├── .flux.yaml # (with "scanForFiles" directive)
+│   └── permissions.yaml
+└── staging
+    ├── flux-patch.yaml
+    └── kustomization.yaml
+```
+
+## How to construct a .flux.yaml file
+
+Aside from the special case of the `scanForFiles` directive,
+`.flux.yaml` files come in two varieties: "patch-updated",
+"command-updated". These refer to the way in which [automated
+updates](./automated-image-update.md) are applied to files in the
+repo:
+
+ - when patch-updated, fluxd will keep updates in its own patch file,
+   which it applies to the generated manifests before applying to the
+   cluster;
+ - when command-updated, you must supply commands to update the
+   appropriate file or files.
+
+Patch-updated will work with any kind of manifest generation, because
+the patch is entirely managed by `fluxd` and applied post-hoc to the
+manifests.
+
+Command-updated is more general, but since you need to supply your own
+programs to find and update the right file, it is likely to be a lot
+more work.
+
+Both patch-updated and command-updated configurations have the same
+way of specifying how to generate manifests, and differ only in how
+updates are recorded.
+
+### Generator configuration
+
+Here is an example of a `.flux.yaml`:
+
+```yaml
+version: 1 # must be `1`
+patchUpdated:
+  generators:
+  - command: kustomize build .
+  patchFile: flux-patch.yaml
+```
+
+The `generators` field is an array of commands, all of which will be
+run in turn. Each command is expected to print a YAML stream to its
+stdout. The streams are concatenated and parsed as one big YAML
+stream, before being applied.
+
+Much of the time, it will only be necessary to supply one command to
+be run.
+
+The commands will be run with the target path being processed as a
+working directory -- which is not necessarily the same directory in
+which the `.flux.yaml` file was found. [See below](#execution-context)
+for more details on the execution context in which commands are run.
+
+### Using patch-updated configuration
+
+A patch-updated configuration generates manifests using commands, and
+records updates as a set of [strategic merge][strategic-merge] patches
+in a file.
+
+For example, when an automated image upgrade is run, fluxd will do
+this:
+
+ 1. run the generator commands and parse the manifests;
+ 2. find the manifest that needs to be updated, and calculate the
+    patch to it that performs the update;
+ 3. record that patch in the patch file.
+
+When syncing, fluxd will generate the manifests as usual, then apply
+all the patches that have been recorded in the patch file.
+
+This is how a patch-updated `.flux.yaml` looks in general:
+
+```yaml
+version: 1
+patchUpdated:
+  generators:
+  - command: generator_command
+  patchFile: path/to/patch.yaml
+```
+
+The `generators` field is explained just above. The `patchFile` field
+gives a path, relative to the target path, in which to record
+patches. `fluxd` will create or update the file when needed, and
+commit any changes it makes to git.
+
+> Note: at present, it is necessary to manually remove patches that
+> refer to deleted manifests. See [issue #2428][#2428]
+
+### Using command-updated configuration
+
+A command-updated configuration generates manifests in the same way,
+but records changes by running commands as given in the `.flux.yaml`.
+
+This is how a command-updated `.flux.yaml` looks in general:
 
 ```yaml
 version: 1
 commandUpdated:
   generators:
-    - command: kustomize build .
+  - command: generator_command
   updaters:
-    # use https://github.com/squaremo/kubeyaml on flux-patch.yaml
-    - containerImage:
-        command: >-
-          cat flux-patch.yaml |
-          kubeyaml image --namespace $FLUX_WL_NS --kind $FLUX_WL_KIND --name $FLUX_WL_NAME --container $FLUX_CONTAINER --image "$FLUX_IMG:$FLUX_TAG"
-          > new-flux-patch.yaml &&
-          mv new-flux-patch.yaml flux-patch.yaml
-      policy:
-        command: >-
-          cat flux-patch.yaml |
-          kubeyaml annotate --namespace $FLUX_WL_NS --kind $FLUX_WL_KIND --name $FLUX_WL_NAME "fluxcd.io/$FLUX_POLICY=$FLUX_POLICY_VALUE"
-          > new-flux-patch.yaml &&
-          mv new-flux-patch.yaml flux-patch.yaml
+  - containerImage:
+      command: image_updater_program
+    policy:
+      command: policy_updater_program
 ```
 
-For every flux target path, Flux will look for a `.flux.yaml` file in the target path and all its parent directories.
-If a `.flux.yaml` is found:
+The `updaters` section is particular to command-updated
+configuration. It contains an array of updaters, each of which gives a
+command for updating container images, and a command for updating
+policies (policy controls how automated updates should be applied to a
+resource; these appear as annotations in generated manifests).
 
-1. When syncing, `fluxd` will run each of the `generators`, collecting yaml manifests printed to `stdout` and applying
-   them to the cluster.
-2. When making a release or updating a policy, `fluxd` will run the `updaters`, which are in charge of updating the Git
-   repository to reflect the required changes in workloads.
-    * The `containerImage` updaters are invoked once for every container whose image requires updating.
-    * The `policy` updaters are invoked once for every workload annotation which needs to be added or updated.
-    * Updaters are supplied with environment variables indicating what image should be updated and what annotation to
-      update (more on this later).
-    * Updaters expected to modify the Git working tree in-place
+When asked to update a resource, fluxd will run execute the
+appropriate variety of command for *each* entry in `updaters:`. For
+example, when updating an image, it will execute the command under
+`containerImage`, for each updater entry, in turn.
 
-    After invoking the updaters, `fluxd` will then commit and push the resulting modifications to the git repository.
-
-3. `fluxd` will ignore any other yaml files under that path (e.g. resource manifests).
-
-Generators and updaters are intentionally independent, in case a matching updater cannot be provided. It is hard to
-create updaters for some factorization technologies (particularly Configuration-As-Code). To improve the situation,
-a separate configuration file variant (`patchedUpdated`) is provided, which will be described later on.
+Usually updates come in batches -- e.g., updating the same container
+image in several resources -- so the commands will likely be run
+several times.
 
 ### Execution context of commands
 
-`generators` and `updaters` are run in a POSIX shell inside the Flux container. This means that the `command`s supplied
-should be available in the [Flux container image](https://github.com/fluxcd/flux/blob/master/docker/Dockerfile.flux).
-Flux currently includes `Kustomize` and basic Unix shell tools. If the tools in the Flux image are not sufficient for
-your use case, you can include new tools in your own Flux-based image or, if the tools are popular enough, Flux
-maintainers can add them to the Flux image (please create an issue). In the future (once [Ephemeral
-containers](https://github.com/kubernetes/kubernetes/pull/59416) are available), you will be able to specify an container
-image for each command.
+`generators` and `updaters` are run in a POSIX shell inside the fluxd
+container. This means that the executables mentioned in commands must
+be available in the running fluxd container.
 
-The working directory (also known as CWD) of the `command`s executed from a `.flux.yaml` file will be set to the
-target path (`--git-path` entry) used when finding that `.flux.yaml` file.
+Flux currently includes `kustomize`, `sops` and basic Unix shell tools.
+If the tools in the Flux image are not sufficient for your use case,
+you have some options:
 
-For example, when using flux with `--git-path=staging` on a git repository with this structure:
+ - build your own custom image based on the [Flux
+   image][flux-dockerfile] that includes the tooling you need, and run
+   that image instead of `fluxcd.io/flux`;
+ - copy files from an `initContainer` into a volume shared by the flux
+   container, within the deployment.
+
+In the future it may be possible to specify an container image for
+each command, rather than relying on the tooling being in the
+filesystem.
+
+The working directory (also known as CWD) of the `command`s executed
+from a `.flux.yaml` file will be set to the target path, i.e., the
+`--git-path` entry.
+
+For example, when using flux with `--git-path=staging` on a git
+repository with this structure:
 
 ```sh
 ├── .flux.yaml
@@ -150,80 +313,39 @@ For example, when using flux with `--git-path=staging` on a git repository with 
 └──── [...]
 ```
 
-The commands in `.flux.yaml` will be executed with their working directory set to `staging.`
+… the commands in `.flux.yaml` will be executed with their working
+directory set to `staging`.
 
-In addition, `updaters` are provided with some environment variables:
+In addition, commands from `updaters` are given arguments via
+environment variables, when executed:
 
-* `FLUX_WORKLOAD`: Workload to be updated. Its format is `<namespace>:<kind>/<name>` (e.g. `default:deployment/foo`).
-  For convenience (to circumvent parsing) `FLUX_WORKLOAD` is also broken down into the following environment variables:
-        * `FLUX_WL_NS`
-        * `FLUX_WL_KIND`
-        * `FLUX_WL_NAME`
-* `containerImage` updaters are provided with:
-  * `FLUX_CONTAINER`: Name of the container within the workload whose image needs to be updated.
-  * `FLUX_IMG`: Image name which the container needs to be updated to (e.g. `nginx`).
-  * `FLUX_TAG`: Image tag which the container needs to be updated to (e.g. `1.15`).
-* `policy` updaters are provided with:
-  * `FLUX_POLICY`: the name of the policy to be added or updated in the workload. To make into an annotation name, prefix with `fluxcd.io/`
-  * `FLUX_POLICY_VALUE`: value of the policy to be added or updated in the controller. If the `FLUX_POLICY_VALUE`
-  environment variable is not set, it means the policy should be removed.
+ * `FLUX_WORKLOAD`: the workload to be updated. Its format is
+  `<namespace>:<kind>/<name>` (e.g. `default:deployment/foo`). For
+  convenience (to circumvent parsing) `FLUX_WORKLOAD` is also broken
+  down into the following environment variables:
+  * `FLUX_WL_NS`
+  * `FLUX_WL_KIND`
+  * `FLUX_WL_NAME`
 
-Please note that the default timeout for sync commands is set to one minute.
-If you run into errors like `error executing generator command: context deadline exceeded`,
-you can increase the timeout with the `--sync-timeout` fluxd command flag or the `sync.timeout` Helm chart option.
+ * `containerImage` updaters are provided with:
+   * `FLUX_CONTAINER`: Name of the container within the workload whose image needs to be updated.
+   * `FLUX_IMG`: Image name which the container needs to be updated to (e.g. `nginx`).
+   * `FLUX_TAG`: Image tag which the container needs to be updated to (e.g. `1.15`).
 
-### Combining generators, updaters and raw manifest files
+ * `policy` updaters are provided with:
+   * `FLUX_POLICY`: the name of the policy to be added or updated in
+     the workload. To make into an annotation name, prefix with
+     `fluxcd.io/`
+   * `FLUX_POLICY_VALUE`: value of the policy to be added or updated
+     in the controller. If the `FLUX_POLICY_VALUE` environment
+     variable is not set, it means the policy should be removed.
 
-The `.flux.yaml` files support including multiple generators and updaters. Here is an example combining multiple
-generators:
+Please note that the default timeout for sync commands is set to one
+minute. If you run into errors like `error executing generator
+command: context deadline exceeded`, you can increase the timeout with
+the `--sync-timeout` fluxd command flag or the `sync.timeout` Helm
+chart option.
 
-```yaml
-version: 1
-commandUpdated:
-  generators:
-    - command: kustomize build .
-    - command: helm template ../charts/mychart -f overrides.yaml
-```
-
-The generators/updaters will simply be executed in the presented order (top down). Flux will merge their output.
-
-Flux supports both generated manifests and raw manifests tracked in the same repository. If Flux doesn't find a
-configuration file associated to a target directory, Flux will inspect it in search for raw YAML manifest files.
-
-### The `patchUpdated` configuration variant
-
-We mentioned before that, while it is simple for users to provide generator commands, matching updater commands are
-harder to construct. To improve the situation, Flux provides a different configuration variant: `patchUpdated`.
-`patchUpdated` configurations store the modifications from Flux into a
-[YAML merge patch file](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-api-machinery/strategic-merge-patch.md)
-and implicitly apply them to the resources printed by the `generators`.
-
-Here is an example, allowing to deploy a [Helm chart without a Tiller installation](https://medium.com/@jeroen.rosenberg/using-helm-charts-without-tiller-f1588bc1f0c4)
-
-```yaml
-version: 1
-patchUpdated:
-  generators:
-    - command: helm template ../charts/mychart -f overrides.yaml
-  patchFile: flux-patch.yaml
-```
-
-This configuration will cause:
-1. modifications made by Flux (e.g. due to annotation or image updates) to the resources generated by `helm template ../charts/mychart -f overrides.yaml` to be stored into patch file `flux-patch.yaml`. `flux-patch.yaml` will be managed automatically by Flux (it will be added and updated on demand).
-2. the patch file `flux-patch.yaml` to be always applied to the output of `helm template ../charts/mychart -f overrides.yaml`, in order to obtain the final manifests.
-
-The patch file path should be relative to Flux target which matched the configuration file.
-
-Note that the patch file will need to be kept consistent with any changes made in the generated manifests. In particular,
-the patch file will be sensitive to changes in workload names, workload namespaces or workload kinds.
-
-Lastly, here is another example using Kustomize which is much simpler than the `commandUpdated`-based example presented
-earlier.
-
-```yaml
-version: 1
-patchUpdated:
-  generators:
-    - command: kustomize build .
-  patchFile: flux-patch.yaml
-```
+[#2428]: https://github.com/fluxcd/flux/issues/2428
+[flux-dockerfile]: https://github.com/fluxcd/flux/blob/master/docker/Dockerfile.flux
+[strategic-merge]: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-api-machinery/strategic-merge-patch.md

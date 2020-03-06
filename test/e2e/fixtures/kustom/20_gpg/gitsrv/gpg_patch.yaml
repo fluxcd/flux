@@ -1,0 +1,16 @@
+- op: add
+  path: /spec/template/spec/containers/0/env/-
+  value:
+    name: GPG_KEYFILE
+    value: /git-server/gpg/flux.asc
+- op: add
+  path: /spec/template/spec/containers/0/volumeMounts/-
+  value:
+    mountPath: /git-server/gpg
+    name: git-gpg-keys
+- op: add
+  path: /spec/template/spec/volumes/-
+  value:
+    name: git-gpg-keys
+    secret:
+      secretName: flux-gpg-signing-key

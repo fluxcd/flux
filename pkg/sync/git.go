@@ -9,11 +9,11 @@ import (
 
 // GitTagSyncProvider is the mechanism by which a Git tag is used to keep track of the current point fluxd has synced to.
 type GitTagSyncProvider struct {
-	repo       *git.Repo
-	syncTag    string
-	signingKey string
-	verifyTag  bool
-	config     git.Config
+	repo          *git.Repo
+	syncTag       string
+	signingKey    string
+	verifyTagMode VerifySignaturesMode
+	config        git.Config
 }
 
 // NewGitTagSyncProvider creates a new git tag sync provider.
@@ -21,15 +21,15 @@ func NewGitTagSyncProvider(
 	repo *git.Repo,
 	syncTag string,
 	signingKey string,
-	verifyTag bool,
+	verifyTagMode VerifySignaturesMode,
 	config git.Config,
 ) (GitTagSyncProvider, error) {
 	return GitTagSyncProvider{
-		repo:       repo,
-		syncTag:    syncTag,
-		signingKey: signingKey,
-		verifyTag:  verifyTag,
-		config:     config,
+		repo:          repo,
+		syncTag:       syncTag,
+		signingKey:    signingKey,
+		verifyTagMode: verifyTagMode,
+		config:        config,
 	}, nil
 }
 
@@ -47,7 +47,7 @@ func (p GitTagSyncProvider) GetRevision(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	if p.verifyTag {
+	if p.verifyTagMode != VerifySignaturesModeNone {
 		if _, err := p.repo.VerifyTag(ctx, p.syncTag); err != nil {
 			// if the revision wasn't found, don't treat this as an
 			// error -- but don't supply a revision, either.
@@ -66,6 +66,7 @@ func (p GitTagSyncProvider) UpdateMarker(ctx context.Context, revision string) e
 	if err != nil {
 		return err
 	}
+	defer checkout.Clean()
 	return checkout.MoveTagAndPush(ctx, git.TagAction{
 		Tag:        p.syncTag,
 		Revision:   revision,

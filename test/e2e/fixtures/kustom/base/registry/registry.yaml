@@ -1,0 +1,32 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: registry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: registry
+  template:
+    metadata:
+      labels:
+        name: registry
+    spec:
+      containers:
+      - image: registry:2
+        name: registry
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: registry
+spec:
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 5000
+  selector:
+    name: registry
+  type: ClusterIP

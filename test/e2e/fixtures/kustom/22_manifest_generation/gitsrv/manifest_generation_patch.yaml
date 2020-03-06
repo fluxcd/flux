@@ -1,0 +1,7 @@
+- op: replace
+  path: /spec/template/spec/containers/0/env
+  value:
+    - name: REPO
+      value: "cluster.git"
+    - name: TAR_URL
+      value: https://github.com/weaveworks/flux-kustomize-example/archive/master.tar.gz

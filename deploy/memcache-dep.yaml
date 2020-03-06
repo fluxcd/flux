@@ -16,9 +16,11 @@ spec:
       labels:
         name: memcached
     spec:
+      nodeSelector:
+        beta.kubernetes.io/os: linux
       containers:
       - name: memcached
-        image: memcached:1.5.15
+        image: memcached:1.5.20
         imagePullPolicy: IfNotPresent
         args:
         - -m 512   # Maximum memory to use, in megabytes

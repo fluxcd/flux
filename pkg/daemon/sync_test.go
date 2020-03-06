@@ -12,8 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kit/kit/log"
-
 	"github.com/fluxcd/flux/pkg/cluster"
 	"github.com/fluxcd/flux/pkg/cluster/kubernetes"
 	"github.com/fluxcd/flux/pkg/cluster/kubernetes/testfiles"
@@ -26,6 +24,9 @@ import (
 	registryMock "github.com/fluxcd/flux/pkg/registry/mock"
 	"github.com/fluxcd/flux/pkg/resource"
 	fluxsync "github.com/fluxcd/flux/pkg/sync"
+	"github.com/go-kit/kit/log"
+	"github.com/prometheus/client_golang/prometheus"
+	promdto "github.com/prometheus/client_model/go"
 )
 
 const (
@@ -86,6 +87,50 @@ func daemon(t *testing.T) (*Daemon, func()) {
 	}
 }
 
+func findMetric(name string, metricType promdto.MetricType, labels ...string) (*promdto.Metric, error) {
+	metricsRegistry := prometheus.DefaultRegisterer.(*prometheus.Registry)
+	if metrics, err := metricsRegistry.Gather(); err == nil {
+		for _, metricFamily := range metrics {
+			if *metricFamily.Name == name {
+				if *metricFamily.Type != metricType {
+					return nil, fmt.Errorf("Metric types for %v doesn't correpond: %v != %v", name, metricFamily.Type, metricType)
+				}
+				for _, metric := range metricFamily.Metric {
+					if len(labels) != len(metric.Label)*2 {
+						return nil, fmt.Errorf("Metric labels length for %v doesn't correpond: %v != %v", name, len(labels)*2, len(metric.Label))
+					}
+					for labelIdx, label := range metric.Label {
+						if labels[labelIdx*2] != *label.Name {
+							return nil, fmt.Errorf("Metric label for %v doesn't correpond: %v != %v", name, labels[labelIdx*2], *label.Name)
+						} else if labels[labelIdx*2+1] != *label.Value {
+							break
+						} else if labelIdx == len(metric.Label)-1 {
+							return metric, nil
+						}
+					}
+				}
+				return nil, fmt.Errorf("Can't find metric %v with appropriate labels in registry", name)
+			}
+		}
+		return nil, fmt.Errorf("Can't find metric %v in registry", name)
+	} else {
+		return nil, fmt.Errorf("Error reading metrics registry %v", err)
+	}
+}
+
+func checkSyncManifestsMetrics(t *testing.T, manifestSuccess, manifestFailures int) {
+	if metric, err := findMetric("flux_daemon_sync_manifests", promdto.MetricType_GAUGE, "success", "true"); err != nil {
+		t.Errorf("Error collecting flux_daemon_sync_manifests{success='true'} metric: %v", err)
+	} else if int(*metric.Gauge.Value) != manifestSuccess {
+		t.Errorf("flux_daemon_sync_manifests{success='true'} must be %v. Got %v", manifestSuccess, *metric.Gauge.Value)
+	}
+	if metric, err := findMetric("flux_daemon_sync_manifests", promdto.MetricType_GAUGE, "success", "false"); err != nil {
+		t.Errorf("Error collecting flux_daemon_sync_manifests{success='false'} metric: %v", err)
+	} else if int(*metric.Gauge.Value) != manifestFailures {
+		t.Errorf("flux_daemon_sync_manifests{success='false'} must be %v. Got %v", manifestFailures, *metric.Gauge.Value)
+	}
+}
+
 func TestPullAndSync_InitialSync(t *testing.T) {
 	d, cleanup := daemon(t)
 	defer cleanup()
@@ -93,7 +138,7 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 	syncCalled := 0
 	var syncDef *cluster.SyncSet
 	expectedResourceIDs := resource.IDs{}
-	for id, _ := range testfiles.ResourceMap {
+	for id := range testfiles.ResourceMap {
 		expectedResourceIDs = append(expectedResourceIDs, id)
 	}
 	expectedResourceIDs.Sort()
@@ -110,7 +155,7 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 	}
 
 	syncTag := "sync"
-	gitSync, _ := fluxsync.NewGitTagSyncProvider(d.Repo, syncTag, "", false, d.GitConfig)
+	gitSync, _ := fluxsync.NewGitTagSyncProvider(d.Repo, syncTag, "", fluxsync.VerifySignaturesModeNone, d.GitConfig)
 	syncState := &lastKnownSyncState{logger: d.Logger, state: gitSync}
 
 	if err := d.Sync(ctx, time.Now().UTC(), head, syncState); err != nil {
@@ -143,11 +188,14 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 	// It creates the tag at HEAD
 	if err := d.Repo.Refresh(context.Background()); err != nil {
 		t.Errorf("pulling sync tag: %v", err)
-	} else if revs, err := d.Repo.CommitsBefore(context.Background(), syncTag); err != nil {
+	} else if revs, err := d.Repo.CommitsBefore(context.Background(), syncTag, false); err != nil {
 		t.Errorf("finding revisions before sync tag: %v", err)
 	} else if len(revs) <= 0 {
 		t.Errorf("Found no revisions before the sync tag")
 	}
+
+	// Check 0 error stats
+	checkSyncManifestsMetrics(t, len(expectedResourceIDs), 0)
 }
 
 func TestDoSync_NoNewCommits(t *testing.T) {
@@ -180,7 +228,7 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 	syncCalled := 0
 	var syncDef *cluster.SyncSet
 	expectedResourceIDs := resource.IDs{}
-	for id, _ := range testfiles.ResourceMap {
+	for id := range testfiles.ResourceMap {
 		expectedResourceIDs = append(expectedResourceIDs, id)
 	}
 	expectedResourceIDs.Sort()
@@ -195,7 +243,7 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	gitSync, _ := fluxsync.NewGitTagSyncProvider(d.Repo, syncTag, "", false, d.GitConfig)
+	gitSync, _ := fluxsync.NewGitTagSyncProvider(d.Repo, syncTag, "", fluxsync.VerifySignaturesModeNone, d.GitConfig)
 	syncState := &lastKnownSyncState{logger: d.Logger, state: gitSync}
 
 	if err := d.Sync(ctx, time.Now().UTC(), head, syncState); err != nil {
@@ -218,12 +266,12 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 	}
 
 	// It doesn't move the tag
-	oldRevs, err := d.Repo.CommitsBefore(ctx, syncTag)
+	oldRevs, err := d.Repo.CommitsBefore(ctx, syncTag, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if revs, err := d.Repo.CommitsBefore(ctx, syncTag); err != nil {
+	if revs, err := d.Repo.CommitsBefore(ctx, syncTag, false); err != nil {
 		t.Errorf("finding revisions before sync tag: %v", err)
 	} else if !reflect.DeepEqual(revs, oldRevs) {
 		t.Errorf("Should have kept the sync tag at HEAD")
@@ -299,7 +347,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 	syncCalled := 0
 	var syncDef *cluster.SyncSet
 	expectedResourceIDs := resource.IDs{}
-	for id, _ := range testfiles.ResourceMap {
+	for id := range testfiles.ResourceMap {
 		expectedResourceIDs = append(expectedResourceIDs, id)
 	}
 	expectedResourceIDs.Sort()
@@ -314,7 +362,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	gitSync, _ := fluxsync.NewGitTagSyncProvider(d.Repo, syncTag, "", false, d.GitConfig)
+	gitSync, _ := fluxsync.NewGitTagSyncProvider(d.Repo, syncTag, "", fluxsync.VerifySignaturesModeNone, d.GitConfig)
 	syncState := &lastKnownSyncState{logger: d.Logger, state: gitSync}
 
 	if err := d.Sync(ctx, time.Now().UTC(), head, syncState); err != nil {
@@ -349,11 +397,121 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 	defer cancel()
 	if err := d.Repo.Refresh(ctx); err != nil {
 		t.Errorf("pulling sync tag: %v", err)
-	} else if revs, err := d.Repo.CommitsBetween(ctx, oldRevision, syncTag); err != nil {
+	} else if revs, err := d.Repo.CommitsBetween(ctx, oldRevision, syncTag, false); err != nil {
 		t.Errorf("finding revisions before sync tag: %v", err)
 	} else if len(revs) <= 0 {
 		t.Errorf("Should have moved sync tag forward")
 	} else if revs[len(revs)-1].Revision != newRevision {
 		t.Errorf("Should have moved sync tag to HEAD (%s), but was moved to: %s", newRevision, revs[len(revs)-1].Revision)
 	}
+}
+
+func TestDoSync_WithErrors(t *testing.T) {
+	d, cleanup := daemon(t)
+	defer cleanup()
+
+	expectedResourceIDs := resource.IDs{}
+	for id := range testfiles.ResourceMap {
+		expectedResourceIDs = append(expectedResourceIDs, id)
+	}
+
+	k8s.SyncFunc = func(def cluster.SyncSet) error {
+		return nil
+	}
+
+	ctx := context.Background()
+	head, err := d.Repo.BranchHead(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	syncTag := "sync"
+	gitSync, _ := fluxsync.NewGitTagSyncProvider(d.Repo, syncTag, "", fluxsync.VerifySignaturesModeNone, d.GitConfig)
+	syncState := &lastKnownSyncState{logger: d.Logger, state: gitSync}
+
+	if err := d.Sync(ctx, time.Now().UTC(), head, syncState); err != nil {
+		t.Error(err)
+	}
+
+	// Check 0 error stats
+	checkSyncManifestsMetrics(t, len(expectedResourceIDs), 0)
+
+	// Now add wrong manifest
+	err = d.WithWorkingClone(ctx, func(checkout *git.Checkout) error {
+		ctx, cancel := context.WithTimeout(ctx, 5000*time.Second)
+		defer cancel()
+
+		absolutePath := path.Join(checkout.Dir(), "error_manifest.yaml")
+		if err := ioutil.WriteFile(absolutePath, []byte("Manifest that must produce errors"), 0600); err != nil {
+			return err
+		}
+		commitAction := git.CommitAction{Author: "", Message: "test error commit"}
+		err = checkout.CommitAndPush(ctx, commitAction, nil, true)
+		if err != nil {
+			return err
+		}
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = d.Repo.Refresh(ctx)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if err := d.Sync(ctx, time.Now().UTC(), "HEAD", syncState); err != nil {
+		// Check error not nil, manifest counters remain the same
+		checkSyncManifestsMetrics(t, len(expectedResourceIDs), 0)
+	} else {
+		t.Error("Sync must fail because of invalid manifest")
+	}
+
+	// Fix manifest
+	err = d.WithWorkingClone(ctx, func(checkout *git.Checkout) error {
+		ctx, cancel := context.WithTimeout(ctx, 5000*time.Second)
+		defer cancel()
+
+		absolutePath := path.Join(checkout.Dir(), "error_manifest.yaml")
+		if err := ioutil.WriteFile(absolutePath, []byte("# Just comment"), 0600); err != nil {
+			return err
+		}
+		commitAction := git.CommitAction{Author: "", Message: "test fix commit"}
+		err = checkout.CommitAndPush(ctx, commitAction, nil, true)
+		if err != nil {
+			return err
+		}
+		return err
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = d.Repo.Refresh(ctx)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if err := d.Sync(ctx, time.Now().UTC(), "HEAD", syncState); err != nil {
+		t.Error(err)
+	}
+	// Check 0 manifest error stats
+	checkSyncManifestsMetrics(t, len(expectedResourceIDs), 0)
+
+	// Emulate sync errors
+	k8s.SyncFunc = func(def cluster.SyncSet) error {
+		return cluster.SyncError{
+			cluster.ResourceError{resource.MustParseID("mynamespace:deployment/depl1"), "src1", fmt.Errorf("Error1")},
+			cluster.ResourceError{resource.MustParseID("mynamespace:deployment/depl2"), "src2", fmt.Errorf("Error2")},
+		}
+	}
+
+	if err := d.Sync(ctx, time.Now().UTC(), "HEAD", syncState); err != nil {
+		t.Error(err)
+	}
+
+	// Check 2 sync error in stats
+	checkSyncManifestsMetrics(t, len(expectedResourceIDs)-2, 2)
 }

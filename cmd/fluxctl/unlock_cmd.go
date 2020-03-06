@@ -32,7 +32,7 @@ func (opts *workloadUnlockOpts) Command() *cobra.Command {
 	}
 	AddOutputFlags(cmd, &opts.outputOpts)
 	AddCauseFlags(cmd, &opts.cause)
-	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", getKubeConfigContextNamespace("default"), "Controller namespace")
+	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "", "Controller namespace")
 	cmd.Flags().StringVarP(&opts.workload, "workload", "w", "", "Controller to unlock")
 
 	// Deprecated
@@ -50,10 +50,11 @@ func (opts *workloadUnlockOpts) RunE(cmd *cobra.Command, args []string) error {
 	case opts.controller != "":
 		opts.workload = opts.controller
 	}
+	ns := getKubeConfigContextNamespaceOrDefault(opts.namespace, "default", opts.Context)
 	policyOpts := &workloadPolicyOpts{
 		rootOpts:   opts.rootOpts,
 		outputOpts: opts.outputOpts,
-		namespace:  opts.namespace,
+		namespace:  ns,
 		workload:   opts.workload,
 		cause:      opts.cause,
 		unlock:     true,

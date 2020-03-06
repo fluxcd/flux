@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"context"
 	"reflect"
+	"sort"
 	"testing"
 
 	"github.com/go-kit/kit/log"
@@ -27,20 +28,22 @@ func testGetAllowedNamespaces(t *testing.T, namespace []string, expected []strin
 	clientset := fakekubernetes.NewSimpleClientset(newNamespace("default"),
 		newNamespace("kube-system"))
 	client := ExtendedClient{coreClient: clientset}
-	c := NewCluster(client, nil, nil, log.NewNopLogger(), namespace, []string{})
+	allowedNamespaces := make(map[string]struct{})
+	for _, n := range namespace {
+		allowedNamespaces[n] = struct{}{}
+	}
+	c := NewCluster(client, nil, nil, log.NewNopLogger(), allowedNamespaces, nil, []string{})
 
 	namespaces, err := c.getAllowedAndExistingNamespaces(context.Background())
 	if err != nil {
 		t.Errorf("The error should be nil, not: %s", err)
 	}
 
-	result := []string{}
-	for _, namespace := range namespaces {
-		result = append(result, namespace)
-	}
+	sort.Strings(namespaces) // We cannot be sure of the namespace order, since they are saved in a map in cluster struct
+	sort.Strings(expected)
 
-	if reflect.DeepEqual(result, expected) != true {
-		t.Errorf("Unexpected namespaces: %v != %v.", result, expected)
+	if reflect.DeepEqual(namespaces, expected) != true {
+		t.Errorf("Unexpected namespaces: %v != %v.", namespaces, expected)
 	}
 }
 

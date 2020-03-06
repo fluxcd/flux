@@ -106,23 +106,29 @@ type Cluster struct {
 	syncErrors   map[resource.ID]error
 	muSyncErrors sync.RWMutex
 
-	allowedNamespaces []string
+	allowedNamespaces map[string]struct{}
 	loggedAllowedNS   map[string]bool // to keep track of whether we've logged a problem with seeing an allowed namespace
 
-	imageExcludeList []string
-	mu               sync.Mutex
+	imageIncluder       cluster.Includer
+	resourceExcludeList []string
+	mu                  sync.Mutex
 }
 
 // NewCluster returns a usable cluster.
-func NewCluster(client ExtendedClient, applier Applier, sshKeyRing ssh.KeyRing, logger log.Logger, allowedNamespaces []string, imageExcludeList []string) *Cluster {
+func NewCluster(client ExtendedClient, applier Applier, sshKeyRing ssh.KeyRing, logger log.Logger, allowedNamespaces map[string]struct{}, imageIncluder cluster.Includer, resourceExcludeList []string) *Cluster {
+	if imageIncluder == nil {
+		imageIncluder = cluster.AlwaysInclude
+	}
+
 	c := &Cluster{
-		client:            client,
-		applier:           applier,
-		logger:            logger,
-		sshKeyRing:        sshKeyRing,
-		allowedNamespaces: allowedNamespaces,
-		loggedAllowedNS:   map[string]bool{},
-		imageExcludeList:  imageExcludeList,
+		client:              client,
+		applier:             applier,
+		logger:              logger,
+		sshKeyRing:          sshKeyRing,
+		allowedNamespaces:   allowedNamespaces,
+		loggedAllowedNS:     map[string]bool{},
+		imageIncluder:       imageIncluder,
+		resourceExcludeList: resourceExcludeList,
 	}
 
 	return c
@@ -167,18 +173,26 @@ func (c *Cluster) SomeWorkloads(ctx context.Context, ids []resource.ID) (res []c
 
 // AllWorkloads returns all workloads in allowed namespaces matching the criteria; that is, in
 // the namespace (or any namespace if that argument is empty)
-func (c *Cluster) AllWorkloads(ctx context.Context, namespace string) (res []cluster.Workload, err error) {
-	namespaces, err := c.getAllowedAndExistingNamespaces(ctx)
+func (c *Cluster) AllWorkloads(ctx context.Context, restrictToNamespace string) (res []cluster.Workload, err error) {
+	allowedNamespaces, err := c.getAllowedAndExistingNamespaces(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting namespaces")
+	}
+	// Those are the allowed namespaces (possibly just [<all of them>];
+	// now intersect with the restriction requested, if any.
+	namespaces := allowedNamespaces
+	if restrictToNamespace != "" {
+		namespaces = nil
+		for _, ns := range allowedNamespaces {
+			if ns == meta_v1.NamespaceAll || ns == restrictToNamespace {
+				namespaces = []string{restrictToNamespace}
+				break
+			}
+		}
 	}
 
 	var allworkloads []cluster.Workload
 	for _, ns := range namespaces {
-		if namespace != "" && ns != namespace {
-			continue
-		}
-
 		for kind, resourceKind := range resourceKinds {
 			workloads, err := resourceKind.getWorkloads(ctx, c, ns)
 			if err != nil {
@@ -197,7 +211,7 @@ func (c *Cluster) AllWorkloads(ctx context.Context, namespace string) (res []clu
 
 			for _, workload := range workloads {
 				if !isAddon(workload) {
-					id := resource.MakeID(ns, kind, workload.GetName())
+					id := resource.MakeID(workload.GetNamespace(), kind, workload.GetName())
 					c.muSyncErrors.RLock()
 					workload.syncError = c.syncErrors[id]
 					c.muSyncErrors.RUnlock()
@@ -296,7 +310,7 @@ func (c *Cluster) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
 func (c *Cluster) getAllowedAndExistingNamespaces(ctx context.Context) ([]string, error) {
 	if len(c.allowedNamespaces) > 0 {
 		nsList := []string{}
-		for _, name := range c.allowedNamespaces {
+		for name, _ := range c.allowedNamespaces {
 			if err := ctx.Err(); err != nil {
 				return nil, err
 			}
@@ -342,12 +356,8 @@ func (c *Cluster) IsAllowedResource(id resource.ID) bool {
 		namespaceToCheck = name
 	}
 
-	for _, allowedNS := range c.allowedNamespaces {
-		if namespaceToCheck == allowedNS {
-			return true
-		}
-	}
-	return false
+	_, ok := c.allowedNamespaces[namespaceToCheck]
+	return ok
 }
 
 type yamlThroughJSON struct {

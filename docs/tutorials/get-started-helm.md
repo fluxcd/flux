@@ -14,7 +14,7 @@ You will need to have Kubernetes set up. To get up and running fast,
 you might want to use `minikube` or `kubeadm`. Any other Kubernetes
 setup will work as well though.
 
-Download Helm:
+Download Helm v3:
 
 - On MacOS:
 
@@ -26,7 +26,7 @@ Download Helm:
   - Download the [latest release](https://github.com/kubernetes/helm/releases/latest),
     unpack the tarball and put the binary in your `$PATH`.
 
-Now create a service account and a cluster role binding for Tiller:
+If you are using Helm v2 you have to create a service account and a cluster role binding for Tiller:
 
 ```sh
 kubectl -n kube-system create sa tiller
@@ -36,7 +36,7 @@ kubectl create clusterrolebinding tiller-cluster-rule \
     --serviceaccount=kube-system:tiller
 ```
 
-Deploy Tiller in `kube-system` namespace:
+Deploy Tiller in `kube-system` namespace (Helm v2 only):
 
 ```sh
 helm init --skip-refresh --upgrade --service-account tiller --history-max 10
@@ -58,7 +58,7 @@ helm repo add fluxcd https://charts.fluxcd.io
 Apply the Helm Release CRD:
 
 ```sh
-kubectl apply -f https://raw.githubusercontent.com/fluxcd/flux/helm-0.10.1/deploy-helm/flux-helm-release-crd.yaml
+kubectl apply -f https://raw.githubusercontent.com/fluxcd/helm-operator/master/deploy/crds.yaml
 ```
 
 In this next step you install Flux using `helm`. Simply
@@ -66,6 +66,13 @@ In this next step you install Flux using `helm`. Simply
  1. Fork [`fluxcd/flux-get-started`](https://github.com/fluxcd/flux-get-started)
     on GitHub and replace the `fluxcd` with your GitHub username in
     [here](https://github.com/fluxcd/flux-get-started/blob/master/releases/ghost.yaml#L13)
+ 
+ 1. Create the flux namespace:
+ 
+    ```sh
+    kubectl create namespace flux
+    ```
+ 
  1. Install Flux and the Helm operator by specifying your fork URL:
 
       *Just make sure you replace `YOURUSER` with your GitHub username
@@ -74,13 +81,16 @@ In this next step you install Flux using `helm`. Simply
     - Using a public git server from `bitbucket.com`, `github.com`, `gitlab.com`, `dev.azure.com`, or `vs-ssh.visualstudio.com`:
 
       ```sh
-      helm upgrade -i flux \
-      --set helmOperator.create=true \
-      --set helmOperator.createCRD=false \
+      helm upgrade -i flux fluxcd/flux \
       --set git.url=git@github.com:YOURUSER/flux-get-started \
-      --namespace flux \
-      fluxcd/flux
+      --namespace flux
+
+      helm upgrade -i helm-operator fluxcd/helm-operator \
+      --set git.ssh.secretName=flux-git-deploy \
+      --namespace flux
       ```
+
+    > **Note:** By default the helm-operator chart will install with support for both Helm v2 (which requires Tiller) and v3.  You can target specific versions by setting the `helm.versions` value, e.g. `--set helm.versions=v3`.
 
     - Using a private git server:
 
@@ -154,7 +164,7 @@ change the `tag:` line to the following:
   values:
     image:
       repository: bitnami/mongodb
-      tag: 4.0.6
+      tag: 4.0.14
 ```
 
 Commit the change to your `master` branch. It will now get

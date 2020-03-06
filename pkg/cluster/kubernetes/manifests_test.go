@@ -17,7 +17,7 @@ import (
 func TestLocalCRDScope(t *testing.T) {
 	coreClient := makeFakeClient()
 
-	nser, err := NewNamespacer(coreClient.Discovery())
+	nser, err := NewNamespacer(coreClient.Discovery(), "")
 	assert.NoError(t, err)
 	manifests := NewManifests(nser, log.NewLogfmtLogger(os.Stdout))
 
@@ -64,7 +64,7 @@ metadata:
 func TestUnKnownCRDScope(t *testing.T) {
 	coreClient := makeFakeClient()
 
-	nser, err := NewNamespacer(coreClient.Discovery())
+	nser, err := NewNamespacer(coreClient.Discovery(), "")
 	assert.NoError(t, err)
 	logBuffer := bytes.NewBuffer(nil)
 	manifests := NewManifests(nser, log.NewLogfmtLogger(logBuffer))

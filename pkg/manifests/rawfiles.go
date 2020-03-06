@@ -17,6 +17,8 @@ type rawFiles struct {
 	manifests Manifests
 }
 
+// NewRawFiles constructs a `Store` that assumes the provided
+// directories contain plain YAML files
 func NewRawFiles(baseDir string, paths []string, manifests Manifests) *rawFiles {
 	return &rawFiles{
 		baseDir:   baseDir,

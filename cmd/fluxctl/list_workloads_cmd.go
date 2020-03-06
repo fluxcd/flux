@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"os"
 	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
 
-	"github.com/fluxcd/flux/pkg/api/v6"
+	v6 "github.com/fluxcd/flux/pkg/api/v6"
 	"github.com/fluxcd/flux/pkg/policy"
 )
 
@@ -16,6 +16,9 @@ type workloadListOpts struct {
 	*rootOpts
 	namespace     string
 	allNamespaces bool
+	containerName string
+	noHeaders     bool
+	outputFormat  string
 }
 
 func newWorkloadList(parent *rootOpts) *workloadListOpts {
@@ -30,8 +33,11 @@ func (opts *workloadListOpts) Command() *cobra.Command {
 		Example: makeExample("fluxctl list-workloads"),
 		RunE:    opts.RunE,
 	}
-	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", getKubeConfigContextNamespace("default"), "Confine query to namespace")
+	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "", "Confine query to namespace")
 	cmd.Flags().BoolVarP(&opts.allNamespaces, "all-namespaces", "a", false, "Query across all namespaces")
+	cmd.Flags().StringVarP(&opts.containerName, "container", "c", "", "Filter workloads by container name")
+	cmd.Flags().BoolVar(&opts.noHeaders, "no-headers", false, "Don't print headers (default print headers)")
+	cmd.Flags().StringVarP(&opts.outputFormat, "output-format", "o", "tab", "Output format (tab or json)")
 	return cmd
 }
 
@@ -40,33 +46,37 @@ func (opts *workloadListOpts) RunE(cmd *cobra.Command, args []string) error {
 		return errorWantedNoArgs
 	}
 
+	if !outputFormatIsValid(opts.outputFormat) {
+		return errorInvalidOutputFormat
+	}
+
+	var ns string
 	if opts.allNamespaces {
-		opts.namespace = ""
+		ns = ""
+	} else {
+		ns = getKubeConfigContextNamespaceOrDefault(opts.namespace, "default", opts.Context)
 	}
 
 	ctx := context.Background()
 
-	workloads, err := opts.API.ListServices(ctx, opts.namespace)
+	workloads, err := opts.API.ListServices(ctx, ns)
 	if err != nil {
 		return err
 	}
 
+	if opts.containerName != "" {
+		workloads = filterByContainerName(workloads, opts.containerName)
+	}
+
 	sort.Sort(workloadStatusByName(workloads))
 
-	w := newTabwriter()
-	fmt.Fprintf(w, "WORKLOAD\tCONTAINER\tIMAGE\tRELEASE\tPOLICY\n")
-	for _, workload := range workloads {
-		if len(workload.Containers) > 0 {
-			c := workload.Containers[0]
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", workload.ID, c.Name, c.Current.ID, workload.Status, policies(workload))
-			for _, c := range workload.Containers[1:] {
-				fmt.Fprintf(w, "\t%s\t%s\t\t\n", c.Name, c.Current.ID)
-			}
-		} else {
-			fmt.Fprintf(w, "%s\t\t\t%s\t%s\n", workload.ID, workload.Status, policies(workload))
-		}
+	switch opts.outputFormat {
+	case outputFormatJson:
+		outputWorkloadsJson(workloads, os.Stdout)
+	default:
+		outputWorkloadsTab(workloads, opts)
 	}
-	w.Flush()
+
 	return nil
 }
 
@@ -97,4 +107,19 @@ func policies(s v6.ControllerStatus) string {
 	}
 	sort.Strings(ps)
 	return strings.Join(ps, ",")
+}
+
+// Extract workloads having its container name equal to containerName
+func filterByContainerName(workloads []v6.ControllerStatus, containerName string) (filteredWorkloads []v6.ControllerStatus) {
+	for _, workload := range workloads {
+		if len(workload.Containers) > 0 {
+			for _, c := range workload.Containers {
+				if c.Name == containerName {
+					filteredWorkloads = append(filteredWorkloads, workload)
+					break
+				}
+			}
+		}
+	}
+	return
 }

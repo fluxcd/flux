@@ -46,10 +46,8 @@ testdata/sidecar/sidecar-linux-amd64
 testdata/sidecar/.sidecar
 docker/fluxy-dumbconf.priv
 test/profiles
-test/bin/kubectl
-test/bin/kustomize
-test/bin/helm
-test/bin/kind
+test/bin/
+test/e2e/bats
 
 # Docs
 docs/_build

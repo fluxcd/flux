@@ -155,6 +155,20 @@ To work around exceptional cases, you can mount a docker config into
 the Flux container. See the argument `--docker-config` in [the daemon
 arguments reference](references/daemon.md).
 
+For ECR, Flux requires access to the EC2 instance metadata API to
+obtain AWS credentials. Kube2iam, Kiam, and potentially other
+Kuberenetes IAM utilities may block pod level access to the EC2
+metadata APIs. If this is the case, Flux will be unable to poll ECR
+for automated workloads.
+
+ -  If you are using Kiam, you need to whitelist the following API routes:
+      ```
+      --whitelist-route-regexp=(/latest/meta-data/placement/availability-zone|/latest/dynamic/instance-identity/document)
+      ```
+ - If you are using kube2iam, ensure the values of --iptables and
+    --in-interface are [configured correctly for your virtual network
+    provider](https://github.com/jtblin/kube2iam#iptables).
+
 See also
 [Why are my images not showing up in the list of images?](#why-are-my-images-not-showing-up-in-the-list-of-images)
 
@@ -220,7 +234,7 @@ Now restart `fluxd` to re-read the k8s secret (if it is running):
 
 `kubectl delete $(kubectl get pod -o name -l name=flux)`
 
-If you have installed flux through Helm, make sure to pass 
+If you have installed flux through Helm, make sure to pass
 `--set git.secretName=flux-git-deploy` when installing/upgrading the chart.
 
 ### How do I use a private git host (or one that's not github.com, gitlab.com, bitbucket.org, dev.azure.com, or vs-ssh.visualstudio.com)?
@@ -317,8 +331,6 @@ the change to git:
 ```
 
 To stop ignoring these annotated resources, you simply remove the annotation from the manifests in git.
-A live example can be seen
-[here](https://github.com/stefanprodan/openfaas-flux/blob/master/secrets/openfaas-token.yaml).
 
 Flux will ignore any resource that has the annotation _either_ in git, or in the cluster itself;
 sometimes it may be easier to annotate a *running resource in the cluster* as opposed to committing
@@ -329,6 +341,18 @@ how/where to undo the change (cf [flux#1211](https://github.com/fluxcd/flux/issu
 annotation exists in either the cluster or in git, it will be respected, so you may need to remove
 it from both places.
 
+Additionally, when garbage collection is enabled, Flux will not garbage collect resources in the cluster
+with the ignore annotation if the resource is removed from git.
+
+### Can I disable garbage collection for a specific resource?
+
+Yes. By adding the annotation below to a resource Flux will sync updates from git, but it will not
+garbage collect when the resource is removed from git.
+
+```yaml
+    fluxcd.io/ignore: sync_only
+```
+
 ### How can I prevent Flux overriding the replicas when using HPA?
 
 When using a horizontal pod autoscaler you have to remove the `spec.replicas` from your deployment definition.
@@ -336,30 +360,41 @@ If the replicas field is not present in Git, Flux will not override the replica 
 
 ### Can I disable Flux registry scanning?
 
-You can exclude images from being scanned by providing a list of glob expressions using the `registry-exclude-image` flag.
+You can completely disable registry scanning by using the
+`--registry-disable-scanning` flag. This allows deploying Flux without
+ Memcached.
 
-Exclude images from Docker Hub and Quay.io:
+
+If you only want to scan certain images, don't set
+`--registry-disable-scanning`. Instead, you can tell Flux what images
+to include or exclude by supplying a list of glob expressions to the
+`--registry-include-image` and `--registry-exclude-image` flags:
+
+ * `--registry-exclude-image` takes patterns to be excluded; the
+   default is to exclude the Kubernetes base images (`k8s.gcr.io/*`);
+   and,
+ * `--registry-include-image` takes patterns to be included; no
+   patterns (the default) means "include everything". If you provide a
+   pattern, _only_ images matching the pattern will be included (less
+   any that are explicitly excluded).
+
+To restrict scanning to only images from organisations `example` and `example-dev`,
+you might use:
 
 ```
---registry-exclude-image=docker.io/*,quay.io/*
+--registry-include-image=*/example/*,*/example-dev/*
 ```
 
-And the Helm install equivalent (note the `\,` separator):
+To exclude images from quay.io, use:
 
 ```
---set registry.excludeImage="docker.io/*\,quay.io/*"
+--registry-exclude-image=quay.io/*
 ```
 
-Exclude images containing `test` in the FQN:
+Here are the Helm install equivalents (note the `\,` separator):
 
 ```
---registry-exclude-image=*test*
-```
-
-Disable image scanning for all images:
-
-```
---registry-exclude-image=*
+--set registry.includeImage="*/example/*\,*/example-dev/*" --set registry.excludeImage="quay.io/*"
 ```
 
 ### Does Flux support Kustomize/Templating/My favorite manifest factorization technology?

@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	helmopfake "github.com/fluxcd/helm-operator/pkg/client/clientset/versioned/fake"
 	"github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
@@ -30,6 +29,7 @@ import (
 	kresource "github.com/fluxcd/flux/pkg/cluster/kubernetes/resource"
 	"github.com/fluxcd/flux/pkg/resource"
 	"github.com/fluxcd/flux/pkg/sync"
+	helmopfake "github.com/fluxcd/helm-operator/pkg/client/clientset/versioned/fake"
 )
 
 const (
@@ -241,9 +241,10 @@ func setup(t *testing.T) (*Cluster, *fakeApplier, func()) {
 	clients, cancel := fakeClients()
 	applier := &fakeApplier{dynamicClient: clients.dynamicClient, coreClient: clients.coreClient, defaultNS: defaultTestNamespace}
 	kube := &Cluster{
-		applier: applier,
-		client:  clients,
-		logger:  log.NewLogfmtLogger(os.Stdout),
+		applier:             applier,
+		client:              clients,
+		logger:              log.NewLogfmtLogger(os.Stdout),
+		resourceExcludeList: []string{"*metrics.k8s.io/*", "webhook.certmanager.k8s.io/v1beta1/*"},
 	}
 	return kube, applier, cancel
 }
@@ -307,6 +308,11 @@ func TestSyncTolerateMetricsErrors(t *testing.T) {
 	fakeClient.Resources = []*metav1.APIResourceList{{GroupVersion: "custom.metrics.k8s.io/v1"}}
 	err = kube.Sync(cluster.SyncSet{})
 	assert.NoError(t, err)
+
+	kube.client.discoveryClient.(*cachedDiscovery).CachedDiscoveryInterface.Invalidate()
+	fakeClient.Resources = []*metav1.APIResourceList{{GroupVersion: "webhook.certmanager.k8s.io/v1beta1"}}
+	err = kube.Sync(cluster.SyncSet{})
+	assert.NoError(t, err)
 }
 
 func TestSync(t *testing.T) {
@@ -347,6 +353,7 @@ metadata:
   name: dep3
   namespace: other
 `
+
 	// checkSame is a check that a result returned from the cluster is
 	// the same as an expected.  labels and annotations may be altered
 	// by the sync process; we'll look at the "spec" field as an
@@ -362,11 +369,11 @@ metadata:
 		}
 	}
 
-	test := func(t *testing.T, kube *Cluster, defs, expectedAfterSync string, expectErrors bool) {
-		saved := getDefaultNamespace
-		getDefaultNamespace = func() (string, error) { return defaultTestNamespace, nil }
-		defer func() { getDefaultNamespace = saved }()
-		namespacer, err := NewNamespacer(kube.client.coreClient.Discovery())
+	testDefaultNs := func(t *testing.T, kube *Cluster, defs, expectedAfterSync string, expectErrors bool, defaultNamespace string) {
+		saved := getKubeconfigDefaultNamespace
+		getKubeconfigDefaultNamespace = func() (string, error) { return defaultTestNamespace, nil }
+		defer func() { getKubeconfigDefaultNamespace = saved }()
+		namespacer, err := NewNamespacer(kube.client.coreClient.Discovery(), defaultNamespace)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -419,6 +426,9 @@ metadata:
 			// the intersection of actual and expected above.
 		}
 	}
+	test := func(t *testing.T, kube *Cluster, defs, expectedAfterSync string, expectErrors bool) {
+		testDefaultNs(t, kube, defs, expectedAfterSync, expectErrors, "")
+	}
 
 	t.Run("sync adds and GCs resources", func(t *testing.T) {
 		kube, _, cancel := setup(t)
@@ -467,6 +477,43 @@ metadata:
   name: bar-ns
 `
 		test(t, kube, nsDef, nsDef, false)
+	})
+
+	t.Run("sync applies default namespace", func(t *testing.T) {
+		kube, _, cancel := setup(t)
+		defer cancel()
+		kube.GC = true
+
+		const depDef = `
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bar
+`
+		const depDefNamespaced = `
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bar
+  namespace: system
+`
+		const depDefAlreadyNamespaced = `
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bar
+  namespace: other
+`
+		const ns1 = `---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: foobar
+`
+		defaultNs := "system"
+		testDefaultNs(t, kube, depDef, depDefNamespaced, false, defaultNs)
+		testDefaultNs(t, kube, depDefAlreadyNamespaced, depDefAlreadyNamespaced, false, defaultNs)
+		testDefaultNs(t, kube, ns1, ns1, false, defaultNs)
 	})
 
 	t.Run("sync won't delete resources that got the fallback namespace when created", func(t *testing.T) {
@@ -561,7 +608,7 @@ metadata:
 		test(t, kube, ns1+defs1invalid, ns1+defs1invalid, true)
 	})
 
-	t.Run("sync doesn't apply or delete manifests marked with ignore", func(t *testing.T) {
+	t.Run("sync doesn't apply or GC manifests marked with ignore: 'true'", func(t *testing.T) {
 		kube, _, cancel := setup(t)
 		defer cancel()
 		kube.GC = true
@@ -605,7 +652,7 @@ spec:
 		test(t, kube, ns1+dep1ignored+dep2, ns1+dep1, false)
 	})
 
-	t.Run("sync doesn't update a cluster resource marked with ignore", func(t *testing.T) {
+	t.Run("sync doesn't update a cluster resource marked with ignore: 'true'", func(t *testing.T) {
 		const dep1 = `---
 apiVersion: apps/v1
 kind: Deployment
@@ -657,7 +704,74 @@ spec:
 		test(t, kube, ns1+mod1, ns1+dep1, false)
 	})
 
-	t.Run("sync doesn't update or delete a pre-existing resource marked with ignore", func(t *testing.T) {
+	t.Run("sync doesn't GC resources annotated with ignore: 'sync_only'", func(t *testing.T) {
+		kube, _, cancel := setup(t)
+		defer cancel()
+		kube.GC = true
+
+		const dep1 = `---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dep1
+  namespace: foobar
+  annotations: {flux.weave.works/ignore: "sync_only"}
+`
+
+		// sync namespace and deployment
+		test(t, kube, ns1+dep1, ns1+dep1, false)
+
+		// sync namespace only but expect deployment to not be GC
+		test(t, kube, ns1, ns1+dep1, false)
+	})
+
+	t.Run("sync doesn't GC resources annotated with ignore: 'true'", func(t *testing.T) {
+		kube, _, cancel := setup(t)
+		defer cancel()
+		kube.GC = true
+
+		const dep1 = `---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dep1
+  namespace: foobar
+`
+		const dep2 = `---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dep2
+  namespace: foobar
+  annotations: {flux.weave.works/ignore: "false"}
+`
+
+		// dep1 is created
+		test(t, kube, ns1+dep1+dep2, ns1+dep1+dep2, false)
+
+		// add ignore: 'true' annotation outside of sync loop
+		dc := kube.client.dynamicClient
+		rc := dc.Resource(schema.GroupVersionResource{
+			Group:    "apps",
+			Version:  "v1",
+			Resource: "deployments",
+		})
+		res, err := rc.Namespace("foobar").Get("dep1", metav1.GetOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		annots := res.GetAnnotations()
+		annots["flux.weave.works/ignore"] = "true"
+		res.SetAnnotations(annots)
+		if _, err = rc.Namespace("foobar").Update(res, metav1.UpdateOptions{}); err != nil {
+			t.Fatal(err)
+		}
+
+		// only sync ns1 but expect nothing to be GC
+		test(t, kube, ns1, ns1+dep1, false)
+	})
+
+	t.Run("sync doesn't update or delete a pre-existing resource marked with ignore: 'true'", func(t *testing.T) {
 		kube, _, cancel := setup(t)
 		defer cancel()
 

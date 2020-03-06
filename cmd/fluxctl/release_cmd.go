@@ -8,8 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/fluxcd/flux/pkg/api/v11"
-	"github.com/fluxcd/flux/pkg/api/v6"
+	v11 "github.com/fluxcd/flux/pkg/api/v11"
+	v6 "github.com/fluxcd/flux/pkg/api/v6"
 	"github.com/fluxcd/flux/pkg/cluster"
 	"github.com/fluxcd/flux/pkg/job"
 	"github.com/fluxcd/flux/pkg/resource"
@@ -53,7 +53,7 @@ func (opts *workloadReleaseOpts) Command() *cobra.Command {
 
 	AddOutputFlags(cmd, &opts.outputOpts)
 	AddCauseFlags(cmd, &opts.cause)
-	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", getKubeConfigContextNamespace("default"), "Workload namespace")
+	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "", "Workload namespace")
 	// Note: we cannot define a shorthand for --workload since it clashes with the shorthand of --watch
 	cmd.Flags().StringSliceVarP(&opts.workloads, "workload", "", []string{}, "List of workloads to release <namespace>:<kind>/<name>")
 	cmd.Flags().BoolVar(&opts.allWorkloads, "all", false, "Release all workloads")
@@ -98,12 +98,13 @@ func (opts *workloadReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 	}
 
 	var workloads []update.ResourceSpec
+	ns := getKubeConfigContextNamespaceOrDefault(opts.namespace, "default", opts.Context)
 
 	if opts.allWorkloads {
 		workloads = []update.ResourceSpec{update.ResourceSpecAll}
 	} else {
 		for _, workload := range opts.workloads {
-			id, err := resource.ParseIDOptionalNamespace(opts.namespace, workload)
+			id, err := resource.ParseIDOptionalNamespace(ns, workload)
 			if err != nil {
 				return err
 			}
@@ -132,7 +133,7 @@ func (opts *workloadReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 
 	var excludes []resource.ID
 	for _, exclude := range opts.exclude {
-		s, err := resource.ParseIDOptionalNamespace(opts.namespace, exclude)
+		s, err := resource.ParseIDOptionalNamespace(ns, exclude)
 		if err != nil {
 			return err
 		}

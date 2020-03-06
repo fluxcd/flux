@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 	"github.com/pkg/errors"
 )
 
@@ -231,7 +231,7 @@ func (e *LabelTimestampFormatError) Error() string {
 	return fmt.Sprintf(
 		"failed to parse %d timestamp label(s) as RFC3339 (%s); ask the repository administrator to correct this as it conflicts with the spec",
 		len(e.Labels),
-		strings.Join(e.Labels, ","))
+		strings.Join(e.Labels, ", "))
 }
 
 // Labels has all the image labels we are interested in for an image
@@ -351,27 +351,6 @@ func (im *Info) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// CreatedTS returns the created at timestamp for an image,
-// prioritizing user defined timestamps from labels over the ones we
-// receive from a Docker registry API.
-//
-// The reason for this is registry vendors have different
-// interpretations of what a creation  date is, and we want the user to
-// be in control when required.
-//
-// In addition we prioritize the `Created` label over the `BuildDate`,
-// as the Label Schema Spec has been deprecated in favour of the OCI
-// Spec (but is still well known and widely used).
-func (im Info) CreatedTS() time.Time {
-	if !im.Labels.Created.IsZero() {
-		return im.Labels.Created
-	}
-	if !im.Labels.BuildDate.IsZero() {
-		return im.Labels.BuildDate
-	}
-	return im.CreatedAt
-}
-
 // RepositoryMetadata contains the image metadata information found in an
 // image repository.
 //
@@ -425,10 +404,10 @@ func decodeTime(s string, t *time.Time) error {
 // NewerByCreated returns true if lhs image should be sorted
 // before rhs with regard to their creation date descending.
 func NewerByCreated(lhs, rhs *Info) bool {
-	if lhs.CreatedTS().Equal(rhs.CreatedTS()) {
+	if lhs.CreatedAt.Equal(rhs.CreatedAt) {
 		return lhs.ID.String() < rhs.ID.String()
 	}
-	return lhs.CreatedTS().After(rhs.CreatedTS())
+	return lhs.CreatedAt.After(rhs.CreatedAt)
 }
 
 // NewerBySemver returns true if lhs image should be sorted

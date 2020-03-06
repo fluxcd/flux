@@ -4,19 +4,20 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/justinbarrick/go-k8s-portforward"
+	portforward "github.com/justinbarrick/go-k8s-portforward"
 	"github.com/pkg/errors"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 // Attempt to create PortForwards to fluxes that match the label selectors until a Flux
 // is found or an error is returned.
-func tryPortforwards(ns string, selectors ...metav1.LabelSelector) (p *portforward.PortForward, err error) {
+func tryPortforwards(context string, ns string, selectors ...metav1.LabelSelector) (p *portforward.PortForward, err error) {
 	message := fmt.Sprintf("No pod found in namespace %q using the following selectors:", ns)
 
 	for _, selector := range selectors {
-		p, err = tryPortforward(ns, selector)
+		p, err = tryPortforward(context, ns, selector)
 		if err == nil {
 			return
 		}
@@ -37,10 +38,31 @@ func tryPortforwards(ns string, selectors ...metav1.LabelSelector) (p *portforwa
 }
 
 // Attempt to create a portforward in the namespace for the provided LabelSelector
-func tryPortforward(ns string, selector metav1.LabelSelector) (*portforward.PortForward, error) {
-	portforwarder, err := portforward.NewPortForwarder(ns, selector, 3030)
+func tryPortforward(kubeConfigContext string, ns string, selector metav1.LabelSelector) (*portforward.PortForward, error) {
+	portforwarder := &portforward.PortForward{
+		Namespace:       ns,
+		Labels:          selector,
+		DestinationPort: 3030,
+	}
+
+	var configOverrides clientcmd.ConfigOverrides
+	if kubeConfigContext != "" {
+		configOverrides.CurrentContext = kubeConfigContext
+	}
+
+	var err error
+	portforwarder.Config, err = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		clientcmd.NewDefaultClientConfigLoadingRules(),
+		&configOverrides,
+	).ClientConfig()
+
 	if err != nil {
-		return portforwarder, err
+		return portforwarder, errors.Wrap(err, "Could not load kubernetes configuration file")
+	}
+
+	portforwarder.Clientset, err = kubernetes.NewForConfig(portforwarder.Config)
+	if err != nil {
+		return portforwarder, errors.Wrap(err, "Could not create kubernetes client")
 	}
 
 	err = portforwarder.Start()

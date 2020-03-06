@@ -16,9 +16,11 @@ spec:
       labels:
         name: memcached
     spec:
+      nodeSelector:
+        beta.kubernetes.io/os: linux
       containers:
       - name: memcached
-        image: memcached:1.5.15
+        image: memcached:1.5.20
         imagePullPolicy: IfNotPresent
         args:
         - -m 512   # Maximum memory to use, in megabytes
@@ -27,8 +29,8 @@ spec:
         # - -vv    # Uncomment to get logs of each request and response.
         ports:
         - name: clients
-          containerPort: 11211
+          containerPort: 11211{{ if .AddSecurityContext}}
         securityContext:
           runAsUser: 11211
           runAsGroup: 11211
-          allowPrivilegeEscalation: false
+          allowPrivilegeEscalation: false{{ end }}

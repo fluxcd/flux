@@ -186,13 +186,15 @@ func TestUpdatePolicies(t *testing.T) {
 		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			caseIn := templToString(t, annotationsTemplate, c.in)
-			caseOut := templToString(t, annotationsTemplate, c.out)
+			cLocal := c // Use copy to avoid races between the parallel tests and the loop
+			t.Parallel()
+			caseIn := templToString(t, annotationsTemplate, cLocal.in)
+			caseOut := templToString(t, annotationsTemplate, cLocal.out)
 			resourceID := resource.MustParseID("default:deployment/nginx")
 			manifests := NewManifests(ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
-			out, err := manifests.UpdateWorkloadPolicies([]byte(caseIn), resourceID, c.update)
-			assert.Equal(t, c.wantErr, err != nil, "unexpected error value: %s", err)
-			if !c.wantErr {
+			out, err := manifests.UpdateWorkloadPolicies([]byte(caseIn), resourceID, cLocal.update)
+			assert.Equal(t, cLocal.wantErr, err != nil, "unexpected error value: %s", err)
+			if !cLocal.wantErr {
 				assert.Equal(t, string(out), caseOut)
 			}
 		})

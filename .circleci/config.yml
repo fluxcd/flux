@@ -29,19 +29,6 @@ jobs:
             git config --global user.email fluxcdbot@users.noreply.github.com
             git config --global user.name fluxcdbot
 
-            # Push to fluxcd/flux gh-pages branch
-            if echo "${CIRCLE_TAG}" | grep -Eq "chart-[0-9]+(\.[0-9]+)*(-[a-z]+)?$"; then
-              REPOSITORY="https://fluxcdbot:${GITHUB_TOKEN}@github.com/fluxcd/flux.git"
-              git remote set-url origin ${REPOSITORY}
-              git checkout gh-pages
-              cp $HOME/chart/*.tgz .
-              helm repo index . --url https://fluxcd.github.io/flux
-              git add .
-              git commit -m "Publish Helm chart"
-              git push origin gh-pages
-            else
-              echo "Not a chart release! Skip chart publish"
-            fi
             # Push to fluxcd/charts gh-pages branch
             if echo "${CIRCLE_TAG}" | grep -Eq "chart-[0-9]+(\.[0-9]+)*(-[a-z]+)?$"; then
               REPOSITORY="https://fluxcdbot:${GITHUB_TOKEN}@github.com/fluxcd/charts.git"
@@ -61,6 +48,7 @@ jobs:
     working_directory: /home/circleci/go/src/github.com/fluxcd/flux
     machine:
       image: ubuntu-1604:201903-01
+    resource_class: large
     environment:
       GO_VERSION: 1.13.1
       # We don't need a GOPATH but CircleCI defines it, so we override it
@@ -90,7 +78,10 @@ jobs:
             sudo killall apt-get || true
 
             sudo apt-get update
-            sudo apt-get install -y git rng-tools memcached
+            sudo apt-get install -y git rng-tools memcached parallel
+            # avoid needing to invoke parallel with --will-cite,
+            # see e.g see https://bugs.launchpad.net/ubuntu/+source/parallel/+bug/1779764
+            mkdir -p "$HOME/.parallel" && touch "$HOME/.parallel/will-cite"
             git version
             docker version
       - restore_cache:
@@ -106,10 +97,11 @@ jobs:
           keys:
             - go-mod-{{ checksum "go.mod" }}
             - go-mod-
-      - run: make test TEST_FLAGS="-race -tags integration -timeout 60s"
+      # Note that the test timeout is per Go package
+      - run: make test TEST_FLAGS="-race -tags integration -timeout 5m"
       - run: make check-generated
       - run: make all
-      - run: make e2e
+      - run: E2E_KIND_CLUSTER_NUM=4 make e2e
       - run: make test-docs
       - save_cache:
           key: cache-{{ checksum "Makefile" }}

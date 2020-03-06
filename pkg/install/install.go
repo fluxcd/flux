@@ -15,14 +15,18 @@ import (
 //go:generate go run generate.go
 
 type TemplateParameters struct {
-	GitURL             string
-	GitBranch          string
-	GitPaths           []string
-	GitLabel           string
-	GitUser            string
-	GitEmail           string
-	Namespace          string
-	AdditionalFluxArgs []string
+	GitURL                  string
+	GitBranch               string
+	GitPaths                []string
+	GitLabel                string
+	GitUser                 string
+	GitEmail                string
+	GitReadOnly             bool
+	RegistryDisableScanning bool
+	Namespace               string
+	ManifestGeneration      bool
+	AdditionalFluxArgs      []string
+	AddSecurityContext      bool
 }
 
 func FillInTemplates(params TemplateParameters) (map[string][]byte, error) {
@@ -32,6 +36,10 @@ func FillInTemplates(params TemplateParameters) (map[string][]byte, error) {
 			return fmt.Errorf("cannot walk embedded files: %s", err)
 		}
 		if info.IsDir() {
+			return nil
+		}
+		if params.RegistryDisableScanning && strings.Contains(info.Name(), "memcache") {
+			// do not include memcached resources when registry scanning is disabled
 			return nil
 		}
 		manifestTemplateBytes, err := ioutil.ReadAll(rs)
@@ -48,7 +56,9 @@ func FillInTemplates(params TemplateParameters) (map[string][]byte, error) {
 		if err := manifestTemplate.Execute(out, params); err != nil {
 			return fmt.Errorf("cannot execute template for embedded file %q: %s", info.Name(), err)
 		}
-		result[strings.TrimSuffix(info.Name(), ".tmpl")] = out.Bytes()
+		if out.Len() > 0 {
+			result[strings.TrimSuffix(info.Name(), ".tmpl")] = out.Bytes()
+		}
 		return nil
 	})
 	if err != nil {

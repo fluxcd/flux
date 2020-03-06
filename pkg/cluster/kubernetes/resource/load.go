@@ -8,14 +8,17 @@ import (
 	"os"
 	"path/filepath"
 
+	sops "go.mozilla.org/sops/v3"
+	"go.mozilla.org/sops/v3/decrypt"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
 
 // Load takes paths to directories or files, and creates an object set
 // based on the file(s) therein. Resources are named according to the
-// file content, rather than the file name of directory structure.
-func Load(base string, paths []string) (map[string]KubeManifest, error) {
+// file content, rather than the file name of directory structure. if
+// sopsEnabled is set to true, sops-encrypted files will be decrypted.
+func Load(base string, paths []string, sopsEnabled bool) (map[string]KubeManifest, error) {
 	if _, err := os.Stat(base); os.IsNotExist(err) {
 		return nil, fmt.Errorf("git path %q not found", base)
 	}
@@ -27,7 +30,7 @@ func Load(base string, paths []string) (map[string]KubeManifest, error) {
 	for _, root := range paths {
 		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
-				return errors.Wrapf(err, "walking %q for yamels", path)
+				return errors.Wrapf(err, "walking %q for yaml files", path)
 			}
 
 			if charts.isDirChart(path) {
@@ -39,7 +42,7 @@ func Load(base string, paths []string) (map[string]KubeManifest, error) {
 			}
 
 			if !info.IsDir() && filepath.Ext(path) == ".yaml" || filepath.Ext(path) == ".yml" {
-				bytes, err := ioutil.ReadFile(path)
+				bytes, err := loadFile(path, sopsEnabled)
 				if err != nil {
 					return errors.Wrapf(err, "unable to read file at %q", path)
 				}
@@ -158,10 +161,18 @@ func ParseMultidoc(multidoc []byte, source string) (map[string]KubeManifest, err
 		// contained resources we are after.
 		if list, ok := obj.(*List); ok {
 			for _, item := range list.Items {
-				objs[item.ResourceID().String()] = item
+				id := item.ResourceID().String()
+				if _, ok := objs[id]; ok {
+					return nil, fmt.Errorf(`duplicate definition of '%s' (in %s)`, id, source)
+				}
+				objs[id] = item
 			}
 		} else {
-			objs[obj.ResourceID().String()] = obj
+			id := obj.ResourceID().String()
+			if _, ok := objs[id]; ok {
+				return nil, fmt.Errorf(`duplicate definition of '%s' (in %s)`, id, source)
+			}
+			objs[id] = obj
 		}
 	}
 
@@ -169,4 +180,29 @@ func ParseMultidoc(multidoc []byte, source string) (map[string]KubeManifest, err
 		return objs, errors.Wrapf(err, "scanning multidoc from %q", source)
 	}
 	return objs, nil
+}
+
+// loadFile attempts to load a file from the path supplied. If sopsEnabled is set, 
+// it will try to decrypt it before returning the data
+func loadFile(path string, sopsEnabled bool) ([]byte, error) {
+	bytes, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	if sopsEnabled {
+		return softDecrypt(bytes)
+	}
+	return bytes, nil
+}
+
+// softDecrypt takes data from a file and tries to decrypt it with sops,
+// if the file has not been encrypted with sops, the original data will be returned
+func softDecrypt(rawData []byte) ([]byte, error) {
+	decryptedData, err := decrypt.Data(rawData, "yaml")
+	if err == sops.MetadataNotFound {
+		return rawData, nil
+	} else if err != nil {
+		return rawData, errors.Wrap(err, "failed to decrypt file")
+	}
+	return decryptedData, nil
 }

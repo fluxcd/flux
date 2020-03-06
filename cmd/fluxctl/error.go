@@ -29,3 +29,4 @@ func checkExactlyOne(optsDescription string, supplied ...bool) error {
 }
 
 var errorWantedNoArgs = newUsageError("expected no (non-flag) arguments")
+var errorInvalidOutputFormat = newUsageError("invalid output format specified")

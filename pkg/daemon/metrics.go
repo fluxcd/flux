@@ -44,4 +44,11 @@ var (
 		Name:      "queue_length_count",
 		Help:      "Count of jobs waiting in the queue to be run.",
 	}, []string{})
+
+	syncManifestsMetric = prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+		Namespace: "flux",
+		Subsystem: "daemon",
+		Name:      "sync_manifests",
+		Help:      "Number of synchronized manifests",
+	}, []string{fluxmetrics.LabelSuccess})
 )

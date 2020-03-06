@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"fmt"
+	"github.com/fluxcd/flux/pkg/metrics"
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 	"path/filepath"
@@ -47,7 +49,11 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, newRevision string
 		return err
 	}
 	cancel()
-	defer working.Clean()
+	defer func() {
+		if err := working.Clean(); err != nil {
+			d.Logger.Log("error", fmt.Sprintf("cannot clean sync clone: %s", err))
+		}
+	}()
 
 	// Unseal any secrets if enabled
 	if d.GitSecretEnabled {
@@ -63,6 +69,8 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, newRevision string
 	if err != nil {
 		return err
 	}
+
+	d.Logger.Log("info", "trying to sync git changes to the cluster", "old", c.oldTagRev, "new", c.newTagRev)
 
 	// Run actual sync of resources on cluster
 	syncSetName := makeGitConfigHash(d.Repo.Origin(), d.GitConfig)
@@ -133,10 +141,10 @@ func getChangeSet(ctx context.Context, state revisionRatchet, headRev string, re
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	if c.oldTagRev != "" {
-		c.commits, err = repo.CommitsBetween(ctx, c.oldTagRev, c.newTagRev, paths...)
+		c.commits, err = repo.CommitsBetween(ctx, c.oldTagRev, c.newTagRev, false, paths...)
 	} else {
 		c.initialSync = true
-		c.commits, err = repo.CommitsBefore(ctx, c.newTagRev, paths...)
+		c.commits, err = repo.CommitsBefore(ctx, c.newTagRev, false, paths...)
 	}
 	cancel()
 
@@ -157,6 +165,7 @@ func doSync(ctx context.Context, manifestsStore manifests.Store, clus cluster.Cl
 		switch syncerr := err.(type) {
 		case cluster.SyncError:
 			logger.Log("err", err)
+			updateSyncManifestsMetric(len(resources)-len(syncerr), len(syncerr))
 			for _, e := range syncerr {
 				resourceErrors = append(resourceErrors, event.ResourceError{
 					ID:    e.ResourceID,
@@ -167,8 +176,15 @@ func doSync(ctx context.Context, manifestsStore manifests.Store, clus cluster.Cl
 		default:
 			return nil, nil, err
 		}
+	} else {
+		updateSyncManifestsMetric(len(resources), 0)
 	}
 	return resources, resourceErrors, nil
+}
+
+func updateSyncManifestsMetric(success, failure int) {
+	syncManifestsMetric.With(metrics.LabelSuccess, "true").Set(float64(success))
+	syncManifestsMetric.With(metrics.LabelSuccess, "false").Set(float64(failure))
 }
 
 // getChangedResources calculates what resources are modified during

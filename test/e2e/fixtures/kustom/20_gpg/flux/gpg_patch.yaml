@@ -1,0 +1,22 @@
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: --git-verify-signatures=$FLUX_GIT_VERIFY_SIGNATURES
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: --git-signing-key=$FLUX_GPG_KEY_ID
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: --git-gpg-key-import=/root/gpg-import/private
+- op: add
+  path: /spec/template/spec/containers/0/volumeMounts/-
+  value:
+    name: gpg-keys
+    mountPath: /root/gpg-import/private
+    readOnly: true
+- op: add
+  path: /spec/template/spec/volumes/-
+  value:
+    name: gpg-keys
+    secret:
+      secretName: flux-gpg-signing-key
+      defaultMode: 0400

@@ -5,10 +5,94 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v2"
 
 	"github.com/fluxcd/flux/pkg/resource"
 )
+
+func TestFailsValidation(t *testing.T) {
+	for name, fluxyaml := range map[string]string{
+		"empty":                     "",
+		"wrong version":             "version: 2",
+		"no command/patch/whatever": "version: 1",
+
+		"no generators": `
+version: 1
+commandUpdated: {}
+`,
+
+		"no patchFile": `
+version: 1
+patchUpdated:
+  generators: []
+`,
+		"more than one": `
+version: 1
+patchUpdated:
+  generators: []
+  patchFile: patch.yaml
+commandUpdated:
+  generators: []
+`,
+
+		"duff generator": `
+version: 1
+patchUpdated:
+  generators:
+  - not an object
+`,
+
+		"patchFile with commandUpdated": `
+version: 1
+commandUpdated:
+  generators: []
+  patchFile: "foo.yaml"
+`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			var cf ConfigFile
+			assert.Error(t, ParseConfigFile([]byte(fluxyaml), &cf))
+		})
+	}
+}
+
+func TestPassesValidation(t *testing.T) {
+	for name, fluxyaml := range map[string]string{
+		"minimal commandUpdated": `
+version: 1
+commandUpdated:
+  generators: []
+`,
+		"minimal patchUpdated": `
+version: 1
+patchUpdated:
+  generators: []
+  patchFile: foo.yaml
+`,
+
+		"minimal files (the only kind)": `
+version: 1
+scanForFiles: {}
+`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			var cf ConfigFile
+			assert.NoError(t, ParseConfigFile([]byte(fluxyaml), &cf))
+		})
+	}
+}
+
+const justFilesConfigFile = `
+version: 1
+scanForFiles: {}
+`
+
+func TestJustFileDirective(t *testing.T) {
+	var cf ConfigFile
+	err := ParseConfigFile([]byte(justFilesConfigFile), &cf)
+	assert.NoError(t, err)
+
+	assert.True(t, cf.IsScanForFiles())
+}
 
 const patchUpdatedConfigFile = `---
 version: 1
@@ -21,9 +105,10 @@ patchUpdated:
 
 func TestParsePatchUpdatedConfigFile(t *testing.T) {
 	var cf ConfigFile
-	if err := yaml.Unmarshal([]byte(patchUpdatedConfigFile), &cf); err != nil {
+	if err := ParseConfigFile([]byte(patchUpdatedConfigFile), &cf); err != nil {
 		t.Fatal(err)
 	}
+	assert.False(t, cf.IsScanForFiles())
 	assert.NotNil(t, cf.PatchUpdated)
 	assert.Nil(t, cf.CommandUpdated)
 	assert.Equal(t, 1, cf.Version)
@@ -51,9 +136,10 @@ commandUpdated:
 
 func TestParseCmdUpdatedConfigFile(t *testing.T) {
 	var cf ConfigFile
-	if err := yaml.Unmarshal([]byte(echoCmdUpdatedConfigFile), &cf); err != nil {
+	if err := ParseConfigFile([]byte(echoCmdUpdatedConfigFile), &cf); err != nil {
 		t.Fatal(err)
 	}
+	assert.False(t, cf.IsScanForFiles())
 	assert.NotNil(t, cf.CommandUpdated)
 	assert.Nil(t, cf.PatchUpdated)
 	assert.Equal(t, 1, cf.Version)
@@ -71,9 +157,9 @@ func TestParseCmdUpdatedConfigFile(t *testing.T) {
 
 func TestExecGenerators(t *testing.T) {
 	var cf ConfigFile
-	err := yaml.Unmarshal([]byte(echoCmdUpdatedConfigFile), &cf)
+	err := ParseConfigFile([]byte(echoCmdUpdatedConfigFile), &cf)
 	assert.NoError(t, err)
-	result := cf.ExecGenerators(context.Background(), cf.CommandUpdated.Generators)
+	result := cf.execGenerators(context.Background(), cf.CommandUpdated.Generators)
 	assert.Equal(t, 2, len(result), "result: %s", result)
 	assert.Equal(t, "g1\n", string(result[0].Stdout))
 	assert.Equal(t, "g2\n", string(result[1].Stdout))
@@ -81,10 +167,10 @@ func TestExecGenerators(t *testing.T) {
 
 func TestExecContainerImageUpdaters(t *testing.T) {
 	var cf ConfigFile
-	err := yaml.Unmarshal([]byte(echoCmdUpdatedConfigFile), &cf)
+	err := ParseConfigFile([]byte(echoCmdUpdatedConfigFile), &cf)
 	assert.NoError(t, err)
 	resourceID := resource.MustParseID("default:deployment/foo")
-	result := cf.ExecContainerImageUpdaters(context.Background(), resourceID, "bar", "repo/image", "latest")
+	result := cf.execContainerImageUpdaters(context.Background(), resourceID, "bar", "repo/image", "latest")
 	assert.Equal(t, 2, len(result), "result: %s", result)
 	assert.Equal(t,
 		"uci1 default:deployment/foo default deployment foo bar repo/image latest\n",
@@ -96,13 +182,13 @@ func TestExecContainerImageUpdaters(t *testing.T) {
 
 func TestExecAnnotationUpdaters(t *testing.T) {
 	var cf ConfigFile
-	err := yaml.Unmarshal([]byte(echoCmdUpdatedConfigFile), &cf)
+	err := ParseConfigFile([]byte(echoCmdUpdatedConfigFile), &cf)
 	assert.NoError(t, err)
 	resourceID := resource.MustParseID("default:deployment/foo")
 
 	// Test the update/addition of annotations
 	annotationValue := "value"
-	result := cf.ExecPolicyUpdaters(context.Background(), resourceID, "key", annotationValue)
+	result := cf.execPolicyUpdaters(context.Background(), resourceID, "key", annotationValue)
 	assert.Equal(t, 2, len(result), "result: %s", result)
 	assert.Equal(t,
 		"ua1 default:deployment/foo default deployment foo key value\n",
@@ -112,7 +198,7 @@ func TestExecAnnotationUpdaters(t *testing.T) {
 		string(result[1].Output))
 
 	// Test the deletion of annotations "
-	result = cf.ExecPolicyUpdaters(context.Background(), resourceID, "key", "")
+	result = cf.execPolicyUpdaters(context.Background(), resourceID, "key", "")
 	assert.Equal(t, 2, len(result), "result: %s", result)
 	assert.Equal(t,
 		"ua1 default:deployment/foo default deployment foo key delete\n",
@@ -120,5 +206,4 @@ func TestExecAnnotationUpdaters(t *testing.T) {
 	assert.Equal(t,
 		"ua2 default:deployment/foo default deployment foo key delete\n",
 		string(result[1].Output))
-
 }

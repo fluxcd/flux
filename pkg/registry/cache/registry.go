@@ -2,6 +2,7 @@ package cache
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
@@ -90,7 +91,7 @@ func (c *Cache) GetImageRepositoryMetadata(id image.Name) (image.RepositoryMetad
 	// updated the result.
 	if repo.LastUpdate.IsZero() {
 		if repo.LastError != "" {
-			return image.RepositoryMetadata{}, errors.New(repo.LastError)
+			return image.RepositoryMetadata{}, fmt.Errorf("item not in cache, last error: %s", repo.LastError)
 		}
 		return image.RepositoryMetadata{}, ErrNotCached
 	}

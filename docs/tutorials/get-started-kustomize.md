@@ -52,6 +52,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: flux
+  namespace: flux
 spec:
   template:
     spec:
@@ -77,8 +78,8 @@ If you want to get started with Helm, please refer to the
 ### Overwriting the default namespace
 
 Overwriting the default (`flux`) namespace is possible by defining
-your own namespace resource and a patch to remove the default from
-the base.
+your own namespace and accordingly setting the `namespace:` key in
+the `kustomization.yaml` file.
 
 Create your own namespace definition:
 
@@ -91,20 +92,8 @@ metadata:
 EOF
 ```
 
-Create a patch to remove the default namespace from the base:
-
-```sh
-cat > fluxcd/patch-default-ns.yaml <<EOF
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: flux
-$patch: delete
-EOF
-```
-
 Adapt your `fluxcd/kustomization.yaml` to include your own namespace
-resource, patch, and change the namespace:
+resource and change the namespace:
 
 ```yaml
 namespace: <namespace>
@@ -113,7 +102,6 @@ resources:
 bases:
   - github.com/fluxcd/flux//deploy
 patchesStrategicMerge:
-  - patch-default-ns.yaml
   - patch.yaml
 ```
 

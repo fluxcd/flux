@@ -19,6 +19,7 @@ import (
 )
 
 type rootOpts struct {
+	Context   string
 	URL       string
 	Token     string
 	Namespace string
@@ -70,6 +71,8 @@ func (opts *rootOpts) Command() *cobra.Command {
 		PersistentPreRunE: opts.PersistentPreRunE,
 	}
 
+	cmd.PersistentFlags().StringVar(&opts.Context, "context", "",
+		fmt.Sprint("The kubeconfig context to use, will use your current selected if not specified"))
 	cmd.PersistentFlags().StringVar(&opts.Namespace, "k8s-fwd-ns", "default",
 		fmt.Sprintf("Namespace in which fluxd is running, for creating a port forward to access the API. No port forward will be created if a URL or token is given. You can also set the environment variable %s", envVariableNamespace))
 	cmd.PersistentFlags().StringToStringVar(&opts.Labels, "k8s-fwd-labels", map[string]string{"app": "flux"},
@@ -94,6 +97,7 @@ func (opts *rootOpts) Command() *cobra.Command {
 		newIdentity(opts).Command(),
 		newSync(opts).Command(),
 		newInstall().Command(),
+		newCompletionCommand(),
 	)
 
 	return cmd
@@ -102,7 +106,7 @@ func (opts *rootOpts) Command() *cobra.Command {
 func (opts *rootOpts) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
 	// skip port forward for certain commands
 	switch cmd.Use {
-	case "version":
+	case "version", "completion SHELL":
 		fallthrough
 	case "install":
 		return nil
@@ -119,7 +123,7 @@ func (opts *rootOpts) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
 	}
 
 	if opts.URL == "" {
-		portforwarder, err := tryPortforwards(opts.Namespace, metav1.LabelSelector{
+		portforwarder, err := tryPortforwards(opts.Context, opts.Namespace, metav1.LabelSelector{
 			MatchLabels: opts.Labels,
 		}, metav1.LabelSelector{
 			MatchExpressions: []metav1.LabelSelectorRequirement{

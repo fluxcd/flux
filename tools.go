@@ -6,5 +6,5 @@
 package flux
 
 import (
-	_ "github.com/shurcooL/vfsgen"
+	_ "github.com/google/go-containerregistry/cmd/crane"
 )

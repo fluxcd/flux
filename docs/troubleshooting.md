@@ -9,7 +9,7 @@ explain workarounds.
 If you notice that Flux takes tens of seconds or minutes to get
 through each sync, while you can apply the same manifests very quickly
 by hand, you may be running into this issue:
-https://github.com/fluxcd/flux/issues/1422
+[fluxcd/flux#1422](https://github.com/fluxcd/flux/issues/1422).
 
 Briefly, the problem is that mounting a volume into `$HOME/.kube`
 effectively disables `kubectl`'s caching, which makes it much much
@@ -149,3 +149,41 @@ releases (including automated upgrades) it has applied, and that only
 matters if it has been asked to report those with the `--connect`
 flag. Future versions of Flux may be more sparing in use of the sync
 tag.
+
+## Flux fails with an error log similar to _couldn't get resource list for example.com/version: the server is currently unable to handle the request_
+
+This means your Kubernetes cluster fails to respond to list queries
+for resources in _example.com/version_.
+
+If the error is transient, Flux will work once the error recedes.
+
+However, the error won't normally go away since most of the time it's caused by 
+a misconfiguration of your cluster.
+
+For instance, you can run into this problem:
+  * When a
+    [Kubernetes Webhook server](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/)
+    is removed without removing its Webhook definition.
+  * When a custom resource definition (CRD) is not available due to
+    a `FailedDiscoveryCheck` error.
+ 
+We recommend trying to address the root cause by fixing your cluster
+configuration. In the examples above, you would need to remove the Webhook
+definition or add the CRD.
+
+However, fixing your cluster configuration may not always be possible. The
+problem is common enough that Flux provides a flag called
+`--k8s-unsafe-exclude-resource`. The name says it all, you should only use it
+if you know what you are doing.
+
+`--k8s-unsafe-exclude-resource` will tell Flux to avoid querying the cluster
+for those resources. This in turn means that Flux won't take into account those
+excluded cluster resources when syncing. This can cause excluded resources:
+  * to be unexpectedly overwritten by their corresponding definition in
+    Git during a sync (even if they are annotated with
+    `flux.weave.works/ignore: "true"` on the cluster-side).
+  * not to be garbage-collected.
+
+The rule of thumb is that you can use `--k8s-unsafe-exclude-resource` on
+resources not matching any manifests in your Git repository. 
+ 

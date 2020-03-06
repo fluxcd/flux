@@ -6,7 +6,6 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
-	"github.com/ryanuber/go-glob"
 	apiv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,7 +20,7 @@ func mergeCredentials(log func(...interface{}) error,
 	client ExtendedClient,
 	namespace string, podTemplate apiv1.PodTemplateSpec,
 	imageCreds registry.ImageCreds,
-	seenCreds map[string]registry.Credentials) {
+	imagePullSecretCache map[string]registry.Credentials) {
 	var images []image.Name
 	for _, container := range podTemplate.Spec.InitContainers {
 		r, err := image.ParseRef(container.Image)
@@ -68,7 +67,8 @@ func mergeCredentials(log func(...interface{}) error,
 	}
 
 	for _, name := range imagePullSecrets {
-		if seen, ok := seenCreds[name]; ok {
+		namespacedSecretName := fmt.Sprintf("%s/%s", namespace, name)
+		if seen, ok := imagePullSecretCache[namespacedSecretName]; ok {
 			creds.Merge(seen)
 			continue
 		}
@@ -76,7 +76,7 @@ func mergeCredentials(log func(...interface{}) error,
 		secret, err := client.CoreV1().Secrets(namespace).Get(name, meta_v1.GetOptions{})
 		if err != nil {
 			log("err", errors.Wrapf(err, "getting secret %q from namespace %q", name, namespace))
-			seenCreds[name] = registry.NoCredentials()
+			imagePullSecretCache[namespacedSecretName] = registry.NoCredentials()
 			continue
 		}
 
@@ -91,13 +91,13 @@ func mergeCredentials(log func(...interface{}) error,
 			decoded, ok = secret.Data[apiv1.DockerConfigJsonKey]
 		default:
 			log("skip", "unknown type", "secret", namespace+"/"+secret.Name, "type", secret.Type)
-			seenCreds[name] = registry.NoCredentials()
+			imagePullSecretCache[namespacedSecretName] = registry.NoCredentials()
 			continue
 		}
 
 		if !ok {
 			log("err", errors.Wrapf(err, "retrieving pod secret %q", secret.Name))
-			seenCreds[name] = registry.NoCredentials()
+			imagePullSecretCache[namespacedSecretName] = registry.NoCredentials()
 			continue
 		}
 
@@ -105,10 +105,10 @@ func mergeCredentials(log func(...interface{}) error,
 		crd, err := registry.ParseCredentials(fmt.Sprintf("%s:secret/%s", namespace, name), decoded)
 		if err != nil {
 			log("err", err.Error())
-			seenCreds[name] = registry.NoCredentials()
+			imagePullSecretCache[namespacedSecretName] = registry.NoCredentials()
 			continue
 		}
-		seenCreds[name] = crd
+		imagePullSecretCache[namespacedSecretName] = crd
 
 		// Merge into the credentials for this PodSpec
 		creds.Merge(crd)
@@ -132,7 +132,7 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 	}
 
 	for _, ns := range namespaces {
-		seenCreds := make(map[string]registry.Credentials)
+		imagePullSecretCache := make(map[string]registry.Credentials) // indexed by the namespace/name of pullImageSecrets
 		for kind, resourceKind := range resourceKinds {
 			workloads, err := resourceKind.getWorkloads(ctx, c, ns)
 			if err != nil {
@@ -145,8 +145,8 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 
 			imageCreds := make(registry.ImageCreds)
 			for _, workload := range workloads {
-				logger := log.With(c.logger, "resource", resource.MakeID(ns, kind, workload.GetName()))
-				mergeCredentials(logger.Log, c.includeImage, c.client, ns, workload.podTemplate, imageCreds, seenCreds)
+				logger := log.With(c.logger, "resource", resource.MakeID(workload.GetNamespace(), kind, workload.GetName()))
+				mergeCredentials(logger.Log, c.imageIncluder.IsIncluded, c.client, workload.GetNamespace(), workload.podTemplate, imageCreds, imagePullSecretCache)
 			}
 
 			// Merge creds
@@ -165,13 +165,4 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 	}
 
 	return allImageCreds
-}
-
-func (c *Cluster) includeImage(imageName string) bool {
-	for _, exp := range c.imageExcludeList {
-		if glob.Glob(exp, imageName) {
-			return false
-		}
-	}
-	return true
 }

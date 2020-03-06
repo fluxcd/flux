@@ -1,0 +1,34 @@
+{{ if .Values.prometheus.serviceMonitor.create }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ template "flux.fullname" . }}
+  labels:
+    app: {{ template "flux.name" . }}
+    chart: {{ template "flux.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    {{- range $key, $value := .Values.prometheus.serviceMonitor.additionalLabels }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+  {{- with .Values.prometheus.serviceMonitor.namespace }}
+  namespace: {{ . }}
+  {{- end }}
+spec:
+  endpoints:
+  - port: http
+    honorLabels: true
+    {{- with .Values.prometheus.serviceMonitor.interval }}
+    interval: {{ . }}
+    {{- end }}
+    {{- with .Values.prometheus.serviceMonitor.scrapeTimeout }}
+    scrapeTimeout: {{ . }}
+    {{- end }}
+  namespaceSelector:
+    matchNames:
+    - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      app: {{ template "flux.name" . }}
+      release: {{ .Release.Name }}
+{{- end }}

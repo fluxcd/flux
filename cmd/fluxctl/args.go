@@ -52,7 +52,18 @@ func getUserGitConfigValue(arg string) string {
 	return strings.Trim(res, "\x00")
 }
 
-var getKubeConfigContextNamespace = func(defaultNamespace string) string {
+// Wrapper for getKubeConfigContextNamespace where the return order is
+// 1. Given namespace
+// 2. Namespace from current kubeconfig context if 1. is empty
+// 3. Default namespace specified if 1 is empty and 2 fails
+func getKubeConfigContextNamespaceOrDefault(namespace string, defaultNamespace string, kubeConfigContext string) string {
+	if namespace == "" {
+		return getKubeConfigContextNamespace(defaultNamespace, kubeConfigContext)
+	}
+	return namespace
+}
+
+var getKubeConfigContextNamespace = func(defaultNamespace string, kubeConfigContext string) string {
 	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		clientcmd.NewDefaultClientConfigLoadingRules(),
 		&clientcmd.ConfigOverrides{},
@@ -61,7 +72,13 @@ var getKubeConfigContextNamespace = func(defaultNamespace string) string {
 		return defaultNamespace
 	}
 
-	cc := config.CurrentContext
+	var cc string
+	if kubeConfigContext == "" {
+		cc = config.CurrentContext
+	} else {
+		cc = kubeConfigContext
+	}
+
 	if c, ok := config.Contexts[cc]; ok && c.Namespace != "" {
 		return c.Namespace
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 	"sync"
 
 	"context"
@@ -15,7 +16,7 @@ const (
 	defaultInterval = 5 * time.Minute
 	defaultTimeout  = 20 * time.Second
 
-	CheckPushTag = "flux-write-check"
+	CheckPushTagPrefix = "flux-write-check"
 )
 
 var (
@@ -29,6 +30,8 @@ type NotReadyError struct {
 	underlying error
 }
 
+func (err NotReadyError) Unwrap() error { return err.underlying }
+
 func (err NotReadyError) Error() string {
 	return "git repo not ready: " + err.underlying.Error()
 }
@@ -39,10 +42,11 @@ func (err NotReadyError) Error() string {
 type GitRepoStatus string
 
 const (
-	RepoNoConfig GitRepoStatus = "unconfigured" // configuration is empty
-	RepoNew      GitRepoStatus = "new"          // no attempt made to clone it yet
-	RepoCloned   GitRepoStatus = "cloned"       // has been read (cloned); no attempt made to write
-	RepoReady    GitRepoStatus = "ready"        // has been written to, so ready to sync
+	RepoNoConfig    GitRepoStatus = "unconfigured" // configuration is empty
+	RepoNew         GitRepoStatus = "new"          // no attempt made to clone it yet
+	RepoCloned      GitRepoStatus = "cloned"       // has been read (cloned); no attempt made to write
+	RepoReady       GitRepoStatus = "ready"        // has been written to, so ready to sync
+	RepoUnreachable GitRepoStatus = "unreachable"  // git repo is unreachable due to incorrect URL or DNS resolve failure
 )
 
 type Repo struct {
@@ -228,22 +232,22 @@ func (r *Repo) BranchHead(ctx context.Context) (string, error) {
 	return refRevision(ctx, r.dir, "heads/"+r.branch)
 }
 
-func (r *Repo) CommitsBefore(ctx context.Context, ref string, paths ...string) ([]Commit, error) {
+func (r *Repo) CommitsBefore(ctx context.Context, ref string, firstParent bool, paths ...string) ([]Commit, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if err := r.errorIfNotReady(); err != nil {
 		return nil, err
 	}
-	return onelinelog(ctx, r.dir, ref, paths)
+	return onelinelog(ctx, r.dir, ref, paths, firstParent)
 }
 
-func (r *Repo) CommitsBetween(ctx context.Context, ref1, ref2 string, paths ...string) ([]Commit, error) {
+func (r *Repo) CommitsBetween(ctx context.Context, ref1, ref2 string, firstParent bool, paths ...string) ([]Commit, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if err := r.errorIfNotReady(); err != nil {
 		return nil, err
 	}
-	return onelinelog(ctx, r.dir, ref1+".."+ref2, paths)
+	return onelinelog(ctx, r.dir, ref1+".."+ref2, paths, firstParent)
 }
 
 func (r *Repo) VerifyTag(ctx context.Context, tag string) (string, error) {
@@ -319,6 +323,10 @@ func (r *Repo) step(bg context.Context) bool {
 			r.setUnready(RepoCloned, ErrClonedOnly)
 			return true
 		}
+		if strings.Contains(strings.ToLower(err.Error()), "could not resolve hostname") {
+			r.setUnready(RepoUnreachable, err)
+			return false
+		}
 		dir = ""
 		os.RemoveAll(rootdir)
 		r.setUnready(RepoNew, err)
@@ -364,6 +372,9 @@ func (r *Repo) step(bg context.Context) bool {
 		// that any listeners can respond in the same way.
 		r.refreshed()
 		return true
+
+	case RepoUnreachable:
+		return false
 
 	case RepoReady:
 		return false
@@ -418,7 +429,6 @@ func (r *Repo) Start(shutdown <-chan struct{}, done *sync.WaitGroup) error {
 			continue
 		}
 	}
-	return nil
 }
 
 func (r *Repo) Refresh(ctx context.Context) error {
@@ -485,5 +495,9 @@ func (r *Repo) workingClone(ctx context.Context, ref string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return clone(ctx, working, r.dir, ref)
+	path, err := clone(ctx, working, r.dir, ref)
+	if err != nil {
+		os.RemoveAll(working)
+	}
+	return path, err
 }

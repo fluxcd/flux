@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -26,8 +27,9 @@ var exemptedTraceCommands = []string{
 
 // Env vars that are allowed to be inherited from the OS
 var allowedEnvVars = []string{
-	// these are for people using (no) proxies
-	"http_proxy", "https_proxy", "no_proxy", "GIT_PROXY_COMMAND",
+	// these are for people using (no) proxies. Git follows the curl conventions, so HTTP_PROXY
+	// is intentionally missing
+	"http_proxy", "https_proxy", "no_proxy", "HTTPS_PROXY", "NO_PROXY", "GIT_PROXY_COMMAND",
 	// these are needed for GPG to find its files
 	"HOME", "GNUPGHOME",
 	// these for the git-secrets helper
@@ -97,19 +99,26 @@ func add(ctx context.Context, workingDir, path string) error {
 // (being able to `clone` is an adequate check that we can read the
 // upstream).
 func checkPush(ctx context.Context, workingDir, upstream, branch string) error {
-	// --force just in case we fetched the tag from upstream when cloning
-	args := []string{"tag", "--force", CheckPushTag}
+	// we need to pseudo randomize the tag we use for the write check
+	// as multiple Flux instances can perform the check simultaneously
+	// for different branches, causing commit reference conflicts
+	b := make([]byte, 5)
+	if _, err := rand.Read(b); err != nil {
+		return err
+	}
+	pseudoRandPushTag := fmt.Sprintf("%s-%x", CheckPushTagPrefix, b)
+	args := []string{"tag", pseudoRandPushTag}
 	if branch != "" {
 		args = append(args, branch)
 	}
 	if err := execGitCmd(ctx, args, gitCmdConfig{dir: workingDir}); err != nil {
 		return errors.Wrap(err, "tag for write check")
 	}
-	args = []string{"push", "--force", upstream, "tag", CheckPushTag}
+	args = []string{"push", upstream, "tag", pseudoRandPushTag}
 	if err := execGitCmd(ctx, args, gitCmdConfig{dir: workingDir}); err != nil {
 		return errors.Wrap(err, "attempt to push tag")
 	}
-	return deleteTag(ctx, workingDir, CheckPushTag, upstream)
+	return deleteTag(ctx, workingDir, pseudoRandPushTag, upstream)
 }
 
 // deleteTag deletes the given git tag
@@ -242,10 +251,16 @@ func refRevision(ctx context.Context, workingDir, ref string) (string, error) {
 }
 
 // Return the revisions and one-line log commit messages
-func onelinelog(ctx context.Context, workingDir, refspec string, subdirs []string) ([]Commit, error) {
+func onelinelog(ctx context.Context, workingDir, refspec string, subdirs []string, firstParent bool) ([]Commit, error) {
 	out := &bytes.Buffer{}
-	args := []string{"log", "--pretty=format:%GK|%G?|%H|%s", refspec}
-	args = append(args, "--")
+	args := []string{"log", "--pretty=format:%GK|%G?|%H|%s"}
+
+	if firstParent {
+		args = append(args, "--first-parent")
+	}
+
+	args = append(args, refspec, "--")
+
 	if len(subdirs) > 0 {
 		args = append(args, subdirs...)
 	}

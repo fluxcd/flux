@@ -1,0 +1,25 @@
+- op: replace
+  path: /spec/template/spec/containers/0/image
+  value: docker.io/fluxcd/flux:latest # test the flux version being developed on and not the latest
+                                      # release
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: --git-poll-interval=10s
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: --sync-interval=10s
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: --registry-disable-scanning
+- op: add
+  path: /spec/template/spec/containers/0/volumeMounts/-
+  value:
+    name: known-hosts
+    mountPath: /root/.ssh/known_hosts
+    subPath: known_hosts
+- op: add
+  path: /spec/template/spec/volumes/-
+  value:
+    name: known-hosts
+    configMap:
+      name: flux-known-hosts

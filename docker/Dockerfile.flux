@@ -1,4 +1,4 @@
-FROM alpine:3.9
+FROM alpine:3.11
 
 WORKDIR /home/flux
 
@@ -16,6 +16,7 @@ COPY ./ssh_config /etc/ssh/ssh_config
 
 COPY ./kubectl /usr/local/bin/
 COPY ./kustomize /usr/local/bin
+COPY ./sops /usr/local/bin
 
 # These are pretty static
 LABEL maintainer="Flux CD <https://github.com/fluxcd/flux/issues>" \

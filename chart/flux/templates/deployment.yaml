@@ -25,7 +25,15 @@ spec:
       labels:
         app: {{ template "flux.name" . }}
         release: {{ .Release.Name }}
+      {{- if .Values.podLabels }}
+      {{- range $key, $value := .Values.podLabels }}
+        {{ $key }}: {{ $value | quote }}
+      {{- end }}
+      {{- end }}
     spec:
+      {{- if .Values.priorityClassName }}
+      priorityClassName: "{{ .Values.priorityClassName }}"
+      {{- end }}
       serviceAccountName: {{ template "flux.serviceAccountName" . }}
       {{- if .Values.image.pullSecret }}
       imagePullSecrets:
@@ -175,7 +183,7 @@ spec:
           {{- end }}
           args:
           {{- if not .Values.clusterRole.create }}
-          - --k8s-allow-namespace={{ .Release.Namespace }}
+          - --k8s-allow-namespace={{ join "," (append .Values.allowedNamespaces .Release.Namespace) }}
           {{- end}}
           {{- if .Values.logFormat }}
           - --log-format={{ .Values.logFormat }}
@@ -206,21 +214,25 @@ spec:
           {{- if .Values.git.signingKey }}
           - --git-signing-key={{ .Values.git.signingKey }}
           {{- end }}
-          {{- if .Values.git.verifySignatures }}
-          - --git-verify-signatures
-          {{- end }}
+          - --git-verify-signatures={{ .Values.git.verifySignatures }}
           - --git-set-author={{ .Values.git.setAuthor }}
+          {{- if .Values.git.secret.enabled }}
+          - --git-secret
+          {{- end }}
           - --git-poll-interval={{ .Values.git.pollInterval }}
           - --git-timeout={{ .Values.git.timeout }}
-          - --sync-interval={{ .Values.git.pollInterval }}
+          - --sync-interval={{ .Values.sync.interval | default .Values.git.pollInterval }}
           - --git-ci-skip={{ .Values.git.ciSkip }}
           {{- if .Values.git.label }}
           - --git-label={{ .Values.git.label }}
           {{- end }}
+          {{- if .Values.sops.enabled }}
+          - --sops={{ .Values.sops.enabled }}
+          {{- end }}
           {{- if .Values.manifestGeneration }}
           - --manifest-generation=true
           {{- end }}
-          - --registry-poll-interval={{ .Values.registry.pollInterval }}
+          - --automation-interval={{ .Values.registry.pollInterval | default .Values.registry.automationInterval }}
           - --registry-rps={{ .Values.registry.rps }}
           - --registry-burst={{ .Values.registry.burst }}
           - --registry-trace={{ .Values.registry.trace }}
@@ -233,8 +245,14 @@ spec:
           {{- if .Values.registry.cacheExpiry }}
           - --registry-cache-expiry={{ .Values.registry.cacheExpiry }}
           {{- end }}
+          {{- if .Values.registry.disableScanning }}
+          - --registry-disable-scanning
+          {{- end }}
           {{- if .Values.registry.excludeImage }}
           - --registry-exclude-image={{ .Values.registry.excludeImage }}
+          {{- end }}
+          {{- if .Values.registry.includeImage }}
+          - --registry-include-image={{ .Values.registry.includeImage }}
           {{- end }}
           {{- if .Values.registry.useTimestampLabels }}
           - --registry-use-labels={{ .Values.registry.useTimestampLabels }}
@@ -265,6 +283,10 @@ spec:
           {{- end }}
           resources:
 {{ toYaml .Values.resources | indent 12 }}
+{{- if .Values.hostAliases }}
+      hostAliases:
+{{ toYaml .Values.hostAliases |indent 8 }}
+{{- end }}
 {{- if .Values.extraContainers }}
 {{ toYaml .Values.extraContainers | indent 8}}
 {{- end }}
@@ -275,8 +297,9 @@ spec:
       dnsConfig:
 {{ toYaml .Values.dnsConfig | indent 8 }}
 {{- end }}
-    {{- with .Values.nodeSelector }}
-      nodeSelector:
+      nodeSelector: 
+        beta.kubernetes.io/os: linux
+      {{- with .Values.nodeSelector }}
 {{ toYaml . | indent 8 }}
     {{- end }}
     {{- with .Values.affinity }}

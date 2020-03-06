@@ -49,7 +49,7 @@ type ControllerStatus struct {
 // --- config types
 
 type GitRemoteConfig struct {
-	URL    string `json:"url"`
+	git.Remote
 	Branch string `json:"branch"`
 	Path   string `json:"path"`
 }
@@ -58,6 +58,7 @@ type GitConfig struct {
 	Remote       GitRemoteConfig   `json:"remote"`
 	PublicSSHKey ssh.PublicKey     `json:"publicSSHKey"`
 	Status       git.GitRepoStatus `json:"status"`
+	Error        string            `json:"errors"`
 }
 
 type Deprecated interface {

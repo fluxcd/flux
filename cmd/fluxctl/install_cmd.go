@@ -25,7 +25,7 @@ func (opts *installOpts) Command() *cobra.Command {
 		Use:   "install",
 		Short: "Print and tweak Kubernetes manifests needed to install Flux in a Cluster",
 		Example: `# Install Flux and make it use Git repository git@github.com:<your username>/flux-get-started
-fluxctl install --git-url 'git@github.com:<your username>/flux-get-started' | kubectl -f -`,
+fluxctl install --git-url 'git@github.com:<your username>/flux-get-started' --git-email=<your_git_email> | kubectl -f -`,
 		RunE: opts.RunE,
 	}
 	cmd.Flags().StringVar(&opts.GitURL, "git-url", "",
@@ -33,18 +33,25 @@ fluxctl install --git-url 'git@github.com:<your username>/flux-get-started' | ku
 	cmd.Flags().StringVar(&opts.GitBranch, "git-branch", "master",
 		"Git branch to be used by Flux")
 	cmd.Flags().StringSliceVar(&opts.GitPaths, "git-paths", []string{},
-		"Relative paths within the Git repo for Flux to locate Kubernetes manifests")
+		"relative paths within the Git repo for Flux to locate Kubernetes manifests")
 	cmd.Flags().StringSliceVar(&opts.GitPaths, "git-path", []string{},
-		"Relative paths within the Git repo for Flux to locate Kubernetes manifests")
+		"relative paths within the Git repo for Flux to locate Kubernetes manifests")
 	cmd.Flags().StringVar(&opts.GitLabel, "git-label", "flux",
 		"Git label to keep track of Flux's sync progress; overrides both --git-sync-tag and --git-notes-ref")
 	cmd.Flags().StringVar(&opts.GitUser, "git-user", "Flux",
-		"Username to use as git committer")
+		"username to use as git committer")
 	cmd.Flags().StringVar(&opts.GitEmail, "git-email", "",
-		"Email to use as git committer")
-	cmd.Flags().StringVar(&opts.Namespace, "namespace", getKubeConfigContextNamespace("default"),
-		"Cluster namespace where to install flux")
+		"email to use as git committer")
+	cmd.Flags().BoolVar(&opts.GitReadOnly, "git-readonly", false,
+		"tell flux it has readonly access to the repo")
+	cmd.Flags().BoolVar(&opts.ManifestGeneration, "manifest-generation", false,
+		"whether to enable manifest generation")
+	cmd.Flags().StringVar(&opts.Namespace, "namespace", "",
+		"cluster namespace where to install flux")
+	cmd.Flags().BoolVar(&opts.RegistryDisableScanning, "registry-disable-scanning", false,
+		"do not scan container image registries to fill in the registry cache")
 	cmd.Flags().StringVarP(&opts.outputDir, "output-dir", "o", "", "a directory in which to write individual manifests, rather than printing to stdout")
+	cmd.Flags().BoolVar(&opts.AddSecurityContext, "add-security-context", true, "Ensure security context information is added to the pod specs. Defaults to 'true'")
 
 	// Hide and deprecate "git-paths", which was wrongly introduced since its inconsistent with fluxd's git-path flag
 	cmd.Flags().MarkHidden("git-paths")
@@ -54,12 +61,16 @@ fluxctl install --git-url 'git@github.com:<your username>/flux-get-started' | ku
 }
 
 func (opts *installOpts) RunE(cmd *cobra.Command, args []string) error {
+	if len(args) != 0 {
+		return errorWantedNoArgs
+	}
 	if opts.GitURL == "" {
 		return fmt.Errorf("please supply a valid --git-url argument")
 	}
 	if opts.GitEmail == "" {
 		return fmt.Errorf("please supply a valid --git-email argument")
 	}
+	opts.TemplateParameters.Namespace = getKubeConfigContextNamespaceOrDefault(opts.Namespace, "default", "")
 	manifests, err := install.FillInTemplates(opts.TemplateParameters)
 	if err != nil {
 		return err

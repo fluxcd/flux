@@ -1,3 +1,0 @@
-#!/bin/sh
-real_home=$(getent passwd "$(id -u)" | cut -d ':' -f 6)
-HOME=$real_home fluxctl.real "$@"
