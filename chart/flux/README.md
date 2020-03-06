@@ -265,6 +265,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `memcached.securityContext`                       | [See values.yaml](/chart/flux/values.yaml#L176-L179) | Container security context for memcached
 | `memcached.nodeSelector`                          | `{}`                                                 | Node Selector properties for the memcached deployment
 | `memcached.tolerations`                           | `[]`                                                 | Tolerations properties for the memcached deployment
+| `memcached.priorityClassName`                     | `""`                                                 | The name of the priority class to assign to the memcached pod.
 | `kube.config`                                     | [See values.yaml](/chart/flux/values.yaml#L200-L212) | Override for kubectl default config in the Flux pod(s).
 | `priorityClassName`                               | `""`                                                 | Set priority class for Flux
 | `prometheus.enabled`                              | `false`                                              | If enabled, adds prometheus annotations to Flux and helmOperator pod(s)
