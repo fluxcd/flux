@@ -26,6 +26,9 @@ spec:
         app: {{ template "flux.name" . }}-memcached
         release: {{ .Release.Name }}
     spec:
+      {{- if .Values.memcached.priorityClassName }}
+      priorityClassName: {{ .Values.memcached.priorityClassName }}
+      {{- end }}
       {{- if .Values.memcached.pullSecret }}
       imagePullSecrets:
         - name: {{ .Values.memcached.pullSecret }}
