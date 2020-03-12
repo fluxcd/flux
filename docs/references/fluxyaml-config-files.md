@@ -332,6 +332,9 @@ environment variables, when executed:
    * `FLUX_IMG`: Image name which the container needs to be updated to (e.g. `nginx`).
    * `FLUX_TAG`: Image tag which the container needs to be updated to (e.g. `1.15`).
 
+ * `scale` updaters are provided with:
+   * `FLUX_SCALE`: Number of replicas to set for the the workload which needs to be updated.
+
  * `policy` updaters are provided with:
    * `FLUX_POLICY`: the name of the policy to be added or updated in
      the workload. To make into an annotation name, prefix with

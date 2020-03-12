@@ -261,6 +261,31 @@ func (cf *ConfigFile) SetWorkloadContainerImage(ctx context.Context, manifests M
 	return nil
 }
 
+func (cf *ConfigFile) SetWorkloadScale(ctx context.Context, manifests Manifests, r resource.Resource, newReplicas int) error {
+	if cf.PatchUpdated != nil {
+		return cf.updatePatchFile(ctx, manifests, func(previousManifests []byte) ([]byte, error) {
+			return manifests.SetWorkloadScale(previousManifests, r.ResourceID(), newReplicas)
+		})
+	}
+
+	// Command-updated
+	result := cf.execContainerScaleUpdaters(ctx, r.ResourceID(), newReplicas)
+	if len(result) == 0 {
+		return makeNoCommandsRunErr("update.containerImage", cf)
+	}
+
+	if len(result) > 0 && result[len(result)-1].Error != nil {
+		updaters := cf.CommandUpdated.Updaters
+		return fmt.Errorf("error executing scale updater command %q from file %q: %s\noutput:\n%s",
+			updaters[len(result)-1].ContainerImage.Command,
+			result[len(result)-1].Error,
+			r.Source(),
+			result[len(result)-1].Output,
+		)
+	}
+	return nil
+}
+
 // UpdateWorkloadPolicies updates policies for a workload, using
 // commands or patching according to the config file.
 func (cf *ConfigFile) UpdateWorkloadPolicies(ctx context.Context, manifests Manifests, r resource.Resource, update resource.PolicyUpdate) (bool, error) {
@@ -428,6 +453,25 @@ func (cf *ConfigFile) execContainerImageUpdaters(ctx context.Context,
 		"FLUX_CONTAINER="+container,
 		"FLUX_IMG="+image,
 		"FLUX_TAG="+imageTag,
+	)
+	commands := []string{}
+	var updaters []Updater
+	if cf.CommandUpdated != nil {
+		updaters = cf.CommandUpdated.Updaters
+	}
+	for _, u := range updaters {
+		commands = append(commands, u.ContainerImage.Command)
+	}
+	return cf.execCommandsWithCombinedOutput(ctx, env, commands)
+}
+
+// execContainerScaleUpdaters executes all the scale updates in the configuration file.
+// It will stop at the first error, in which case the returned error will be non-nil
+func (cf *ConfigFile) execContainerScaleUpdaters(ctx context.Context,
+	workload resource.ID, newReplicas int) []ConfigFileCombinedExecResult {
+	env := makeEnvFromResourceID(workload)
+	env = append(env,
+		fmt.Sprintf("FLUX_SCALE=%d", newReplicas),
 	)
 	commands := []string{}
 	var updaters []Updater

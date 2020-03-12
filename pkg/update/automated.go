@@ -121,7 +121,7 @@ func (a *Automated) calculateImageUpdates(rc ReleaseContext, candidates []*Workl
 		}
 
 		if len(containerUpdates) > 0 {
-			u.Updates = containerUpdates
+			u.ContainerUpdates = containerUpdates
 			updates = append(updates, u)
 			result[u.ResourceID] = WorkloadResult{
 				Status:       ReleaseStatusSuccess,

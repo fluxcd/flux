@@ -89,3 +89,8 @@ type ContainerUpdate struct {
 	Current   image.Ref
 	Target    image.Ref
 }
+
+type ScaleUpdate struct {
+	Current int
+	Target  int
+}

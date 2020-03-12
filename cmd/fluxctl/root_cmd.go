@@ -50,6 +50,7 @@ Workflow:
   fluxctl list-workloads                                                   # Which workloads are running?
   fluxctl list-images --workload=default:deployment/foo                    # Which images are running/available?
   fluxctl release --workload=default:deployment/foo --update-image=bar:v2  # Release new version.
+  fluxctl release --workload=default:deployment/foo --update-scale=3       # Scale pods
 `)
 
 const (

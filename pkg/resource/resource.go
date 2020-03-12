@@ -26,3 +26,8 @@ type Workload interface {
 	// effect on any underlying file or cluster resource.
 	SetContainerImage(container string, ref image.Ref) error
 }
+
+type Scalable interface {
+	GetReplicas() int
+	SetReplicas(replicas int)
+}

@@ -15,8 +15,9 @@ import (
 )
 
 const (
-	ResourceSpecAll = ResourceSpec("<all>")
-	ImageSpecLatest = ImageSpec("<all latest>")
+	ResourceSpecAll   = ResourceSpec("<all>")
+	ImageSpecLatest   = ImageSpec("<all latest>")
+	ImageSpecNoUpdate = ImageSpec("<no update>")
 )
 
 var (
@@ -55,6 +56,7 @@ type ReleaseContext interface {
 type ReleaseImageSpec struct {
 	ServiceSpecs []ResourceSpec // TODO: rename to WorkloadSpecs after adding versioning
 	ImageSpec    ImageSpec
+	Replicas     *int
 	Kind         ReleaseKind
 	Excludes     []resource.ID
 	Force        bool
@@ -82,7 +84,7 @@ func (s ReleaseImageSpec) CalculateRelease(ctx context.Context, rc ReleaseContex
 	s.markSkipped(results)
 
 	timer = NewStageTimer("lookup_images")
-	updates, err = s.calculateImageUpdates(rc, updates, results, logger)
+	updates, err = s.calculateUpdates(rc, updates, results, logger)
 	timer.ObserveDuration()
 	if err != nil {
 		return nil, nil, err
@@ -182,13 +184,15 @@ func (s ReleaseImageSpec) markSkipped(results Result) {
 // however we do want to see if we *can* do the replacements, because
 // if not, it indicates there's likely some problem with the running
 // system vs the definitions given in the repo.)
-func (s ReleaseImageSpec) calculateImageUpdates(rc ReleaseContext, candidates []*WorkloadUpdate, results Result, logger log.Logger) ([]*WorkloadUpdate, error) {
+func (s ReleaseImageSpec) calculateUpdates(rc ReleaseContext, candidates []*WorkloadUpdate, results Result, logger log.Logger) ([]*WorkloadUpdate, error) {
 	// Compile an `ImageRepos` of all relevant images
 	var imageRepos ImageRepos
 	var singleRepo image.CanonicalName
 	var err error
 
 	switch s.ImageSpec {
+	case ImageSpecNoUpdate:
+		imageRepos, err = ImageRepos{imageReposMap{}}, nil
 	case ImageSpecLatest:
 		imageRepos, err = fetchUpdatableImageRepos(rc.Registry(), candidates, logger)
 	default:
@@ -211,69 +215,80 @@ func (s ReleaseImageSpec) calculateImageUpdates(rc ReleaseContext, candidates []
 	// image that could be updated.
 	var updates []*WorkloadUpdate
 	for _, u := range candidates {
-		containers, err := u.Workload.ContainersOrError()
-		if err != nil {
-			results[u.ResourceID] = WorkloadResult{
-				Status: ReleaseStatusFailed,
-				Error:  err.Error(),
+		var scaleUpdate *ScaleUpdate
+		var scalable, isScalable = u.Resource.(resource.Scalable)
+		if isScalable && s.Replicas != nil {
+			scaleUpdate = &ScaleUpdate{
+				Current: scalable.GetReplicas(),
+				Target:  *s.Replicas,
 			}
-			continue
 		}
 
+		var containerUpdates []ContainerUpdate
 		// If at least one container used an image in question, we say
 		// we're skipping it rather than ignoring it. This is mainly
 		// for the purpose of filtering the output.
 		ignoredOrSkipped := ReleaseStatusIgnored
-		var containerUpdates []ContainerUpdate
-
-		for _, container := range containers {
-			currentImageID := container.Image
-
-			tagPattern := policy.PatternAll
-			// Use the container's filter if the spec does not want to force release, or
-			// all images requested
-			if !s.Force || s.ImageSpec == ImageSpecLatest {
-				if pattern, ok := u.Resource.Policies().Get(policy.TagPrefix(container.Name)); ok {
-					tagPattern = policy.NewPattern(pattern)
-				}
-			}
-
-			metadata := imageRepos.GetRepositoryMetadata(currentImageID.Name)
-			sortedImages, err := FilterAndSortRepositoryMetadata(metadata, tagPattern)
+		if s.ImageSpec != ImageSpecNoUpdate {
+			containers, err := u.Workload.ContainersOrError()
 			if err != nil {
-				// missing image repository metadata
-				ignoredOrSkipped = ReleaseStatusUnknown
-				continue
-			}
-			latestImage, ok := sortedImages.Latest()
-			if !ok {
-				if currentImageID.CanonicalName() != singleRepo {
-					ignoredOrSkipped = ReleaseStatusIgnored
-				} else {
-					ignoredOrSkipped = ReleaseStatusUnknown
+				results[u.ResourceID] = WorkloadResult{
+					Status: ReleaseStatusFailed,
+					Error:  err.Error(),
 				}
 				continue
 			}
 
-			if currentImageID == latestImage.ID {
-				ignoredOrSkipped = ReleaseStatusSkipped
-				continue
-			}
+			for _, container := range containers {
+				currentImageID := container.Image
 
-			// We want to update the image with respect to the form it
-			// appears in the manifest, whereas what we have is the
-			// canonical form.
-			newImageID := currentImageID.WithNewTag(latestImage.ID.Tag)
-			containerUpdates = append(containerUpdates, ContainerUpdate{
-				Container: container.Name,
-				Current:   currentImageID,
-				Target:    newImageID,
-			})
+				tagPattern := policy.PatternAll
+				// Use the container's filter if the spec does not want to force release, or
+				// all images requested
+				if !s.Force || s.ImageSpec == ImageSpecLatest {
+					if pattern, ok := u.Resource.Policies().Get(policy.TagPrefix(container.Name)); ok {
+						tagPattern = policy.NewPattern(pattern)
+					}
+				}
+
+				metadata := imageRepos.GetRepositoryMetadata(currentImageID.Name)
+				sortedImages, err := FilterAndSortRepositoryMetadata(metadata, tagPattern)
+				if err != nil {
+					// missing image repository metadata
+					ignoredOrSkipped = ReleaseStatusUnknown
+					continue
+				}
+				latestImage, ok := sortedImages.Latest()
+				if !ok {
+					if currentImageID.CanonicalName() != singleRepo {
+						ignoredOrSkipped = ReleaseStatusIgnored
+					} else {
+						ignoredOrSkipped = ReleaseStatusUnknown
+					}
+					continue
+				}
+
+				if currentImageID == latestImage.ID {
+					ignoredOrSkipped = ReleaseStatusSkipped
+					continue
+				}
+
+				// We want to update the image with respect to the form it
+				// appears in the manifest, whereas what we have is the
+				// canonical form.
+				newImageID := currentImageID.WithNewTag(latestImage.ID.Tag)
+				containerUpdates = append(containerUpdates, ContainerUpdate{
+					Container: container.Name,
+					Current:   currentImageID,
+					Target:    newImageID,
+				})
+			}
 		}
 
 		switch {
-		case len(containerUpdates) > 0:
-			u.Updates = containerUpdates
+		case len(containerUpdates) > 0 || scaleUpdate != nil:
+			u.ContainerUpdates = containerUpdates
+			u.ScaleUpdate = scaleUpdate
 			updates = append(updates, u)
 			results[u.ResourceID] = WorkloadResult{
 				Status:       ReleaseStatusSuccess,

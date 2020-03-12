@@ -57,6 +57,36 @@ func (f *rawFiles) setManifestWorkloadContainerImage(r resource.Resource, contai
 	return ioutil.WriteFile(fullFilePath, newDef, fi.Mode())
 }
 
+// Set the container scale of a resource in the store
+func (f *rawFiles) SetWorkloadScale(ctx context.Context, id resource.ID, newReplicas int) error {
+	resourcesByID, err := f.GetAllResourcesByID(ctx)
+	if err != nil {
+		return err
+	}
+	r, ok := resourcesByID[id.String()]
+	if !ok {
+		return ErrResourceNotFound(id.String())
+	}
+	return f.setManifestWorkloadScale(r, newReplicas)
+}
+
+func (f *rawFiles) setManifestWorkloadScale(r resource.Resource, newReplicas int) error {
+	fullFilePath := filepath.Join(f.baseDir, r.Source())
+	def, err := ioutil.ReadFile(fullFilePath)
+	if err != nil {
+		return err
+	}
+	newDef, err := f.manifests.SetWorkloadScale(def, r.ResourceID(), newReplicas)
+	if err != nil {
+		return err
+	}
+	fi, err := os.Stat(fullFilePath)
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(fullFilePath, newDef, fi.Mode())
+}
+
 // UpdateWorkloadPolicies modifies a resource in the store to apply the policy-update specified.
 // It returns whether a change in the resource was actually made as a result of the change
 func (f *rawFiles) UpdateWorkloadPolicies(ctx context.Context, id resource.ID, update resource.PolicyUpdate) (bool, error) {

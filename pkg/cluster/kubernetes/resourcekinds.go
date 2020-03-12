@@ -51,6 +51,7 @@ func init() {
 type workload struct {
 	k8sObject
 	status      string
+	replicas    *int32
 	rollout     cluster.RolloutStatus
 	syncError   error
 	podTemplate apiv1.PodTemplateSpec
@@ -107,6 +108,7 @@ func (w workload) toClusterWorkload(resourceID resource.ID) cluster.Workload {
 		Labels:     w.GetLabels(),
 		Policies:   policies,
 		Containers: cluster.ContainersOrExcuse{Containers: clusterContainers, Excuse: excuse},
+		Replicas:   w.replicas,
 	}
 }
 
@@ -189,6 +191,7 @@ func makeDeploymentWorkload(deployment *apiapps.Deployment) workload {
 	return workload{
 		status:      status,
 		rollout:     rollout,
+		replicas:    deployment.Spec.Replicas,
 		podTemplate: deployment.Spec.Template,
 		k8sObject:   deployment}
 }
@@ -355,6 +358,7 @@ func makeStatefulSetWorkload(statefulSet *apiapps.StatefulSet) workload {
 	return workload{
 		status:      status,
 		rollout:     rollout,
+		replicas:    statefulSet.Spec.Replicas,
 		podTemplate: statefulSet.Spec.Template,
 		k8sObject:   statefulSet}
 }

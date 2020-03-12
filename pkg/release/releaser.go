@@ -58,7 +58,7 @@ func Release(ctx context.Context, rc *ReleaseContext, changes Changes, logger lo
 func ApplyChanges(ctx context.Context, rc *ReleaseContext, updates []*update.WorkloadUpdate, logger log.Logger) error {
 	logger.Log("updates", len(updates))
 	if len(updates) == 0 {
-		logger.Log("exit", "no images to update for services given")
+		logger.Log("exit", "no updates for services given")
 		return nil
 	}
 
@@ -88,9 +88,16 @@ func VerifyChanges(before map[string]resource.Resource, updates []*update.Worklo
 		if !ok {
 			return verificationError("resource %q mentioned in update is not a workload", update.ResourceID.String())
 		}
-		for _, containerUpdate := range update.Updates {
+		if update.ScaleUpdate != nil {
+			scalable, isScalable := res.(resource.Scalable)
+			if !isScalable {
+				return verificationError("updating replicas in resource %q failed. %s is not scalable", update.ResourceID.String(), wl)
+			}
+			scalable.SetReplicas(update.ScaleUpdate.Target)
+		}
+		for _, containerUpdate := range update.ContainerUpdates {
 			if err := wl.SetContainerImage(containerUpdate.Container, containerUpdate.Target); err != nil {
-				return verificationError("updating container %q in resource %q failed: %s", containerUpdate.Container, update.ResourceID.String(), err.Error())
+				return verificationError("updating image for container %q in resource %q failed: %s", containerUpdate.Container, update.ResourceID.String(), err.Error())
 			}
 		}
 	}

@@ -23,6 +23,7 @@ type workloadReleaseOpts struct {
 	allWorkloads bool
 	image        string
 	allImages    bool
+	replicas     int
 	exclude      []string
 	dryRun       bool
 	interactive  bool
@@ -47,6 +48,7 @@ func (opts *workloadReleaseOpts) Command() *cobra.Command {
 			"fluxctl release -n default --workload=deployment/foo --update-image=library/hello:v2",
 			"fluxctl release --all --update-image=library/hello:v2",
 			"fluxctl release --workload=default:deployment/foo --update-all-images",
+			"fluxctl release --workload=default:deployment/foo --update-scale=3",
 		),
 		RunE: opts.RunE,
 	}
@@ -58,6 +60,7 @@ func (opts *workloadReleaseOpts) Command() *cobra.Command {
 	cmd.Flags().StringSliceVarP(&opts.workloads, "workload", "", []string{}, "List of workloads to release <namespace>:<kind>/<name>")
 	cmd.Flags().BoolVar(&opts.allWorkloads, "all", false, "Release all workloads")
 	cmd.Flags().StringVarP(&opts.image, "update-image", "i", "", "Update a specific image")
+	cmd.Flags().IntVarP(&opts.replicas, "update-scale", "s", -1, "Update number of Replicas")
 	cmd.Flags().BoolVar(&opts.allImages, "update-all-images", false, "Update all images to latest versions")
 	cmd.Flags().StringSliceVar(&opts.exclude, "exclude", []string{}, "List of workloads to exclude")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "Do not release anything; just report back what would have been done")
@@ -77,7 +80,10 @@ func (opts *workloadReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		return errorWantedNoArgs
 	}
 
-	if err := checkExactlyOne("--update-image=<image> or --update-all-images", opts.image != "", opts.allImages); err != nil {
+	if err := checkAtLeast("--update-image=<image>,--update-all-images or --update-scale=<replicas >= 0>", 1, opts.image != "", opts.allImages, opts.replicas >= 0); err != nil {
+		return err
+	}
+	if err := checkAtMost("--update-image=<image> or --update-all-images", 1, opts.image != "", opts.allImages); err != nil {
 		return err
 	}
 
@@ -113,8 +119,9 @@ func (opts *workloadReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 	}
 
 	var (
-		image update.ImageSpec
-		err   error
+		image    update.ImageSpec
+		replicas *int
+		err      error
 	)
 	switch {
 	case opts.image != "":
@@ -124,6 +131,10 @@ func (opts *workloadReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		}
 	case opts.allImages:
 		image = update.ImageSpecLatest
+	}
+
+	if opts.replicas > -1 {
+		replicas = &opts.replicas
 	}
 
 	var kind update.ReleaseKind = update.ReleaseKindExecute
@@ -150,6 +161,7 @@ func (opts *workloadReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 	spec := update.ReleaseImageSpec{
 		ServiceSpecs: workloads,
 		ImageSpec:    image,
+		Replicas:     replicas,
 		Kind:         kind,
 		Excludes:     excludes,
 		Force:        opts.force,

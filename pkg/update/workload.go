@@ -6,10 +6,11 @@ import (
 )
 
 type WorkloadUpdate struct {
-	ResourceID resource.ID
-	Workload   cluster.Workload
-	Resource   resource.Workload
-	Updates    []ContainerUpdate
+	ResourceID       resource.ID
+	Workload         cluster.Workload
+	Resource         resource.Workload
+	ContainerUpdates []ContainerUpdate
+	ScaleUpdate      *ScaleUpdate
 }
 
 type WorkloadFilter interface {

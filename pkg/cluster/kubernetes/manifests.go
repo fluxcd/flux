@@ -172,6 +172,18 @@ func (m *manifests) SetWorkloadContainerImage(def []byte, id resource.ID, contai
 	return updateWorkloadContainer(def, id, container, image)
 }
 
+func (m *manifests) SetWorkloadScale(def []byte, id resource.ID, newReplicas int) ([]byte, error) {
+	resources, err := m.ParseManifest(def, "stdin")
+	if err != nil {
+		return nil, err
+	}
+	_, ok := resources[id.String()]
+	if !ok {
+		return nil, fmt.Errorf("resource %s not found", id.String())
+	}
+	return updateWorkloadScale(def, id, newReplicas)
+}
+
 func (m *manifests) CreateManifestPatch(originalManifests, modifiedManifests []byte, originalSource, modifiedSource string) ([]byte, error) {
 	return createManifestPatch(originalManifests, modifiedManifests, originalSource, modifiedSource)
 }

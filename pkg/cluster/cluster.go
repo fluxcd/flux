@@ -75,8 +75,8 @@ type Workload struct {
 	Rollout    RolloutStatus
 	// Errors during the recurring sync from the Git repository to the
 	// cluster will surface here.
-	SyncError error
-
+	SyncError  error
+	Replicas   *int32
 	Containers ContainersOrExcuse
 }
 

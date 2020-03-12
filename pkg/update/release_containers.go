@@ -145,12 +145,12 @@ func (s ReleaseContainersSpec) workloadUpdates(results Result, all []*WorkloadUp
 				// container mismatched.
 				rerr = mismatchError
 			}
-			u.Updates = containerUpdates
+			u.ContainerUpdates = containerUpdates
 			updates = append(updates, u)
 			results[u.ResourceID] = WorkloadResult{
 				Status:       ReleaseStatusSuccess,
 				Error:        rerr,
-				PerContainer: u.Updates,
+				PerContainer: u.ContainerUpdates,
 			}
 		}
 	}

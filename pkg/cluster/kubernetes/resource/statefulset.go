@@ -23,4 +23,12 @@ func (ss StatefulSet) SetContainerImage(container string, ref image.Ref) error {
 	return ss.Spec.Template.SetContainerImage(container, ref)
 }
 
+func (ss StatefulSet) GetReplicas() int {
+	return ss.Spec.Replicas
+}
+
+func (ss StatefulSet) SetReplicas(replicas int) {
+	ss.Spec.Replicas = replicas
+}
+
 var _ resource.Workload = StatefulSet{}

@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	kresource "github.com/fluxcd/flux/pkg/cluster/kubernetes/resource"
@@ -17,7 +18,7 @@ import (
 func updateWorkloadContainer(in []byte, resource resource.ID, container string, newImageID image.Ref) ([]byte, error) {
 	namespace, kind, name := resource.Components()
 	if _, ok := resourceKinds[strings.ToLower(kind)]; !ok {
-		return nil, UpdateNotSupportedError(kind)
+		return nil, ImageUpdateNotSupportedError(kind)
 	}
 	return (KubeYAML{}).Image(in, namespace, kind, name, container, newImageID.String())
 }
@@ -33,7 +34,7 @@ func updateWorkloadImagePaths(in []byte,
 	namespace, kind, name := resource.Components()
 	// We only support HelmRelease resource kinds for now
 	if kind != "helmrelease" {
-		return nil, UpdateNotSupportedError(kind)
+		return nil, ImageUpdateNotSupportedError(kind)
 	}
 	if m, ok := paths.MapImageRef(newImageID); ok {
 		var args []string
@@ -43,4 +44,16 @@ func updateWorkloadImagePaths(in []byte,
 		return (KubeYAML{}).Set(in, namespace, kind, name, args...)
 	}
 	return nil, fmt.Errorf("failed to map paths %#v to %q for %q", paths, newImageID.String(), resource.String())
+}
+
+func updateWorkloadScale(in []byte, resource resource.ID, newReplicas int) ([]byte, error) {
+	namespace, kind, name := resource.Components()
+
+	supportedKinds := []string{"deployment", "statefulset"}
+	sort.Strings(supportedKinds)
+
+	if sort.SearchStrings(supportedKinds, kind) == len(supportedKinds) {
+		return nil, ScaleUpdateNotSupportedError(kind)
+	}
+	return (KubeYAML{}).Set(in, namespace, kind, name, fmt.Sprintf("spec.replicas=%d", newReplicas))
 }

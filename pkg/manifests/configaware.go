@@ -132,6 +132,27 @@ func findConfigFilePaths(baseDir string, initialPath string) (string, string, er
 	return "", "", configFileNotFoundErr
 }
 
+func (ca *configAware) SetWorkloadScale(ctx context.Context, resourceID resource.ID, newReplicas int) error {
+	resourcesByID, err := ca.getResourcesByID(ctx)
+	if err != nil {
+		return err
+	}
+	resWithOrigin, ok := resourcesByID[resourceID.String()]
+	if !ok {
+		return ErrResourceNotFound(resourceID.String())
+	}
+	if resWithOrigin.configFile == nil {
+		if err := ca.rawFiles.setManifestWorkloadScale(resWithOrigin.resource, newReplicas); err != nil {
+			return err
+		}
+	} else if err := resWithOrigin.configFile.SetWorkloadScale(ctx, ca.manifests, resWithOrigin.resource, newReplicas); err != nil {
+		return err
+	}
+	// Reset resources, since we have modified one
+	ca.resetResources()
+	return nil
+}
+
 func (ca *configAware) SetWorkloadContainerImage(ctx context.Context, resourceID resource.ID, container string,
 	newImageID image.Ref) error {
 	resourcesByID, err := ca.getResourcesByID(ctx)

@@ -23,4 +23,12 @@ func (d Deployment) SetContainerImage(container string, ref image.Ref) error {
 	return d.Spec.Template.SetContainerImage(container, ref)
 }
 
+func (d Deployment) GetReplicas() int {
+	return d.Spec.Replicas
+}
+
+func (d Deployment) SetReplicas(replicas int) {
+	d.Spec.Replicas = replicas
+}
+
 var _ resource.Workload = Deployment{}

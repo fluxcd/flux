@@ -20,6 +20,8 @@ type Manifests interface {
 	ParseManifest(def []byte, source string) (map[string]resource.Resource, error)
 	// Set the image of a container in a manifest's bytes to that given
 	SetWorkloadContainerImage(def []byte, resourceID resource.ID, container string, newImageID image.Ref) ([]byte, error)
+	// Set the scale of a resource in the store
+	SetWorkloadScale(def []byte, id resource.ID, newReplicas int) ([]byte, error)
 	// UpdateWorkloadPolicies modifies a manifest to apply the policy update specified
 	UpdateWorkloadPolicies(def []byte, id resource.ID, update resource.PolicyUpdate) ([]byte, error)
 	// CreateManifestPatch obtains a patch between the original and modified manifests

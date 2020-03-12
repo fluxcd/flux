@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"strings"
 	"testing"
 
 	kresource "github.com/fluxcd/flux/pkg/cluster/kubernetes/resource"
@@ -13,11 +14,12 @@ type update struct {
 	resourceID       string
 	containers       []string
 	updatedImage     string
+	updatedScale     *int
 	caseIn, caseOut  string
 	imageAnnotations kresource.ContainerImageMap
 }
 
-func testUpdateWorkloadContainer(t *testing.T, u update) {
+func testUpdateWorkloadContainer(t *testing.T, u update) string {
 	id, err := image.ParseRef(u.updatedImage)
 	if err != nil {
 		t.Fatal(err)
@@ -29,16 +31,14 @@ func testUpdateWorkloadContainer(t *testing.T, u update) {
 		var err error
 		if out, err = updateWorkloadContainer([]byte(manifest), resource.MustParseID(u.resourceID), container, id); err != nil {
 			t.Errorf("Failed: %s", err.Error())
-			return
+			return ""
 		}
 		manifest = string(out)
 	}
-	if manifest != u.caseOut {
-		t.Errorf("id not get expected result:\n\n%s\n\nInstead got:\n\n%s", u.caseOut, manifest)
-	}
+	return manifest
 }
 
-func testUpdateWorkloadImagePath(t *testing.T, u update) {
+func testUpdateWorkloadImagePath(t *testing.T, u update) string {
 	id, err := image.ParseRef(u.updatedImage)
 	if err != nil {
 		t.Fatal(err)
@@ -48,41 +48,72 @@ func testUpdateWorkloadImagePath(t *testing.T, u update) {
 	var out []byte
 	if out, err = updateWorkloadImagePaths([]byte(manifest), resource.MustParseID(u.resourceID), u.imageAnnotations, id); err != nil {
 		t.Errorf("Failed: %s", err.Error())
-		return
+		return ""
 	}
-	manifest = string(out)
-	if manifest != u.caseOut {
-		t.Errorf("it did not get expected result:\n\n%s\n\nInstead got:\n\n%s", u.caseOut, manifest)
+	return string(out)
+}
+
+func testupdateWorkloadScale(t *testing.T, u update) string {
+	newScale := u.updatedScale
+	if newScale == nil {
+		t.Fatal("Updated scale should be present")
 	}
+
+	manifest := u.caseIn
+	var (
+		out []byte
+		err error
+	)
+	if out, err = updateWorkloadScale([]byte(manifest), resource.MustParseID(u.resourceID), *newScale); err != nil {
+		t.Errorf("Failed: %s", err.Error())
+		return ""
+	}
+	return string(out)
 }
 
 func TestWorkloadContainerUpdates(t *testing.T) {
 	for _, c := range []update{
-		{"common case", case1resource, case1container, case1image, case1, case1out, emptyContainerImageMap},
-		{"new version like number", case2resource, case2container, case2image, case2, case2out, emptyContainerImageMap},
-		{"old version like number", case2resource, case2container, case2reverseImage, case2out, case2, emptyContainerImageMap},
-		{"name label out of order", case3resource, case3container, case3image, case3, case3out, emptyContainerImageMap},
-		{"version (tag) with dots", case4resource, case4container, case4image, case4, case4out, emptyContainerImageMap},
-		{"minimal dockerhub image name", case5resource, case5container, case5image, case5, case5out, emptyContainerImageMap},
-		{"reordered keys", case6resource, case6containers, case6image, case6, case6out, emptyContainerImageMap},
-		{"from prod", case7resource, case7containers, case7image, case7, case7out, emptyContainerImageMap},
-		{"single quotes", case8resource, case8containers, case8image, case8, case8out, emptyContainerImageMap},
-		{"in multidoc", case9resource, case9containers, case9image, case9, case9out, emptyContainerImageMap},
-		{"in kubernetes List resource", case10resource, case10containers, case10image, case10, case10out, emptyContainerImageMap},
-		{"FluxHelmRelease (v1alpha2; simple image encoding)", case11resource, case11containers, case11image, case11, case11out, emptyContainerImageMap},
-		{"FluxHelmRelease (v1alpha2; multi image encoding)", case12resource, case12containers, case12image, case12, case12out, emptyContainerImageMap},
-		{"HelmRelease (v1beta1; image with port number)", case13resource, case13containers, case13image, case13, case13out, emptyContainerImageMap},
-		{"HelmRelease (v1; with image map)", case14resource, make([]string, 0), case14image, case14, case14out, case14ImageMap},
-		{"initContainer", case15resource, case15containers, case15image, case15, case15out, emptyContainerImageMap},
+		{"common case", case1resource, case1container, case1image, nil, case1, case1out, emptyContainerImageMap},
+		{"common case scale", case1resource, case1container, case1image, &case1Scale1, case1, case1OutScaled, emptyContainerImageMap},
+		{"common case only scale", case1resource, case1container, "", &case1Scale2, case1, case1OutScaledNoImageReplace, emptyContainerImageMap},
+		{"new version like number", case2resource, case2container, case2image, nil, case2, case2out, emptyContainerImageMap},
+		{"old version like number", case2resource, case2container, case2reverseImage, nil, case2out, case2, emptyContainerImageMap},
+		{"name label out of order", case3resource, case3container, case3image, nil, case3, case3out, emptyContainerImageMap},
+		{"version (tag) with dots", case4resource, case4container, case4image, nil, case4, case4out, emptyContainerImageMap},
+		{"minimal dockerhub image name", case5resource, case5container, case5image, nil, case5, case5out, emptyContainerImageMap},
+		{"reordered keys", case6resource, case6containers, case6image, nil, case6, case6out, emptyContainerImageMap},
+		{"from prod", case7resource, case7containers, case7image, nil, case7, case7out, emptyContainerImageMap},
+		{"single quotes", case8resource, case8containers, case8image, nil, case8, case8out, emptyContainerImageMap},
+		{"in multidoc", case9resource, case9containers, case9image, nil, case9, case9out, emptyContainerImageMap},
+		{"in kubernetes List resource", case10resource, case10containers, case10image, nil, case10, case10out, emptyContainerImageMap},
+		{"FluxHelmRelease (v1alpha2; simple image encoding)", case11resource, case11containers, case11image, nil, case11, case11out, emptyContainerImageMap},
+		{"FluxHelmRelease (v1alpha2; multi image encoding)", case12resource, case12containers, case12image, nil, case12, case12out, emptyContainerImageMap},
+		{"HelmRelease (v1beta1; image with port number)", case13resource, case13containers, case13image, nil, case13, case13out, emptyContainerImageMap},
+		{"HelmRelease (v1; with image map)", case14resource, make([]string, 0), case14image, nil, case14, case14out, case14ImageMap},
+		{"initContainer", case15resource, case15containers, case15image, nil, case15, case15out, emptyContainerImageMap},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			localC := c // Use copy to avoid races between the parallel tests and the loop
 			t.Parallel()
-			switch localC.imageAnnotations {
-			case emptyContainerImageMap:
-				testUpdateWorkloadContainer(t, localC)
-			default:
-				testUpdateWorkloadImagePath(t, localC)
+
+			var manifest string = ""
+			if localC.updatedImage != "" {
+				switch localC.imageAnnotations {
+				case emptyContainerImageMap:
+					manifest = testUpdateWorkloadContainer(t, localC)
+				default:
+					manifest = testUpdateWorkloadImagePath(t, localC)
+				}
+			}
+			if localC.updatedScale != nil {
+				if manifest != "" {
+					localC.caseIn = manifest
+				}
+				manifest = testupdateWorkloadScale(t, localC)
+			}
+
+			if manifest != localC.caseOut {
+				t.Errorf("it did not get expected result:\n\n%s\n\nInstead got:\n\n%s", localC.caseOut, manifest)
 			}
 		})
 	}
@@ -133,6 +164,10 @@ spec:
 
 const case1resource = "extra:deployment/pr-assigner"
 const case1image = "quay.io/weaveworks/pr-assigner:master-1234567"
+const case1OrgImage = "quay.io/weaveworks/pr-assigner:master-6f5e816"
+
+var case1Scale1 int = 3
+var case1Scale2 int = 2
 
 var case1container = []string{"pr-assigner"}
 
@@ -174,6 +209,9 @@ spec:
           - key: conffile
             path: pr-assigner.json
 `
+
+var case1OutScaled = strings.ReplaceAll(case1out, "replicas: 1", "replicas: '3'")
+var case1OutScaledNoImageReplace = strings.ReplaceAll(strings.ReplaceAll(case1out, "replicas: 1", "replicas: '2'"), case1image, case1OrgImage)
 
 // Version looks like a number
 const case2 = `---

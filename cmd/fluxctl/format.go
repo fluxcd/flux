@@ -170,18 +170,18 @@ func outputWorkloadsJson(workloads []v6.ControllerStatus, out io.Writer) error {
 func outputWorkloadsTab(workloads []v6.ControllerStatus, opts *workloadListOpts) {
 	w := newTabwriter()
 	if !opts.noHeaders {
-		fmt.Fprintf(w, "WORKLOAD\tCONTAINER\tIMAGE\tRELEASE\tPOLICY\n")
+		fmt.Fprintf(w, "WORKLOAD\tCONTAINER\tIMAGE\tREPLICAS\tRELEASE\tPOLICY\n")
 	}
 
 	for _, workload := range workloads {
 		if len(workload.Containers) > 0 {
 			c := workload.Containers[0]
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", workload.ID, c.Name, c.Current.ID, workload.Status, policies(workload))
+			fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%s\n", workload.ID, c.Name, c.Current.ID, workload.Rollout.Desired, workload.Status, policies(workload))
 			for _, c := range workload.Containers[1:] {
 				fmt.Fprintf(w, "\t%s\t%s\t\t\n", c.Name, c.Current.ID)
 			}
 		} else {
-			fmt.Fprintf(w, "%s\t\t\t%s\t%s\n", workload.ID, workload.Status, policies(workload))
+			fmt.Fprintf(w, "%s\t\t\t%d\t%s\t%s\n", workload.ID, workload.Rollout.Desired, workload.Status, policies(workload))
 		}
 	}
 	w.Flush()

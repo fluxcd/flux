@@ -38,10 +38,16 @@ func (rc *ReleaseContext) GetAllResources(ctx context.Context) (map[string]resou
 func (rc *ReleaseContext) WriteUpdates(ctx context.Context, updates []*update.WorkloadUpdate) error {
 	err := func() error {
 		for _, update := range updates {
-			for _, container := range update.Updates {
-				err := rc.resourceStore.SetWorkloadContainerImage(ctx, update.ResourceID, container.Container, container.Target)
+			for _, containerUpdate := range update.ContainerUpdates {
+				err := rc.resourceStore.SetWorkloadContainerImage(ctx, update.ResourceID, containerUpdate.Container, containerUpdate.Target)
 				if err != nil {
-					return errors.Wrapf(err, "updating resource %s in %s", update.ResourceID.String(), update.Resource.Source())
+					return errors.Wrapf(err, "updating container image for resource %s in %s", update.ResourceID.String(), update.Resource.Source())
+				}
+			}
+			if update.ScaleUpdate != nil {
+				err := rc.resourceStore.SetWorkloadScale(ctx, update.ResourceID, update.ScaleUpdate.Target)
+				if err != nil {
+					return errors.Wrapf(err, "updating scale for resource %s in %s", update.ResourceID.String(), update.Resource.Source())
 				}
 			}
 		}
