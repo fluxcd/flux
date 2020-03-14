@@ -219,6 +219,13 @@ ssh:
   # Overrides for git over SSH. If you use your own git server, you
   # will likely need to provide a host key for it in this field.
   known_hosts: ""
+  # Specify options for SSH key generation.
+  keygen:
+    # Specify a key format for key generation.
+    # RFC4716” (RFC 4716/SSH2 public or private key),
+    # “PKCS8” (PEM PKCS8 public key) or
+    # “PEM” (PEM public key).
+    format: "RFC4716"
 
 kube:
   # Override for kubectl default config

@@ -186,6 +186,7 @@ func main() {
 		// SSH key generation
 		sshKeyBits   = optionalVar(fs, &ssh.KeyBitsValue{}, "ssh-keygen-bits", "-b argument to ssh-keygen (default unspecified)")
 		sshKeyType   = optionalVar(fs, &ssh.KeyTypeValue{}, "ssh-keygen-type", "-t argument to ssh-keygen (default unspecified)")
+		sshKeyFormat = optionalVar(fs, &ssh.KeyFormatValue{}, "ssh-keygen-format", "-m argument to ssh-keygen (default RFC4716)")
 		sshKeygenDir = fs.String("ssh-keygen-dir", "", "directory, ideally on a tmpfs volume, in which to generate new SSH keys when necessary")
 
 		// manifest generation
@@ -484,6 +485,7 @@ func main() {
 				SecretDataKey:         *k8sSecretDataKey,
 				KeyBits:               sshKeyBits,
 				KeyType:               sshKeyType,
+				KeyFormat:             sshKeyFormat,
 				KeyGenDir:             *sshKeygenDir,
 			})
 			if err != nil {

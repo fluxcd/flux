@@ -78,11 +78,38 @@ func (ktv *KeyTypeValue) Specified() bool {
 	return ktv.specified
 }
 
+// KeyFormatValue is an OptionalValue allowing specification of the -m argument
+// to ssh-keygen.
+type KeyFormatValue struct {
+	specified bool
+	keyFormat string
+}
+
+func (ktv *KeyFormatValue) String() string {
+	return ktv.keyFormat
+}
+
+func (ktv *KeyFormatValue) Set(s string) error {
+	if len(s) > 0 {
+		ktv.keyFormat = s
+		ktv.specified = true
+	}
+	return nil
+}
+
+func (ktv *KeyFormatValue) Type() string {
+	return "string"
+}
+
+func (ktv *KeyFormatValue) Specified() bool {
+	return ktv.specified
+}
+
 // KeyGen generates a new keypair with ssh-keygen, optionally overriding the
 // default type and size. Each generated keypair is written to a new unique
 // subdirectory of tmpfsPath, which should point to a tmpfs mount as the
 // private key is not encrypted.
-func KeyGen(keyBits, keyType OptionalValue, tmpfsPath string) (privateKeyPath string, privateKey []byte, publicKey PublicKey, err error) {
+func KeyGen(keyBits, keyType, keyFormat OptionalValue, tmpfsPath string) (privateKeyPath string, privateKey []byte, publicKey PublicKey, err error) {
 	tempDir, err := ioutil.TempDir(tmpfsPath, "..weave-keygen")
 	if err != nil {
 		return "", nil, PublicKey{}, err
@@ -95,6 +122,9 @@ func KeyGen(keyBits, keyType OptionalValue, tmpfsPath string) (privateKeyPath st
 	}
 	if keyType.Specified() {
 		args = append(args, "-t", keyType.String())
+	}
+	if keyFormat.Specified() {
+		args = append(args, "-m", keyFormat.String())
 	}
 
 	cmd := exec.Command("ssh-keygen", args...)
