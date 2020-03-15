@@ -38,13 +38,10 @@ instead.
 
 #### Arch Linux
 
-Install the `fluxctl-bin` package [from the
-AUR](https://aur.archlinux.org/packages/fluxctl-bin/):
+Install `fluxctl` via pacman:
 
 ```sh
-git clone https://aur.archlinux.org/fluxctl-bin.git
-cd fluxctl-bin
-makepkg -si
+pacman -S fluxctl
 ```
 
 ### Windows
