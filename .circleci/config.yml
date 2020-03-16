@@ -125,17 +125,18 @@ jobs:
               docker push "docker.io/fluxcd/flux-prerelease:$(docker/image-tag)"
             fi
       - deploy:
-          name: Maybe push release image and upload binaries
+          name: Maybe push release images and upload binaries
           command: |
             if echo "${CIRCLE_TAG}" | grep -Eq "^[0-9]+(\.[0-9]+)*(-[a-z0-9]+)?$"; then
               # Publish binaries to GitHub
               go get github.com/weaveworks/github-release
-              make release-bins
+              make build-fluxctl
               bin/upload-binaries
 
-              # Publish image on DockerHub
+              # Publish images on DockerHub
               echo "$DOCKER_FLUXCD_PASSWORD" | docker login --username "$DOCKER_FLUXCD_USER" --password-stdin
               docker push "docker.io/fluxcd/flux:${CIRCLE_TAG}"
+              docker push "docker.io/fluxcd/fluxctl:${CIRCLE_TAG}"
 
               # Republish tag with v prefix so it is available to Go Mod
               git config --global user.email fluxcdbot@users.noreply.github.com

@@ -178,6 +178,15 @@ $(GENERATED_TEMPLATES_FILE): pkg/install/templates/*.tmpl pkg/install/generate.g
 check-generated: generate-deploy
 	git diff --exit-code -- deploy/
 
+build-fluxctl: release-bins
+	mkdir -p ./build/docker/fluxctl
+	cp ./build/fluxctl_linux_amd64 ./build/docker/fluxctl/fluxctl
+	cp ./docker/Dockerfile.fluxctl ./build/docker/fluxctl/Dockerfile
+	$(SUDO) docker build -t docker.io/fluxcd/fluxctl:$(IMAGE_TAG) \
+		--build-arg VCS_REF="$(VCS_REF)" \
+		--build-arg BUILD_DATE="$(BUILD_DATE)" \
+		-f ./build/docker/fluxctl/Dockerfile ./build/docker/fluxctl
+
 build-docs:
 	@cd docs && docker build -t flux-docs .
 
