@@ -2,5 +2,5 @@
 
 - [Get started](get-started.md)
 - [Get started using Helm](get-started-helm.md)
-- [Get started using kustomize](get-started-kustomize.md)
-- [Driving Flux](driving-flux.md)
+- [How to bootstrap Flux using Kustomize](get-started-kustomize.md)
+- [Automations, locks and annotations](driving-flux.md)

@@ -4,13 +4,13 @@
 
 ## Flux
 
-- [Introduction](introduction.md)
-- [Requirements](requirements.md)
+- [Introducing Flux](introduction.md)
+- [Requirements and limitations](requirements.md)
 - [Get Started](get-started/index.md)
 - [References](references/index.md)
 - [Guides](guides/index.md)
 - [Tutorials](tutorials/index.md)
-- [FAQ](faq.md)
+- [Frequently asked questions](faq.md)
 - [Troubleshooting](troubleshooting.md)
 
 ## Helm Operator
