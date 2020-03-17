@@ -35,3 +35,13 @@ markdown_extensions:
   - codehilite:
       guess_lang: false
   - pymdownx.superfences
+
+nav:
+  - Introducing Flux: introduction.md
+  - Requirements and limitations: requirements.md
+  - Get Started: get-started/index.md
+  - References: references/index.md
+  - Guides: guides/index.md
+  - Tutorials: tutorials/index.md
+  - Frequently asked questions: faq.md
+  - Troubleshooting: troubleshooting.md
