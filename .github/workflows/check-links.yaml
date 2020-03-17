@@ -1,0 +1,27 @@
+on: [push, pull_request]
+name: Check links
+jobs:
+  linkChecker:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r docs/requirements.txt
+      - name: Build docs for link check
+        run: mkdocs build
+      - name: Link Checker
+        id: lc
+        uses: peter-evans/link-checker@v1
+        with:
+          args: -r -d site/ -v site/index.html
+      - name: Fail if there were link errors
+        run: exit ${{ steps.lc.outputs.exit_code }}
