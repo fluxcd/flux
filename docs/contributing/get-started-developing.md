@@ -46,7 +46,7 @@ superseded by `Skaffold` and is generally the future.  That said,
 `freshpod` is very simple to use and reason about (and is still well
 supported by `minikube`) which is why it's used in this guide.
 
-## Run `fluxcd/flux-getting-started`
+## Run fluxcd/flux-getting-started
 
 We're going to make some changes soon enough, but just to get a good
 baseline please follow the ["Get started with Flux"](../tutorials/get-started.md)

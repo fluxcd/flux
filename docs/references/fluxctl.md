@@ -1,4 +1,4 @@
-# `fluxctl`
+# fluxctl
 
 `fluxctl` provides an API that can be used from the command line.
 
@@ -242,7 +242,7 @@ Example:
 fluxctl install --git-url 'git@github.com:<your username>/flux-get-started' | kubectl -f -
 ```
 
-See [here](../tutorials/get-started.html#set-up-flux) for a full tutorial which makes use of `fluxctl install`.
+See [here](../tutorials/get-started.md#set-up-flux) for a full tutorial which makes use of `fluxctl install`.
 
 ## Workloads
 

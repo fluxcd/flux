@@ -1,0 +1,37 @@
+site_name: Flux CD
+# site_description:
+site_author: Flux CD Project
+site_url: https://docs.fluxcd.io/
+
+# Repository
+repo_name: fluxcd/flux
+repo_url: https://github.com/fluxcd/flux
+edit_uri: ""
+
+theme:
+  name: material
+  logo: _files/flux-icon@2x.png
+  language: en
+  feature:
+    tabs: false
+  palette:
+    primary: blue
+    accent: indigo
+
+docs_dir: docs
+
+extra_css:
+  - _static/custom.css
+
+plugins:
+  - search
+    #  - redirects:
+    #  redirect_maps:
+    #    'guides/upgrading-to-ga.md': 'how-to/upgrade-to-ga.md'
+    #    'guides/upgrading-to-beta.md': 'how-to/upgrade-to-beta.md'
+
+markdown_extensions:
+  - admonition
+  - codehilite:
+      guess_lang: false
+  - pymdownx.superfences

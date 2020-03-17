@@ -35,8 +35,6 @@ IMAGE_TAG:=$(shell ./docker/image-tag)
 VCS_REF:=$(shell git rev-parse HEAD)
 BUILD_DATE:=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 
-DOCS_PORT:=8000
-
 GENERATED_TEMPLATES_FILE=pkg/install/generated_templates.gogen.go
 
 all: $(GOBIN)/fluxctl $(GOBIN)/fluxd build/.flux.done
@@ -186,13 +184,3 @@ build-fluxctl: release-bins
 		--build-arg VCS_REF="$(VCS_REF)" \
 		--build-arg BUILD_DATE="$(BUILD_DATE)" \
 		-f ./build/docker/fluxctl/Dockerfile ./build/docker/fluxctl
-
-build-docs:
-	@cd docs && docker build -t flux-docs .
-
-test-docs: build-docs
-	@docker run -it flux-docs /usr/bin/linkchecker _build/html/index.html
-
-serve-docs: build-docs
-	@echo Stating docs website on http://localhost:${DOCS_PORT}/_build/html/index.html
-	@docker run -i -p ${DOCS_PORT}:8000 -e USER_ID=$$UID flux-docs

@@ -13,3 +13,17 @@ code {
   font-family: "Roboto Mono", monospace;
 }
 
+.md-logo {
+    width: 54px;
+    height: 54px;
+    padding-bottom: 2px;
+    padding-top: 2px;
+}
+.md-logo img {
+    width: 44px;
+    height: 44px;
+}
+
+.md-header,.md-footer-nav {
+    background-image: linear-gradient(45deg, rgb(0, 150, 225) 0%, rgb(27, 141, 226) 24%, rgb(42, 125, 227) 53%, rgb(53, 112, 227) 78%, rgb(53, 112, 227) 100%);
+}
