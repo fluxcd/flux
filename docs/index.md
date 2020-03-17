@@ -1,7 +1,6 @@
 # Welcome to the Flux documentation!
 
-![](_files/flux-icon@2x.png)
-
+![](_files/flux-cd-diagram.png)
 
 ## Flux
 
