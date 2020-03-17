@@ -16,7 +16,7 @@
 
 ## Helm Operator
 
-- Documentation <https://docs.fluxcd.io/projects/helm-operator/>
+- [Documentation](https://docs.fluxcd.io/projects/helm-operator/)
 
 ## Contributing
 
