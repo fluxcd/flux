@@ -14,7 +14,7 @@ func MakeReleaseError(err error) *fluxerr.Error {
 This may be because of a limitation in the formats of file Flux can
 deal with. See
 
-    https://docs.fluxcd.io/en/latest/requirements.html
+    https://docs.fluxcd.io/en/latest/requirements
 
 for those limitations.
 
