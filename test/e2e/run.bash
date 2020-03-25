@@ -12,6 +12,7 @@ CACHE_DIR="${FLUX_ROOT_DIR}/cache/$CURRENT_OS_ARCH"
 
 KIND_VERSION=v0.7.0
 KUBE_VERSION=v1.14.10
+GITSRV_VERSION=v1.0.0
 KIND_CACHE_PATH="${CACHE_DIR}/kind-$KIND_VERSION"
 KIND_CLUSTER_PREFIX=flux-e2e
 BATS_EXTRA_ARGS=""
@@ -19,6 +20,11 @@ BATS_EXTRA_ARGS=""
 # shellcheck disable=SC1090
 source "${E2E_DIR}/lib/defer.bash"
 trap run_deferred EXIT
+
+function download_known_hosts() {
+  mkdir -p "${FLUX_ROOT_DIR}/cache"
+  curl -sL "https://github.com/fluxcd/gitsrv/releases/download/${GITSRV_VERSION}/known_hosts.txt" > "${FLUX_ROOT_DIR}/cache/known_hosts"
+}
 
 function install_kind() {
   if [ ! -f "${KIND_CACHE_PATH}" ]; then
@@ -62,6 +68,7 @@ if ! kubectl version > /dev/null 2>&1; then
 fi
 
 echo '>>> Running the tests'
+download_known_hosts
 # Run all tests by default but let users specify which ones to run, e.g. with E2E_TESTS='11_*' make e2e
 E2E_TESTS=${E2E_TESTS:-.}
 (
