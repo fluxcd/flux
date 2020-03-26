@@ -200,7 +200,9 @@ spec:
           {{- end }}
           - --git-url={{ .Values.git.url }}
           - --git-branch={{ .Values.git.branch }}
-          - --git-path={{ .Values.git.path }}
+          {{- range .Values.git.path }}
+          - --git-path={{ . | quote }}
+          {{- end }}
           - --git-readonly={{ .Values.git.readonly }}
           - --git-user={{ .Values.git.user }}
           - --git-email={{ .Values.git.email }}

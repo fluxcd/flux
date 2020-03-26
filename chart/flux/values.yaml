@@ -100,8 +100,8 @@ git:
   url: ""
   # Branch of git repo to use for Kubernetes manifests
   branch: "master"
-  # Path within git repo to locate Kubernetes manifests (relative path)
-  path: ""
+  # Path/s within git repo to locate Kubernetes manifests (relative path)
+  path: []
   # Set to `true` if you intend for Flux to not be able to push changes to git.
   # Also configure state.mode to `secret` since storing state in a git tag will no longer be possible.
   readonly: false
