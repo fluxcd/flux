@@ -106,8 +106,9 @@ type Cluster struct {
 	syncErrors   map[resource.ID]error
 	muSyncErrors sync.RWMutex
 
-	allowedNamespaces map[string]struct{}
-	loggedAllowedNS   map[string]bool // to keep track of whether we've logged a problem with seeing an allowed namespace
+	allowedNamespaces   map[string]struct{}
+	loggedAllowedNS     map[string]bool // to keep track of whether we've logged a problem with seeing an allowed namespace
+	loggedAllowedNSLock sync.RWMutex
 
 	imageIncluder       cluster.Includer
 	resourceExcludeList []string
@@ -317,13 +318,13 @@ func (c *Cluster) getAllowedAndExistingNamespaces(ctx context.Context) ([]string
 			ns, err := c.client.CoreV1().Namespaces().Get(name, meta_v1.GetOptions{})
 			switch {
 			case err == nil:
-				c.loggedAllowedNS[name] = false // reset, so if the namespace goes away we'll log it again
+				c.updateLoggedAllowedNS(name, false) // reset, so if the namespace goes away we'll log it again
 				nsList = append(nsList, ns.Name)
 			case apierrors.IsUnauthorized(err) || apierrors.IsForbidden(err) || apierrors.IsNotFound(err):
-				if !c.loggedAllowedNS[name] {
+				if !c.getLoggedAllowedNS(name) {
 					c.logger.Log("warning", "cannot access allowed namespace",
 						"namespace", name, "err", err)
-					c.loggedAllowedNS[name] = true
+					c.updateLoggedAllowedNS(name, true)
 				}
 			default:
 				return nil, err
@@ -336,6 +337,20 @@ func (c *Cluster) getAllowedAndExistingNamespaces(ctx context.Context) ([]string
 		return nil, err
 	}
 	return []string{meta_v1.NamespaceAll}, nil
+}
+
+func (c *Cluster) updateLoggedAllowedNS(key string, value bool) {
+	c.loggedAllowedNSLock.Lock()
+	defer c.loggedAllowedNSLock.Unlock()
+
+	c.loggedAllowedNS[key] = value
+}
+
+func (c *Cluster) getLoggedAllowedNS(key string) bool {
+	c.loggedAllowedNSLock.RLock()
+	defer c.loggedAllowedNSLock.RUnlock()
+
+	return c.loggedAllowedNS[key]
 }
 
 func (c *Cluster) IsAllowedResource(id resource.ID) bool {
