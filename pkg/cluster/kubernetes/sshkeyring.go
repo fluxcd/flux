@@ -31,6 +31,7 @@ type SSHKeyRingConfig struct {
 	SecretDataKey         string // e.g. "identity"
 	KeyBits               ssh.OptionalValue
 	KeyType               ssh.OptionalValue
+	KeyFormat             ssh.OptionalValue
 	KeyGenDir             string // a tmpfs mount; e.g., /var/fluxd/ssh
 }
 
@@ -102,7 +103,7 @@ func (skr *sshKeyRing) KeyPair() (publicKey ssh.PublicKey, privateKeyPath string
 // syscall.Mlockall(MCL_FUTURE) in conjunction with an appropriate ulimit to
 // ensure the private key isn't unintentionally written to persistent storage.
 func (skr *sshKeyRing) Regenerate() error {
-	tmpPrivateKeyPath, privateKey, publicKey, err := ssh.KeyGen(skr.KeyBits, skr.KeyType, skr.KeyGenDir)
+	tmpPrivateKeyPath, privateKey, publicKey, err := ssh.KeyGen(skr.KeyBits, skr.KeyType, skr.KeyFormat, skr.KeyGenDir)
 	if err != nil {
 		return err
 	}
