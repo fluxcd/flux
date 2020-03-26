@@ -27,6 +27,16 @@ spec:
         - containerPort: 22
           name: ssh
           protocol: TCP
+        readinessProbe:
+          tcpSocket:
+            port: 22
+          initialDelaySeconds: 20
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: 22
+          initialDelaySeconds: 20
+          periodSeconds: 10
         volumeMounts:
         - mountPath: /git-server/repos
           name: git-server-data
