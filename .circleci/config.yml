@@ -97,9 +97,6 @@ jobs:
           keys:
             - go-mod-{{ checksum "go.mod" }}
             - go-mod-
-      # Note that the test timeout is per Go package
-      - run: make test TEST_FLAGS="-race -tags integration -timeout 5m"
-      - run: make check-generated
       - run: make all
       - save_cache:
           key: cache-{{ checksum "Makefile" }}
