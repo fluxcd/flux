@@ -15,7 +15,7 @@
 - [Blueprint](references/blueprint.md)
 - [Daemon (fluxd)](references/daemon.md)
 - [fluxctl](references/fluxctl.md)
-- [Manifest generation through .flux.yaml configuration files](references/fluxyaml-config-files.md)
+- [Manifest generation through `.flux.yaml` configuration files](references/fluxyaml-config-files.md)
 - [Garbage collection](references/garbagecollection.md)
 - [Git commit signing and verification](references/git-gpg.md)
 - [Automated deployment of new container images](references/automated-image-update.md)

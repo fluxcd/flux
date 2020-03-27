@@ -1,4 +1,4 @@
-# fluxctl
+# `fluxctl`
 
 `fluxctl` provides an API that can be used from the command line.
 

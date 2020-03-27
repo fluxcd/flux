@@ -1,4 +1,4 @@
-# Daemon (fluxd)
+# Daemon (`fluxd`)
 
 ## Summary
 

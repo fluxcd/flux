@@ -166,7 +166,7 @@ the setup instructions linked above.
 
 ## Troubleshooting
 
-### The "kubectl delete" commands didn’t delete anything
+### The `kubectl delete` commands didn’t delete anything
 
 It’s possible that the Flux resources are in an unusual namespace or
 given a different name. As a last resort, you can hunt down the
