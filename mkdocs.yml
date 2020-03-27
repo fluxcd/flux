@@ -1,5 +1,5 @@
 site_name: Flux
-# site_description:
+site_description: Documentation for Flux, the GitOps Kubernetes operator.
 site_author: Flux Project
 site_url: https://docs.fluxcd.io/
 
