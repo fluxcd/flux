@@ -73,7 +73,7 @@ In this next step you install Flux using `helm`. Simply
     kubectl create namespace flux
     ```
  
- 1. Install Flux and the Helm operator by specifying your fork URL:
+ 1. Install Flux and the Helm Operator by specifying your fork URL:
 
       *Just make sure you replace `YOURUSER` with your GitHub username
       in the command below:*

@@ -1,4 +1,4 @@
-# How to release Flux and the Helm operator
+# How to release Flux
 
 The release process needs to do these things:
 

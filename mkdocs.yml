@@ -50,7 +50,7 @@ nav:
     - Garbage collection: references/garbagecollection.md
     - Git commit signing and verification: references/git-gpg.md
     - Automated deployment of new container images: references/automated-image-update.md
-    - Integration with the Helm operator: references/helm-operator-integration.md
+    - Integration with the Helm Operator: references/helm-operator-integration.md
     - Monitoring Flux: references/monitoring.md
   - Guides:
     - Providing your own SSH key: guides/provide-own-ssh-key.md
