@@ -1,46 +1,43 @@
-# Welcome to the Flux documentation!
+# Flux documentation
 
 ![](_files/flux-cd-diagram.png)
 
-## Flux
+Flux is a tool that automatically ensures that the state of a cluster matches
+the config in git. It uses [an operator](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/)
+in the cluster to trigger deployments inside Kubernetes, which means you don't
+need a separate CD tool. It monitors all relevant image repositories, detects
+new images, triggers deployments and updates the desired running configuration
+based on that (and a configurable policy).
 
-- [Introducing Flux](introduction.md)
-- [Requirements and limitations](requirements.md)
-- [Get Started](get-started/index.md)
-- [Frequently asked questions](faq.md)
-- [Troubleshooting](troubleshooting.md)
+The benefits are: you don't need to grant your CI access to the cluster, every
+change is atomic and transactional, git has your audit log. Each transaction
+either fails or succeeds cleanly. You're entirely code centric and don't need
+new infrastructure.
 
-### References
+## Get started
 
-- [Blueprint](references/blueprint.md)
-- [Daemon (fluxd)](references/daemon.md)
-- [fluxctl](references/fluxctl.md)
-- [Manifest generation through `.flux.yaml` configuration files](references/fluxyaml-config-files.md)
-- [Garbage collection](references/garbagecollection.md)
-- [Git commit signing and verification](references/git-gpg.md)
-- [Automated deployment of new container images](references/automated-image-update.md)
-- [Integration with the Helm operator](references/helm-operator-integration.md)
-- [Monitoring Flux](references/monitoring.md)
+With the following tutorials:
 
-### Guides
+- [Get started with Flux](tutorials/get-started.md)
+- [Get started with Flux using Helm](tutorials/get-started-helm.md)
 
-- [Providing your own SSH key](guides/provide-own-ssh-key.md)
-- [Using Git over HTTPS](guides/use-git-https.md)
-- [Using a private Git host](guides/use-private-git-host.md)
-- [Upgrading to Flux v1](guides/upgrading-to-1.0.md)
+Making use of Helm charts in your cluster? Combine Flux with the [Helm
+Operator](https://github.com/fluxcd/helm-operator) to declaratively manage chart
+releases using `HelmRelease` custom resources.
 
-### Tutorials
+For progressive delivery patterns like Canary Releases, A/B Testing and Blue/Green,
+Flux can be used together with [Flagger](https://github.com/weaveworks/flagger).
 
-- [Get started](tutorials/get-started.md)
-- [Get started using Helm](tutorials/get-started-helm.md)
-- [How to bootstrap Flux using Kustomize](tutorials/get-started-kustomize.md)
-- [Automations, locks and annotations](tutorials/driving-flux.md)
+## Getting help
 
-## Helm Operator
+If you have any questions about Flux and continuous delivery:
 
-- [Documentation](https://docs.fluxcd.io/projects/helm-operator/)
+- Invite yourself to the <a href="https://slack.cncf.io" target="_blank">CNCF community</a>
+  slack and ask a question on the [#flux](https://cloud-native.slack.com/messages/flux/)
+  channel.
+- To be part of the conversation about Flux's development, join the
+  [flux-dev mailing list](https://lists.cncf.io/g/cncf-flux-dev).
+- [File an issue.](https://github.com/fluxcd/flux/issues/new/choose)
 
-## Contributing
+Your feedback is always welcome!
 
-- [Get started developing](contributing/get-started-developing.md)
-- [Building Flux](contributing/building.md)
