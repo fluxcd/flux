@@ -81,8 +81,8 @@ could easily integrate.
 
 With the following tutorials:
 
-- [Get started with Flux](https://docs.fluxcd.io/en/latest/tutorials/get-started.html)
-- [Get started with Flux using Helm](https://docs.fluxcd.io/en/latest/tutorials/get-started-helm.html)
+- [Get started with Flux](https://docs.fluxcd.io/en/latest/tutorials/get-started)
+- [Get started with Flux using Helm](https://docs.fluxcd.io/en/latest/tutorials/get-started-helm)
 
 or just [browse through the documentation](https://docs.fluxcd.io).
 
@@ -116,7 +116,7 @@ To familiarise yourself with the project and how things work, you might
 be interested in the following:
 
 - [Our contributions guidelines](CONTRIBUTING.md)
-- [Build documentation](https://docs.fluxcd.io/en/latest/contributing/building.html)
+- [Build documentation](https://docs.fluxcd.io/en/latest/contributing/building)
 - [Release documentation](/internal_docs/releasing.md)
 
 ## <a name="help"></a>Getting Help

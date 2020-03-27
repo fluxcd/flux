@@ -1,3 +1,4 @@
-sphinx                 == 2.3.0
-sphinx_markdown_tables == 0.0.10
-recommonmark           == 0.6.0
+mkdocs                  == 1.1
+mkdocs-material         == 4.6.3
+mkdocs-redirects
+pymdown-extensions      == 6.3.0
