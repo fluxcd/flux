@@ -174,7 +174,7 @@ $(GENERATED_TEMPLATES_FILE): pkg/install/templates/*.tmpl pkg/install/generate.g
 	cd ./pkg/install &&  go generate .
 
 check-generated: generate-deploy
-	git diff --exit-code -- deploy/
+	git diff --exit-code -- deploy/ pkg/install/
 
 build-fluxctl: release-bins
 	mkdir -p ./build/docker/fluxctl
