@@ -15,7 +15,7 @@ Every image tag must be unique, for this you can use the Git commit SHA or semve
 ## Examples
 
 What follows is a list of examples on how you can control the image update automation. If you're using Helm releases 
-please see the [Helm operator integration docs](helm-operator-integration.md).
+please see the [Helm Operator integration docs](helm-operator-integration.md).
 
 Turn on automation based on timestamp:
 
