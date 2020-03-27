@@ -58,13 +58,13 @@ container images and config changes are propagated to the cluster.
 |[iQmetrix](https://www.iqmetrix.com)|[karriere tutor GmbH](https://www.karrieretutor.de)|[Limejump](https://limejump.com)
 |[loveholidays](https://www.loveholidays.com/)|[LUNAR](https://www.lunarway.com/)|[MediaMarktSaturn](https://www.mediamarktsaturn.com)
 |[Mettle](https://mettle.co.uk)|[Mintel](https://www.mintel.com)|[Multicaja S.A](https://www.multicaja.cl)
-|[Omise](https://www.omise.co)|[Payout](https://payout.one)|[Qordoba](https://qordoba.com)
-|[Rakuten](https://rakuten.com)|[Replicated](https://replicated.com)|[Rungway](https://rungway.com)
-|[Sage AI Labs](https://www.sage.com)|[Starbucks](https://www.starbucks.com/)|[Troii](https://troii.com/)
-|[UK Hydrographic Office](https://www.gov.uk/government/organisations/uk-hydrographic-office)|[Under Armour](https://www.underarmour.com)|[VSHN](https://vshn.ch)
-|[Walmart Chile](https://www.walmartchile.cl)|[Weave Cloud](https://cloud.weave.works)|[Workable](https://www.workable.com)
-|[Workarea](https://www.workarea.com)|[Working Group Two](https://wgtwo.com)|[Yusofleet](https://yusofleet.com)
-|[Yad2](https://yad2.co.il)|[Zaaksysteem](https://zaaksysteem.nl)
+|[Okteto Cloud](https://www.omise.co)|[Omise](https://www.omise.co)|[Payout](https://payout.one)
+|[Qordoba](https://qordoba.com)|[Rakuten](https://rakuten.com)|[Replicated](https://replicated.com)
+|[Rungway](https://rungway.com)|[Sage AI Labs](https://www.sage.com)|[Starbucks](https://www.starbucks.com/)
+|[Troii](https://troii.com/)|[UK Hydrographic Office](https://www.gov.uk/government/organisations/uk-hydrographic-office)|[Under Armour](https://www.underarmour.com)
+|[VSHN](https://vshn.ch)|[Walmart Chile](https://www.walmartchile.cl)|[Weave Cloud](https://cloud.weave.works)
+|[Workable](https://www.workable.com)|[Workarea](https://www.workarea.com)|[Working Group Two](https://wgtwo.com)
+|[Yusofleet](https://yusofleet.com)|[Yad2](https://yad2.co.il)|[Zaaksysteem](https://zaaksysteem.nl)
 
 If you too are using Flux in production; please submit a PR to add your organization to the list!
 
