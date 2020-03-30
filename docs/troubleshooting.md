@@ -62,7 +62,7 @@ to [this problem](https://github.com/fluxcd/flux/issues/1596). In
 short, there was a breaking change to how `kubectl` creates secrets,
 that found its way into the Kubernetes 1.13.0 release. It has been
 corrected in [kubectl
-v1.13.2](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG-1.13.md#changelog-since-v1131),
+v1.13.2](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-1.13.md#changelog-since-v1131),
 so using that version or newer to create secrets should fix the
 problem.
 

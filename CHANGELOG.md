@@ -941,8 +941,8 @@ Many thanks for contributions from @2opremio, @AndriiOmelianenko,
 [weaveworks/flux#2138]: https://github.com/weaveworks/flux/pull/2138
 [weaveworks/flux#2140]: https://github.com/weaveworks/flux/pull/2140
 [weaveworks/flux#2142]: https://github.com/weaveworks/flux/pull/2142
-[manifest-generation-docs]: https://github.com/weaveworks/flux/blob/master/site/fluxyaml-config-files.md
-[gpg-docs]: https://github.com/weaveworks/flux/blob/master/site/git-gpg.md
+[manifest-generation-docs]: https://github.com/fluxcd/flux/blob/master/docs/references/fluxyaml-config-files.md
+[gpg-docs]: https://github.com/fluxcd/flux/blob/master/docs/references/git-gpg.md
 
 ## 1.12.3 (2019-05-22)
 
@@ -1222,8 +1222,8 @@ syncs to fail when adding a CRD and instance(s) from that CRD at the same time.
 This release comes with experimental garbage collection and Git commit signing:
 
 1. Experimental garbage collection of cluster resources. When providing the
-   `--sync-garbage-collection` flag, cluster resources no longer existing in Git 
-   will be removed. Read the [garbage collection documentation](site/garbagecollection.md) 
+   `--sync-garbage-collection` flag, cluster resources no longer existing in Git
+   will be removed. Read the [garbage collection documentation](docs/references/garbagecollection.md)
    for further details.
 
 2. [GPG](https://en.wikipedia.org/wiki/GNU_Privacy_Guard)
@@ -1897,8 +1897,8 @@ reindent blocks the first time it changes a file.
 ### Experimental
 
 - Alpha release of
-  [helm-operator](https://github.com/weaveworks/flux/blob/master/site/helm/helm-integration.md). See
-  [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md) for future releases.
+  [helm-operator](https://github.com/fluxcd/flux/blob/master/docs/references/helm-operator-integration.md). See
+  [./CHANGELOG-helmop.md](https://github.com/fluxcd/helm-operator/blob/master/CHANGELOG.md) for future releases.
 
 ## 1.2.3 (2018-02-07)
 

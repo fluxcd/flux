@@ -117,7 +117,7 @@ be interested in the following:
 
 - [Our contributions guidelines](CONTRIBUTING.md)
 - [Build documentation](https://docs.fluxcd.io/en/latest/contributing/building)
-- [Release documentation](/internal_docs/releasing.md)
+- [Release documentation](internal/docs/releasing.md)
 
 ## <a name="help"></a>Getting Help
 

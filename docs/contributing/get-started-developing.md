@@ -227,7 +227,8 @@ and run what we have locally.
 ## Make some changes
 
 1. Now for the part you've been waiting for! We're going to make a
-   cosmetic change to our local copy of Flux. Navigate to [git/operations.go](https://github.com/fluxcd/flux/blob/master/git/operations.go).
+   cosmetic change to our local copy of Flux. Navigate to
+   [git/operations.go](https://github.com/fluxcd/flux/blob/master/pkg/git/operations.go).
    In it, you will find a private function to this package that goes
    by the name `execGitCmd`. Paste the following as the (new) first
    line of the function:
