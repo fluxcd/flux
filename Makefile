@@ -37,7 +37,7 @@ BUILD_DATE:=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 
 GENERATED_TEMPLATES_FILE=pkg/install/generated_templates.gogen.go
 
-all: $(GOBIN)/fluxctl $(GOBIN)/fluxd build/.flux.done
+all: $(GOBIN)/fluxctl build/.flux.done
 
 release-bins: $(GENERATED_TEMPLATES_FILE)
 	for arch in amd64; do \
@@ -64,6 +64,9 @@ test: test/bin/helm test/bin/kubectl test/bin/sops test/bin/kustomize $(GENERATE
 
 e2e: lint-e2e test/bin/helm test/bin/kubectl test/bin/sops test/bin/crane test/e2e/bats $(GOBIN)/fluxctl build/.flux.done
 	PATH="${PWD}/test/bin:${PATH}" CURRENT_OS_ARCH=$(CURRENT_OS_ARCH) test/e2e/run.bash
+
+e2e-gh: lint-e2e test/bin/helm test/bin/kubectl test/bin/sops test/bin/crane test/e2e/bats
+	PATH="${PWD}/test/bin:${PATH}" CURRENT_OS_ARCH=$(CURRENT_OS_ARCH) test/e2e/run-gh.bash
 
 E2E_BATS_FILES := test/e2e/*.bats
 E2E_BASH_FILES := test/e2e/run.bash test/e2e/lib/*

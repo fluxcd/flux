@@ -1,7 +1,13 @@
-on: [push, pull_request]
-name: Check links
+name: docs
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
 jobs:
-  linkChecker:
+  link-checker:
     runs-on: ubuntu-latest
     strategy:
       matrix:

@@ -97,11 +97,7 @@ jobs:
           keys:
             - go-mod-{{ checksum "go.mod" }}
             - go-mod-
-      # Note that the test timeout is per Go package
-      - run: make test TEST_FLAGS="-race -tags integration -timeout 5m"
-      - run: make check-generated
       - run: make all
-      - run: E2E_KIND_CLUSTER_NUM=4 make e2e
       - save_cache:
           key: cache-{{ checksum "Makefile" }}
           paths:
