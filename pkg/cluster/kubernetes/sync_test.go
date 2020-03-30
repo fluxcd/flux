@@ -24,7 +24,6 @@ import (
 	corefake "k8s.io/client-go/kubernetes/fake"
 	k8s_testing "k8s.io/client-go/testing"
 
-	fhrfake "github.com/fluxcd/flux/integrations/client/clientset/versioned/fake"
 	"github.com/fluxcd/flux/pkg/cluster"
 	kresource "github.com/fluxcd/flux/pkg/cluster/kubernetes/resource"
 	"github.com/fluxcd/flux/pkg/resource"
@@ -63,7 +62,6 @@ func fakeClients() (ExtendedClient, func()) {
 	}
 
 	coreClient := corefake.NewSimpleClientset(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: defaultTestNamespace}})
-	fhrClient := fhrfake.NewSimpleClientset()
 	hrClient := helmopfake.NewSimpleClientset()
 	dynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
 	crdClient := crdfake.NewSimpleClientset()
@@ -77,7 +75,7 @@ func fakeClients() (ExtendedClient, func()) {
 	coreClient.Fake.Resources = apiResources
 
 	if debug {
-		for _, fake := range []*k8s_testing.Fake{&coreClient.Fake, &fhrClient.Fake, &hrClient.Fake, &dynamicClient.Fake} {
+		for _, fake := range []*k8s_testing.Fake{&coreClient.Fake, &hrClient.Fake, &dynamicClient.Fake} {
 			fake.PrependReactor("*", "*", func(action k8s_testing.Action) (bool, runtime.Object, error) {
 				gvr := action.GetResource()
 				fmt.Printf("[DEBUG] action: %s ns:%s %s/%s %s\n", action.GetVerb(), action.GetNamespace(), gvr.Group, gvr.Version, gvr.Resource)
@@ -88,7 +86,6 @@ func fakeClients() (ExtendedClient, func()) {
 
 	ec := ExtendedClient{
 		coreClient:         coreClient,
-		fluxHelmClient:     fhrClient,
 		helmOperatorClient: hrClient,
 		dynamicClient:      dynamicClient,
 		discoveryClient:    discoveryClient,

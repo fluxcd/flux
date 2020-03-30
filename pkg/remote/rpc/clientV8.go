@@ -27,7 +27,7 @@ type clientV8 interface {
 
 var _ clientV8 = &RPCClientV8{}
 
-var supportedKindsV8 = []string{"deployment", "daemonset", "statefulset", "cronjob", "fluxhelmrelease", "helmrelease"}
+var supportedKindsV8 = []string{"deployment", "daemonset", "statefulset", "cronjob", "helmrelease"}
 
 // NewClient creates a new rpc-backed implementation of the server.
 func NewClientV8(conn io.ReadWriteCloser) *RPCClientV8 {

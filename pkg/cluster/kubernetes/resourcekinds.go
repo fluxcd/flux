@@ -10,8 +10,6 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	hr_v1beta1 "github.com/fluxcd/flux/integrations/apis/flux.weave.works/v1beta1"
-	fhr_v1alpha2 "github.com/fluxcd/flux/integrations/apis/helm.integrations.flux.weave.works/v1alpha2"
 	"github.com/fluxcd/flux/pkg/cluster"
 	kresource "github.com/fluxcd/flux/pkg/cluster/kubernetes/resource"
 	"github.com/fluxcd/flux/pkg/image"
@@ -45,7 +43,6 @@ func init() {
 	resourceKinds["deployment"] = &deploymentKind{}
 	resourceKinds["statefulset"] = &statefulSetKind{}
 	resourceKinds["helmrelease"] = &helmReleaseKind{}
-	resourceKinds["fluxhelmrelease"] = &fluxHelmReleaseKind{}
 }
 
 type workload struct {
@@ -403,108 +400,23 @@ func makeCronJobWorkload(cronJob *apibatch.CronJob) workload {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// helm.integrations.flux.weave.works/v1alpha2 FluxHelmRelease
-
-type fluxHelmReleaseKind struct{}
-
-func (fhr *fluxHelmReleaseKind) getWorkload(ctx context.Context, c *Cluster, namespace, name string) (workload, error) {
-	if err := ctx.Err(); err != nil {
-		return workload{}, err
-	}
-	fluxHelmRelease, err := c.client.HelmV1alpha2().FluxHelmReleases(namespace).Get(name, meta_v1.GetOptions{})
-	if err != nil {
-		return workload{}, err
-	}
-	return makeFluxHelmReleaseWorkload(fluxHelmRelease), nil
-}
-
-func (fhr *fluxHelmReleaseKind) getWorkloads(ctx context.Context, c *Cluster, namespace string) ([]workload, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	fluxHelmReleases, err := c.client.HelmV1alpha2().FluxHelmReleases(namespace).List(meta_v1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	var workloads []workload
-	for i, _ := range fluxHelmReleases.Items {
-		workloads = append(workloads, makeFluxHelmReleaseWorkload(&fluxHelmReleases.Items[i]))
-	}
-
-	return workloads, nil
-}
-
-func makeFluxHelmReleaseWorkload(fluxHelmRelease *fhr_v1alpha2.FluxHelmRelease) workload {
-	containers := createK8sHRContainers(fluxHelmRelease.ObjectMeta.Annotations, fluxHelmRelease.Spec.Values)
-
-	podTemplate := apiv1.PodTemplateSpec{
-		ObjectMeta: fluxHelmRelease.ObjectMeta,
-		Spec: apiv1.PodSpec{
-			Containers:       containers,
-			ImagePullSecrets: []apiv1.LocalObjectReference{},
-		},
-	}
-	// apiVersion & kind must be set, since TypeMeta is not populated
-	fluxHelmRelease.APIVersion = "helm.integrations.flux.weave.works/v1alpha2"
-	fluxHelmRelease.Kind = "FluxHelmRelease"
-	return workload{
-		status:      fluxHelmRelease.Status.ReleaseStatus,
-		podTemplate: podTemplate,
-		k8sObject:   fluxHelmRelease,
-	}
-}
-
-// createK8sContainers creates a list of k8s containers by
-// interpreting the HelmRelease resource. The interpretation is
-// analogous to that in cluster/kubernetes/resource/fluxhelmrelease.go
-func createK8sHRContainers(annotations map[string]string, values map[string]interface{}) []apiv1.Container {
-	var containers []apiv1.Container
-	kresource.FindHelmReleaseContainers(annotations, values, func(name string, image image.Ref, _ kresource.ImageSetter) error {
-		containers = append(containers, apiv1.Container{
-			Name:  name,
-			Image: image.String(),
-		})
-		return nil
-	})
-	return containers
-}
-
-/////////////////////////////////////////////////////////////////////////////
 // flux.weave.works/v1beta1 HelmRelease
-// flux.fluxcd.io/v1        HelmRelease
 
 type helmReleaseKind struct{}
 
-// getWorkload attempts to resolve a HelmRelease, it does so by first
-// requesting the v1 version, and falling back to v1beta1 if this gives
-// no result. In case the latter also fails it returns the error.
-// TODO(hidde): this creates a new problem, as it will always return
-// the error for the v1beta1 resource. Which may not be accurate in
-// case v1beta1 is not active in the cluster at all. One potential
-// solution may be to collect both errors and see if one outweighs
-// the other.
+// getWorkload attempts to resolve a HelmRelease
 func (hr *helmReleaseKind) getWorkload(ctx context.Context, c *Cluster, namespace, name string) (workload, error) {
 	if err := ctx.Err(); err != nil {
 		return workload{}, err
 	}
 	if helmRelease, err := c.client.HelmV1().HelmReleases(namespace).Get(name, meta_v1.GetOptions{}); err == nil {
 		return makeHelmReleaseStableWorkload(helmRelease), err
-	}
-	helmRelease, err := c.client.FluxV1beta1().HelmReleases(namespace).Get(name, meta_v1.GetOptions{})
-	if err != nil {
+	} else {
 		return workload{}, err
 	}
-	return makeHelmReleaseBetaWorkload(helmRelease), nil
 }
 
-// getWorkloads collects v1 and v1beta1 HelmRelease workloads, if the
-// same workload (by name) is found for two versions, only the v1
-// version is returned. This is so that the workload results returned
-// by this method are always valid for `getWorkload` and return the
-// same resource.
-// TODO(hidde): again, the cost of backwards compatibility is silencing
-// errors.
+// getWorkloads collects v1 HelmRelease workloads
 func (hr *helmReleaseKind) getWorkloads(ctx context.Context, c *Cluster, namespace string) ([]workload, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -517,37 +429,11 @@ func (hr *helmReleaseKind) getWorkloads(ctx context.Context, c *Cluster, namespa
 			workloads = append(workloads, workload)
 			names[workload.GetName()] = true
 		}
+	} else {
+		return nil, err
 	}
-	if helmReleases, err := c.client.FluxV1beta1().HelmReleases(namespace).List(meta_v1.ListOptions{}); err == nil {
-		for i, _ := range helmReleases.Items {
-			workload := makeHelmReleaseBetaWorkload(&helmReleases.Items[i])
-			if names[workload.GetName()] {
-				continue
-			}
-			workloads = append(workloads, workload)
-		}
-	}
+
 	return workloads, nil
-}
-
-func makeHelmReleaseBetaWorkload(helmRelease *hr_v1beta1.HelmRelease) workload {
-	containers := createK8sHRContainers(helmRelease.ObjectMeta.Annotations, helmRelease.Spec.Values)
-
-	podTemplate := apiv1.PodTemplateSpec{
-		ObjectMeta: helmRelease.ObjectMeta,
-		Spec: apiv1.PodSpec{
-			Containers:       containers,
-			ImagePullSecrets: []apiv1.LocalObjectReference{},
-		},
-	}
-	// apiVersion & kind must be set, since TypeMeta is not populated
-	helmRelease.APIVersion = "flux.weave.works/v1beta1"
-	helmRelease.Kind = "HelmRelease"
-	return workload{
-		status:      helmRelease.Status.ReleaseStatus,
-		podTemplate: podTemplate,
-		k8sObject:   helmRelease,
-	}
 }
 
 func makeHelmReleaseStableWorkload(helmRelease *hr_v1.HelmRelease) workload {
@@ -568,4 +454,18 @@ func makeHelmReleaseStableWorkload(helmRelease *hr_v1.HelmRelease) workload {
 		podTemplate: podTemplate,
 		k8sObject:   helmRelease,
 	}
+}
+
+// createK8sContainers creates a list of k8s containers by
+// interpreting the HelmRelease resource.
+func createK8sHRContainers(annotations map[string]string, values map[string]interface{}) []apiv1.Container {
+	var containers []apiv1.Container
+	kresource.FindHelmReleaseContainers(annotations, values, func(name string, image image.Ref, _ kresource.ImageSetter) error {
+		containers = append(containers, apiv1.Container{
+			Name:  name,
+			Image: image.String(),
+		})
+		return nil
+	})
+	return containers
 }

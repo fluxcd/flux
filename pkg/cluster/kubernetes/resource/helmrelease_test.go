@@ -872,17 +872,14 @@ func TestParseMappedImageOnly(t *testing.T) {
 	expectedContainer := "mariadb"
 	expectedImage := "bitnami/mariadb:10.1.30-r1"
 	doc := `---
-apiVersion: helm.integrations.flux.weave.works/v1alpha2
-kind: FluxHelmRelease
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
 metadata:
   name: mariadb
   namespace: maria
   annotations:
     ` + ImageRepositoryPrefix + expectedContainer + `: customRepository
-  labels:
-    chart: mariadb
 spec:
-  chartGitPath: mariadb
   values:
     first: post
     customRepository: ` + expectedImage + `
@@ -894,7 +891,7 @@ spec:
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, ok := resources["maria:fluxhelmrelease/mariadb"]
+	res, ok := resources["maria:helmrelease/mariadb"]
 	if !ok {
 		t.Fatalf("expected resource not found; instead got %#v", resources)
 	}
@@ -940,18 +937,15 @@ func TestParseMappedImageTag(t *testing.T) {
 	expectedImageTag := "10.1.30-r1"
 	expectedImage := expectedImageName + ":" + expectedImageTag
 	doc := `---
-apiVersion: helm.integrations.flux.weave.works/v1alpha2
-kind: FluxHelmRelease
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
 metadata:
   name: mariadb
   namespace: maria
   annotations:
     ` + ImageRepositoryPrefix + expectedContainer + `: customRepository
     ` + ImageTagPrefix + expectedContainer + `: customTag
-  labels:
-    chart: mariadb
 spec:
-  chartGitPath: mariadb
   values:
     first: post
     customRepository: ` + expectedImageName + `
@@ -964,7 +958,7 @@ spec:
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, ok := resources["maria:fluxhelmrelease/mariadb"]
+	res, ok := resources["maria:helmrelease/mariadb"]
 	if !ok {
 		t.Fatalf("expected resource not found; instead got %#v", resources)
 	}
@@ -1010,18 +1004,15 @@ func TestParseMappedRegistryImage(t *testing.T) {
 	expectedImageName := "bitnami/mariadb:10.1.30-r1"
 	expectedImage := expectedRegistry + "/" + expectedImageName
 	doc := `---
-apiVersion: helm.integrations.flux.weave.works/v1alpha2
-kind: FluxHelmRelease
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
 metadata:
   name: mariadb
   namespace: maria
   annotations:
     ` + ImageRegistryPrefix + expectedContainer + `: customRegistry
     ` + ImageRepositoryPrefix + expectedContainer + `: customImage
-  labels:
-    chart: mariadb
 spec:
-  chartGitPath: mariadb
   values:
     first: post
     customRegistry: ` + expectedRegistry + `
@@ -1034,7 +1025,7 @@ spec:
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, ok := resources["maria:fluxhelmrelease/mariadb"]
+	res, ok := resources["maria:helmrelease/mariadb"]
 	if !ok {
 		t.Fatalf("expected resource not found; instead got %#v", resources)
 	}
@@ -1081,8 +1072,8 @@ func TestParseMappedRegistryImageTag(t *testing.T) {
 	expectedImageTag := "10.1.30-r1"
 	expectedImage := expectedRegistry + "/" + expectedImageName + ":" + expectedImageTag
 	doc := `---
-apiVersion: helm.integrations.flux.weave.works/v1alpha2
-kind: FluxHelmRelease
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
 metadata:
   name: mariadb
   namespace: maria
@@ -1090,10 +1081,7 @@ metadata:
     ` + ImageRegistryPrefix + expectedContainer + `: customRegistry
     ` + ImageRepositoryPrefix + expectedContainer + `: customRepository
     ` + ImageTagPrefix + expectedContainer + `: customTag
-  labels:
-    chart: mariadb
 spec:
-  chartGitPath: mariadb
   values:
     first: post
     customRegistry: ` + expectedRegistry + `
@@ -1107,7 +1095,7 @@ spec:
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, ok := resources["maria:fluxhelmrelease/mariadb"]
+	res, ok := resources["maria:helmrelease/mariadb"]
 	if !ok {
 		t.Fatalf("expected resource not found; instead got %#v", resources)
 	}
@@ -1151,17 +1139,14 @@ func TestParseMappedTagOnly(t *testing.T) {
 	container := "mariadb"
 	imageTag := "10.1.30-r1"
 	doc := `---
-apiVersion: helm.integrations.flux.weave.works/v1alpha2
-kind: FluxHelmRelease
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
 metadata:
   name: mariadb
   namespace: maria
   annotations:
     ` + ImageTagPrefix + container + `: customTag
-  labels:
-    chart: mariadb
 spec:
-  chartGitPath: mariadb
   values:
     first: post
     customTag: ` + imageTag + `
@@ -1173,7 +1158,7 @@ spec:
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, ok := resources["maria:fluxhelmrelease/mariadb"]
+	res, ok := resources["maria:helmrelease/mariadb"]
 	if !ok {
 		t.Fatalf("expected resource not found; instead got %#v", resources)
 	}
@@ -1200,8 +1185,8 @@ func TestParseMappedImageFormats(t *testing.T) {
 	}
 
 	doc := `---
-apiVersion: helm.integrations.flux.weave.works/v1alpha2
-kind: FluxHelmRelease
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
 metadata:
   name: test
   namespace: test
@@ -1219,7 +1204,6 @@ metadata:
     ` + ImageRepositoryPrefix + expected[3].name + `: ` + expected[3].name + `.nested.deep.customRepository
     ` + ImageTagPrefix + expected[3].name + `: ` + expected[3].name + `.nested.deep.customTag
 spec:
-  chartGitPath: test
   values:
     # Top level image
     customRepository: ` + expected[0].image + `
@@ -1248,7 +1232,7 @@ spec:
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, ok := resources["test:fluxhelmrelease/test"]
+	res, ok := resources["test:helmrelease/test"]
 	if !ok {
 		t.Fatalf("expected resource not found; instead got %#v", resources)
 	}

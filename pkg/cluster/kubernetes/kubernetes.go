@@ -17,7 +17,6 @@ import (
 	k8sclientdynamic "k8s.io/client-go/dynamic"
 	k8sclient "k8s.io/client-go/kubernetes"
 
-	fhrclient "github.com/fluxcd/flux/integrations/client/clientset/versioned"
 	"github.com/fluxcd/flux/pkg/cluster"
 	kresource "github.com/fluxcd/flux/pkg/cluster/kubernetes/resource"
 	"github.com/fluxcd/flux/pkg/resource"
@@ -26,25 +25,22 @@ import (
 
 type coreClient k8sclient.Interface
 type dynamicClient k8sclientdynamic.Interface
-type fluxHelmClient fhrclient.Interface
 type helmOperatorClient hrclient.Interface
 type discoveryClient discovery.DiscoveryInterface
 
 type ExtendedClient struct {
 	coreClient
 	dynamicClient
-	fluxHelmClient
 	helmOperatorClient
 	discoveryClient
 }
 
-func MakeClusterClientset(core coreClient, dyn dynamicClient, fluxhelm fluxHelmClient,
+func MakeClusterClientset(core coreClient, dyn dynamicClient,
 	helmop helmOperatorClient, disco discoveryClient) ExtendedClient {
 
 	return ExtendedClient{
 		coreClient:         core,
 		dynamicClient:      dyn,
-		fluxHelmClient:     fluxhelm,
 		helmOperatorClient: helmop,
 		discoveryClient:    disco,
 	}

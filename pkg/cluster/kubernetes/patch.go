@@ -109,7 +109,7 @@ func applyManifestPatch(originalManifests, patchManifests []byte, originalSource
 func getFullScheme() *runtime.Scheme {
 	fullScheme := runtime.NewScheme()
 	utilruntime.Must(k8sscheme.AddToScheme(fullScheme))
-	// HelmRelease and FluxHelmRelease are intentionally not added to the scheme.
+	// HelmReleases are intentionally not added to the scheme.
 	// This is done for two reasons:
 	// 1. The kubernetes strategic merge patcher chokes on the freeform
 	//    values under `values:`.

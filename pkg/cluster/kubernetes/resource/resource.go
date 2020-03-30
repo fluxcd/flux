@@ -203,7 +203,7 @@ func unmarshalKind(base baseObject, bytes []byte) (KubeManifest, error) {
 		var list List
 		unmarshalList(base, &raw, &list)
 		return &list, nil
-	case base.Kind == "FluxHelmRelease" || base.Kind == "HelmRelease":
+	case base.Kind == "HelmRelease":
 		var hr = HelmRelease{baseObject: base}
 		// NB: workaround for go-yaml/yaml/issues/139
 		// By using github.com/ghodss/yaml to unmarshal HelmReleases.
