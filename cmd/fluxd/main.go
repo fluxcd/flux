@@ -32,7 +32,6 @@ import (
 
 	helmopclient "github.com/fluxcd/helm-operator/pkg/client/clientset/versioned"
 
-	hrclient "github.com/fluxcd/flux/integrations/client/clientset/versioned"
 	"github.com/fluxcd/flux/pkg/checkpoint"
 	"github.com/fluxcd/flux/pkg/cluster"
 	"github.com/fluxcd/flux/pkg/cluster/kubernetes"
@@ -443,12 +442,6 @@ func main() {
 			os.Exit(1)
 		}
 
-		fhrClientset, err := hrclient.NewForConfig(restClientConfig)
-		if err != nil {
-			logger.Log("error", fmt.Sprintf("Error building hrclient clientset: %v", err))
-			os.Exit(1)
-		}
-
 		hrClientset, err := helmopclient.NewForConfig(restClientConfig)
 		if err != nil {
 			logger.Log("error", fmt.Sprintf("Error building helm operator clientset: %v", err))
@@ -516,7 +509,7 @@ func main() {
 		}
 		logger.Log("kubectl", kubectl)
 
-		client := kubernetes.MakeClusterClientset(clientset, dynamicClientset, fhrClientset, hrClientset, discoClientset)
+		client := kubernetes.MakeClusterClientset(clientset, dynamicClientset, hrClientset, discoClientset)
 		kubectlApplier := kubernetes.NewKubectl(kubectl, restClientConfig)
 		allowedNamespaces := make(map[string]struct{})
 		for _, n := range append(*k8sNamespaceWhitelist, *k8sAllowNamespace...) {
