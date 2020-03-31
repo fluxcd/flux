@@ -12,22 +12,24 @@ replace github.com/Azure/go-autorest => github.com/Azure/go-autorest v12.2.0+inc
 // transitive requirement from Helm Operator (to be re-evaluated on helm-op 1.0.0 GA)
 replace (
 	github.com/docker/docker => github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0
-	github.com/fluxcd/helm-operator => github.com/fluxcd/helm-operator v1.0.0-rc6
+	github.com/fluxcd/helm-operator => github.com/fluxcd/helm-operator v1.0.0-rc9
+	github.com/fluxcd/helm-operator/pkg/install => github.com/fluxcd/helm-operator/pkg/install v0.0.0-20200213151218-f7e487142b46
 )
 
-// Pin kubernetes dependencies to 1.16.2
+// Pin kubernetes dependencies to 1.17.4
 replace (
-	k8s.io/api => k8s.io/api v0.0.0-20191016110408-35e52d86657a // kubernetes-1.16.2
-	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.0.0-20191016113550-5357c4baaf65 // kubernetes-1.16.2
-	k8s.io/apimachinery => k8s.io/apimachinery v0.0.0-20191004115801-a2eda9f80ab8
-	k8s.io/client-go => k8s.io/client-go v0.0.0-20191016111102-bec269661e48 // kubernetes-1.16.2
-	k8s.io/code-generator => k8s.io/code-generator v0.16.5-beta.1 // kubernetes-1.16.2
+	k8s.io/api => k8s.io/api v0.17.4
+	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.17.4
+	k8s.io/apimachinery => k8s.io/apimachinery v0.17.4
+	k8s.io/client-go => k8s.io/client-go v0.17.4
+	k8s.io/code-generator => k8s.io/code-generator v0.17.4
 )
 
 // github.com/fluxcd/flux/pkg/install lives in this very repository, so use that
 replace github.com/fluxcd/flux/pkg/install => ./pkg/install
 
 require (
+	github.com/Azure/go-autorest v11.7.1+incompatible // indirect
 	github.com/Jeffail/gabs v1.4.0
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Masterminds/semver/v3 v3.0.3
@@ -38,9 +40,12 @@ require (
 	github.com/cheggaaa/pb/v3 v3.0.2
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/docker/distribution v2.7.1+incompatible
+	github.com/elazarl/goproxy v0.0.0-20190421051319-9d40249d3c2f // indirect
+	github.com/elazarl/goproxy/ext v0.0.0-20190421051319-9d40249d3c2f // indirect
 	github.com/evanphx/json-patch v4.5.0+incompatible
 	github.com/fluxcd/flux/pkg/install v0.0.0-00010101000000-000000000000
 	github.com/fluxcd/helm-operator v1.0.0-rc6
+	github.com/fluxcd/helm-operator/pkg/install v0.0.0-00010101000000-000000000000 // indirect
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-kit/kit v0.9.0
 	github.com/gogo/googleapis v1.3.1 // indirect
@@ -52,7 +57,9 @@ require (
 	github.com/gorilla/websocket v1.4.0
 	github.com/imdario/mergo v0.3.8
 	github.com/justinbarrick/go-k8s-portforward v1.0.4-0.20190722134107-d79fe1b9d79d
+	github.com/ncabatoff/go-seq v0.0.0-20180805175032-b08ef85ed833 // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1
+	github.com/opentracing-contrib/go-stdlib v0.0.0-20190519235532-cf7a6c988dc9 // indirect
 	github.com/opentracing/opentracing-go v1.1.0 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/pkg/term v0.0.0-20190109203006-aa71e9d9e942
@@ -73,11 +80,12 @@ require (
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
 	golang.org/x/sys v0.0.0-20191028164358-195ce5e7f934
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
-	gopkg.in/yaml.v2 v2.2.4
-	k8s.io/api v0.17.0
-	k8s.io/apiextensions-apiserver v0.0.0-20191016113550-5357c4baaf65
-	k8s.io/apimachinery v0.17.0
+	gopkg.in/yaml.v2 v2.2.8
+	helm.sh/helm/v3 v3.0.3 // indirect
+	k8s.io/api v0.17.4
+	k8s.io/apiextensions-apiserver v0.17.4
+	k8s.io/apimachinery v0.17.4
 	k8s.io/client-go v11.0.0+incompatible
-	k8s.io/helm v2.16.1+incompatible
+	k8s.io/helm v2.16.1+incompatible // indirect
 	k8s.io/klog v1.0.0
 )
