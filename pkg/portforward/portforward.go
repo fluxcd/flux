@@ -1,6 +1,7 @@
 package portforward
 
 // based on https://github.com/justinbarrick/go-k8s-portforward
+// licensed under the Apache License 2.0
 
 import (
 	"fmt"
