@@ -1,0 +1,9 @@
+{
+    "ignorePatterns": [
+        {
+            "githubIssuePattern": "^https://github.com/\\S+/\\S+/(issues|pull)/[0-9]+",
+            "mailtoPattern": "^mailto:",
+            "companySitesWith403sPattern": "^https://www.(blablacar|canva|underarmour).com"
+        }
+    ]
+}

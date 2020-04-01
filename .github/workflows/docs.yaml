@@ -14,6 +14,19 @@ jobs:
         python-version: [3.8]
     steps:
       - uses: actions/checkout@v2
+      # Using markdown-link-check to check markdown docs
+      - name: Link Checker (for top-level markdown docs)
+        uses: dholbach/github-action-markdown-link-check@add-max-depth
+        with:
+          use-verbose-mode: 'yes'
+          config-file: '.github/workflows/markdown-link-check-config.json'
+          folder-path: ./
+          max-depth: 1
+      - name: Link Checker (for ./internal markdown docs)
+        uses: dholbach/github-action-markdown-link-check@add-max-depth
+        with:
+          use-verbose-mode: 'yes'
+          folder-path: ./internal/docs/
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
@@ -24,10 +37,11 @@ jobs:
           pip install -r docs/requirements.txt
       - name: Build docs for link check
         run: mkdocs build
-      - name: Link Checker
+      # Using liche action to check generated HTML site
+      - name: Link Checker (generated site)
         id: lc
         uses: peter-evans/link-checker@v1
         with:
-          args: -r -d site/ -v site/index.html
+          args: -v -d ./site -r ./site
       - name: Fail if there were link errors
         run: exit ${{ steps.lc.outputs.exit_code }}
