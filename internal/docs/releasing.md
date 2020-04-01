@@ -4,7 +4,7 @@ The release process needs to do these things:
 
  - create a new release on GitHub, with a tag
  - push Docker image(s) to Docker Hub
- - possibly upload the [`fluxctl` binaries](/docs/references/fluxctl.md#binary-releases) to the GitHub release
+ - possibly upload the [`fluxctl` binaries](../../docs/references/fluxctl.md#binary-releases) to the GitHub release
  - make sure the version is entered into the checkpoint database so that up-to-date checks report back accurate information
  - close out the GitHub milestone that was used to track the release
 
@@ -60,7 +60,7 @@ The CircleCI script runs builds for tags, which push Docker images and upload bi
 5. Consider updating the deploy manifest examples and the Helm chart.
 
     The example manifests are generated from template manifests at
-    [pkg/install/templates](../pkg/install/templates), bump the Flux image tag
+    [pkg/install/templates](../../pkg/install/templates), bump the Flux image tag
     version and run `make generate-deploy`.
 
     Check the changes included in the release, to see if arguments, volume
