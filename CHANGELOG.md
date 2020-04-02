@@ -1,3 +1,120 @@
+## 1.19.0 (2020-04-02)
+
+This minor version release is a bumper edition with many
+contributions, including (to pick a handful):
+
+ - more flexibility with GPG signature verification
+ - the ability to disable garbage collection for individual resources
+ - users of `.flux.yaml` "patchUpdated" should see an improvement to
+   automated updates, with [fluxcd/flux#2805][].
+ - people who want to tightly control which images are scanned by
+   fluxd will appreciate [fluxcd/flux#2850][]
+
+### Enhancements
+
+- Add ssh-keygen key format option [fluxcd/flux#2911][]
+- Publish fluxctl to Docker Hub so it can be used in e.g., GitHub
+  Actions [fluxcd/flux#2915][]
+- Add annotation for disabling garbage collection for individual
+  resources [fluxcd/flux#2858][]
+- Dedicated error for unresolvable Git hostname [fluxcd/flux#2865][]
+- Support multiple signature verification strategies with
+  `--gitVerifySignaturesMode` [fluxcd/flux#2803][]
+- Let people explicitly include images to scan [fluxcd/flux#2850][],
+  [fluxcd/flux#2852][]
+- Add support for bash/zsh completion [fluxcd/flux#2833][]
+- Log start of cluster sync [fluxcd/flux#2823][]
+- Add JSON output option for fluxctl's list-images and list-workloads
+  [fluxcd/flux#2834][]
+
+### Fixes
+
+- Cache the generators of patchUpdated configurations [fluxcd/flux#2805][]
+- address CVE-2020-6750 for glib [fluxcd/flux#2922][]
+- Fix concurrent map write panics [fluxcd/flux#2926][]
+
+### Maintenance and documentation
+
+- Add portforward package to break versioning deadlock
+  [fluxcd/flux#2952][]
+- Make docker/image-tag work on MacOS again [fluxcd/flux#2957][]
+- Note the retirement of some maintainers [fluxcd/flux#2953][]
+- Migrate tests to GitHub actions [fluxcd/flux#2940][]
+- Update Kubernetes packages to 1.17 [fluxcd/flux#2950][]
+- Remove support for HelmRelease alpha and beta [fluxcd/flux#2949][]
+- Regenerate (and fix verification of) generated_templates.gogen.go
+  [fluxcd/flux#2942][]
+- Update gitsrv used in e2e tests to v1.0.0 [fluxcd/flux#2937][]
+- Remove race condition in sync e2e test [fluxcd/flux#2885][]
+- Move github.com/2opremio/distribution to
+  github.com/fluxcd/distribution [fluxcd/flux#2884][]
+- Update pluralization of yaml to non-disputable version
+  [fluxcd/flux#2876][]
+- Change list in issue template to start at 1 [fluxcd/flux#2842][]
+- Fix more links [fluxcd/flux#2948][]
+- Update Who is using Flux in production [fluxcd/flux#2849][],
+  [fluxcd/flux#2943][], [fluxcd/flux#2930][], [fluxcd/flux#2898][]
+- move to mkdocs [fluxcd/flux#2919][]
+- Mention new fluxctl arch linux package [fluxcd/flux#2912][]
+- Updated helm operator CRD URL in the documentation
+  [fluxcd/flux#2887][]
+- Add other semver example with range [fluxcd/flux#2866][]
+- Fixing Helm operator docs link [fluxcd/flux#2863][]
+- Add note about targeting a specific Helm version for the Helm
+  operator [fluxcd/flux#2830][]
+
+### Thanks
+
+Thanks to @2opremio, @ArchiFleKs, @alaa, @alesgurd, @borancar,
+@dholbach, @edwardyoung, @hiddeco, @infa-bsurber, @jimangel,
+@jstevans, @kharf, @mattfarina, @morremeyer, @ogerbron, @pchico83,
+@phillebaba, @shibumi, @squaremo, @stefanprodan, @stevenpall,
+@sysdevguru, @trevrosen, @yasserisa and @yiannistri for their
+contributions to this release.
+
+[fluxcd/flux#2957]: https://github.com/fluxcd/flux/pull/2957
+[fluxcd/flux#2953]: https://github.com/fluxcd/flux/pull/2953
+[fluxcd/flux#2952]: https://github.com/fluxcd/flux/pull/2952
+[fluxcd/flux#2950]: https://github.com/fluxcd/flux/pull/2950
+[fluxcd/flux#2949]: https://github.com/fluxcd/flux/pull/2949
+[fluxcd/flux#2948]: https://github.com/fluxcd/flux/pull/2948
+[fluxcd/flux#2946]: https://github.com/fluxcd/flux/pull/2946
+[fluxcd/flux#2943]: https://github.com/fluxcd/flux/pull/2943
+[fluxcd/flux#2942]: https://github.com/fluxcd/flux/pull/2942
+[fluxcd/flux#2941]: https://github.com/fluxcd/flux/pull/2941
+[fluxcd/flux#2940]: https://github.com/fluxcd/flux/pull/2940
+[fluxcd/flux#2937]: https://github.com/fluxcd/flux/pull/2937
+[fluxcd/flux#2930]: https://github.com/fluxcd/flux/pull/2930
+[fluxcd/flux#2926]: https://github.com/fluxcd/flux/pull/2926
+[fluxcd/flux#2922]: https://github.com/fluxcd/flux/pull/2922
+[fluxcd/flux#2919]: https://github.com/fluxcd/flux/pull/2919
+[fluxcd/flux#2915]: https://github.com/fluxcd/flux/pull/2915
+[fluxcd/flux#2912]: https://github.com/fluxcd/flux/pull/2912
+[fluxcd/flux#2911]: https://github.com/fluxcd/flux/pull/2911
+[fluxcd/flux#2898]: https://github.com/fluxcd/flux/pull/2898
+[fluxcd/flux#2887]: https://github.com/fluxcd/flux/pull/2887
+[fluxcd/flux#2885]: https://github.com/fluxcd/flux/pull/2885
+[fluxcd/flux#2884]: https://github.com/fluxcd/flux/pull/2884
+[fluxcd/flux#2876]: https://github.com/fluxcd/flux/pull/2876
+[fluxcd/flux#2866]: https://github.com/fluxcd/flux/pull/2866
+[fluxcd/flux#2865]: https://github.com/fluxcd/flux/pull/2865
+[fluxcd/flux#2863]: https://github.com/fluxcd/flux/pull/2863
+[fluxcd/flux#2858]: https://github.com/fluxcd/flux/pull/2858
+[fluxcd/flux#2852]: https://github.com/fluxcd/flux/pull/2852
+[fluxcd/flux#2850]: https://github.com/fluxcd/flux/pull/2850
+[fluxcd/flux#2849]: https://github.com/fluxcd/flux/pull/2849
+[fluxcd/flux#2842]: https://github.com/fluxcd/flux/pull/2842
+[fluxcd/flux#2835]: https://github.com/fluxcd/flux/pull/2835
+[fluxcd/flux#2834]: https://github.com/fluxcd/flux/pull/2834
+[fluxcd/flux#2833]: https://github.com/fluxcd/flux/pull/2833
+[fluxcd/flux#2830]: https://github.com/fluxcd/flux/pull/2830
+[fluxcd/flux#2829]: https://github.com/fluxcd/flux/pull/2829
+[fluxcd/flux#2827]: https://github.com/fluxcd/flux/pull/2827
+[fluxcd/flux#2826]: https://github.com/fluxcd/flux/pull/2826
+[fluxcd/flux#2823]: https://github.com/fluxcd/flux/pull/2823
+[fluxcd/flux#2805]: https://github.com/fluxcd/flux/pull/2805
+[fluxcd/flux#2803]: https://github.com/fluxcd/flux/pull/2803
+
 ## 1.18.0 (2020-02-06)
 
 This is a feature release with quite a few new features and fixes.
