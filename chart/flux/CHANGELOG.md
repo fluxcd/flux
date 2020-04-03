@@ -1,3 +1,19 @@
+## 1.3.0 (2020-04-03)
+
+### Improvements
+
+ - Updated Flux to `1.19.0`
+   [fluxcd/flux#2961](https://github.com/fluxcd/flux/pull/2961)
+ - Add memcached resource requests
+   [fluxcd/flux#2879](https://github.com/fluxcd/flux/pull/2879)
+ - Add priority class to chart options
+   [fluxcd/flux#2872](https://github.com/fluxcd/flux/pull/2872)
+   [fluxcd/flux#2847](https://github.com/fluxcd/flux/pull/2847)
+ - Add git-secret decryption to chart options 
+   [fluxcd/flux#2870](https://github.com/fluxcd/flux/pull/2870)
+ - Add registry-disable-scanning to chart options 
+   [fluxcd/flux#2828](https://github.com/fluxcd/flux/pull/2828)
+
 ## 1.2.0 (2020-02-06)
 
 ### Improvements
