@@ -19,7 +19,7 @@ Download Helm v3:
 - On MacOS:
 
   ```sh
-  brew install kubernetes-helm
+  brew install helm
   ```
 
 - On Linux:

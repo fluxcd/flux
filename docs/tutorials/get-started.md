@@ -96,7 +96,7 @@ change its configuration to use a different message.
 Replace `YOURUSER` in
 `https://github.com/YOURUSER/flux-get-started/blob/master/workloads/podinfo-dep.yaml`
 with your GitHub ID), open the URL in your browser, edit the file,
-change the `PODINFO_UI_MESSAGE` env var to `Welcome to Flux` and commit the file.
+add `--ui-message='Welcome to Flux'` to the container command and commit the file.
 
 By default, Flux git pull frequency is set to 5 minutes.
 You can tell Flux to sync the changes immediately with:

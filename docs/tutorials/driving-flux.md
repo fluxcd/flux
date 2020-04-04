@@ -11,9 +11,7 @@ deployment](https://github.com/fluxcd/flux-get-started) and click on the
 
 ## Setup
 
-First, please [install `fluxctl`](../references/fluxctl.md).
-
-Then, run (replace `YOURUSER` with your GitHub username):
+Install [fluxctl](../references/fluxctl.md) and run (replace `YOURUSER` with your GitHub username):
 
 ```sh
 export GHUSER="YOURUSER"
@@ -24,63 +22,6 @@ fluxctl install \
 --git-path=namespaces,workloads \
 --namespace=flux | kubectl apply -f -
 ```
-
-### Alternative: Using Helm for the setup
-
-If you have never used Helm, you first need to
-
-- Download/install Helm
-- Set up Tiller. First create a service account and a cluster role binding
-  for Tiller:
-
-  ```sh
-  kubectl -n kube-system create sa tiller
-  kubectl create clusterrolebinding tiller-cluster-rule \
-    --clusterrole=cluster-admin \
-    --serviceaccount=kube-system:tiller
-  ```
-
-  Deploy Tiller in the `kube-system` namespace:
-
-  ```sh
-  helm init --skip-refresh --upgrade --service-account tiller --history-max 10
-  ```
-
-  > **Note:** This is a quick guide and by no means a production ready
-  > Tiller setup, please look into ['Securing your Helm installation'](https://helm.sh/docs/using_helm/#securing-your-helm-installation)
-  > and be aware of the `--history-max` flag before promoting to
-  > production.
-
-Now you can take care of the actual installation. First add the Flux
-chart repository:
-
-```sh
-helm repo add fluxcd https://charts.fluxcd.io
-```
-
-Apply the Helm Release CRD:
-
-```sh
-kubectl apply -f https://raw.githubusercontent.com/fluxcd/flux/helm-0.10.1/deploy-helm/flux-helm-release-crd.yaml
-```
-
-Install Flux and its Helm Operator by specifying your fork URL. Just
-make sure you replace `YOURUSER` with your GitHub username in the command
-below:
-
-```sh
-helm upgrade -i Flux \
---set helmOperator.create=true \
---set helmOperator.createCRD=false \
---set git.url=git@github.com:YOURUSER/flux-get-started \
---namespace default \
-fluxcd/flux
-```
-
-> **Note:** In this tutorial we keep things simple, so we deploy Flux into
-the `default` namespace. Normally you would pick a separate namespace for
-it. `fluxctl` has the [`--k8s-fwd-ns <NAMESPACE>` option](../references/fluxctl.md) for specifying the right
-namespace.
 
 ### Connecting to your git config
 
@@ -130,18 +71,18 @@ managed by Flux, run:
 fluxctl list-workloads -a 
 ```
 
-Notice that `podinfo` is on `v1.3.2` and in state `automated`.
+Notice that `podinfo` is on `3.1.0` and in state `automated`.
 
-To check which images are avaible for podinfo run:
+To check which images are available for podinfo run:
 
 ```sh
 fluxctl list-images -w demo:deployment/podinfo
 ```
 
-Now let's change the policy for `podinfo` to target `1.4.*` releases:
+Now let's change the policy for `podinfo` to target `3.2` releases:
 
 ```sh
-fluxctl policy -w demo:deployment/podinfo --tag-all='1.4.*'
+fluxctl policy -w demo:deployment/podinfo --tag='podinfod=3.2.*'
 ```
 
 On the command-line you should see a message just like this one:
@@ -166,13 +107,8 @@ It should look a little something like this:
      app: podinfo
    annotations:
      fluxcd.io/automated: "true"
--    fluxcd.io/tag.init: regexp:^3.*
--    fluxcd.io/tag.podinfod: semver:~1.3
-+    fluxcd.io/tag.init: glob:1.4.*
-+    fluxcd.io/tag.podinfod: glob:1.4.*
- spec:
-   strategy:
-     rollingUpdate:
+-    fluxcd.io/tag.podinfod: semver:~3.1
++    fluxcd.io/tag.podinfod: glob:3.2.*
 ```
 
 If you have a closer look at the last change which was committed, you'll see
@@ -191,14 +127,14 @@ To check which image is current, run:
 fluxctl list-images -w demo:deployment/podinfo
 ```
 
-In our case this is `1.4.2` (it could be a later image too). Let's say an
-engineer found that `1.4.2` was faulty and we have to go back to `1.4.1`.
+In our case this is `3.2.2` (it could be a later image too). Let's say an
+engineer found that `3.2.2` was faulty and we have to go back to `3.2.1`.
 That's easy.
 
 Lock deployment with a message describing why:
 
 ```sh
-fluxctl lock -w demo:deployment/podinfo -m "1.4.2 does not work for us"
+fluxctl lock -w demo:deployment/podinfo -m "3.2.2 does not work for us"
 ```
 
 The resulting diff should look like this:
@@ -210,18 +146,17 @@ The resulting diff should look like this:
      app: podinfo
    annotations:
      fluxcd.io/automated: "true"
-     fluxcd.io/tag.init: glob:1.4.*
-     fluxcd.io/tag.podinfod: glob:1.4.*
+     fluxcd.io/tag.podinfod: glob:3.2.*
 +    fluxcd.io/locked: 'true'
  spec:
    strategy:
      rollingUpdate:
 ```
 
-Rollback to `1.4.1`. Flag `--force` is needed because the workload is locked:
+Rollback to `3.2.1`. Flag `--force` is needed because the workload is locked:
 
 ```sh
-fluxctl release --force --workload demo:deployment/podinfo -i stefanprodan/podinfo:1.4.1
+fluxctl release --force --workload demo:deployment/podinfo -i stefanprodan/podinfo:3.2.1
 ```
 
 The response should be:
@@ -229,7 +164,7 @@ The response should be:
 ```sh
 Submitting release ...
 CONTROLLER               STATUS   UPDATES
-demo:deployment/podinfo  success  podinfod: stefanprodan/podinfo:1.4.2 -> 1.4.1
+demo:deployment/podinfo  success  podinfod: stefanprodan/podinfo:3.2.2 -> 3.2.1
 Commit pushed:  426d723
 Commit applied: 426d723
 ```
@@ -243,11 +178,8 @@ and the diff for this is going to look like this:
          - "1"
        containers:
        - name: podinfod
--        image: stefanprodan/podinfo:1.3.2
-+        image: stefanprodan/podinfo:1.4.1
-         imagePullPolicy: IfNotPresent
-         ports:
-         - containerPort: 9898
+-        image: stefanprodan/podinfo:3.2.2
++        image: stefanprodan/podinfo:3.2.1
 ```
 
 And that's it. At the end of this tutorial, you have automated, locked and
