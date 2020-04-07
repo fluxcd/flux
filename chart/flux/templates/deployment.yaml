@@ -268,7 +268,7 @@ spec:
           - --registry-ecr-exclude-id={{ .Values.registry.ecr.excludeId }}
           {{- end }}
           {{- if .Values.registry.dockercfg.enabled }}
-          - --docker-config={{ .Values.registry.dockercfg.configFileName }}
+          - --docker-config=/dockercfg/{{ .Values.registry.dockercfg.configFileName }}
           {{- end }}
           {{- if .Values.token }}
           - --connect=wss://cloud.weave.works/api/flux
