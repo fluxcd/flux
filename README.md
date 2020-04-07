@@ -47,9 +47,10 @@ container images and config changes are propagated to the cluster.
 
 |    |     |     |
 | -- | --- | --- |
-|[ABA English](https://www.abaenglish.com)|[APPUiO](https://appuio.ch)|[Apester](https://apester.com)
-|[ArangoDB Oasis](https://arangodb.com/managed-service)|[Avisi](https://avisi.nl)|[B3i](https://b3i.tech/)
-|[Babylon Health](https://www.babylonhealth.com/)|[bimspot](https://bimspot.io)|[BlaBlaCar](https://www.blablacar.com/)
+|[ABA English](https://www.abaenglish.com)|[Alea Play Solutions](http://www.aleaplay.com)|[APPUiO](https://appuio.ch)
+|[Apester](https://apester.com)|[ArangoDB Oasis](https://arangodb.com/managed-service)|[Avisi](https://avisi.nl)
+|[B3i](https://b3i.tech/)|[Babylon Health](https://www.babylonhealth.com/)|[bimspot](https://bimspot.io)
+|[BlaBlaCar](https://www.blablacar.com/)
 |[Canva](https://www.canva.com/)|[Chattigo](https://chattigo.com)|[Cloudlets](https://cloudlets.io)
 |[CLVR Cloud Ltd](https://clvr.cloud)|[College of William & Mary](https://www.wm.edu)|[Control Plane](https://control-plane.io)
 |[Consorcio Chile](https://www.consorcio.cl)|[CrowdRiff](https://crowdriff.com)|[Cybrary](https://cybrary.it)
