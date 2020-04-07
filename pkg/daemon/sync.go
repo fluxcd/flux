@@ -83,6 +83,13 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, newRevision string
 		return err
 	}
 
+	// Move the revision the sync state points to
+	if ok, err := ratchet.Update(ctx, c.oldTagRev, c.newTagRev); err != nil {
+		return err
+	} else if !ok {
+		return nil
+	}
+
 	// Determine what resources changed during the sync
 	changedResources, err := d.getChangedResources(ctx, c, d.GitTimeout, working, resourceStore, resources)
 	serviceIDs := resource.IDSet{}
@@ -112,13 +119,6 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, newRevision string
 			// Abort early to ensure at least once delivery of events
 			return err
 		}
-	}
-
-	// Move the revision the sync state points to
-	if ok, err := ratchet.Update(ctx, c.oldTagRev, c.newTagRev); err != nil {
-		return err
-	} else if !ok {
-		return nil
 	}
 
 	err = refresh(ctx, d.GitTimeout, d.Repo)
