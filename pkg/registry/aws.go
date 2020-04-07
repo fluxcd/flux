@@ -34,6 +34,7 @@ const (
 	embargoDuration = 10 * time.Minute
 
 	EKS_SYSTEM_ACCOUNT = "602401143452"
+	EKS_SYSTEM_ACCOUNT_CN = "918309763551"
 )
 
 // AWSRegistryConfig supplies constraints for scanning AWS (ECR) image
