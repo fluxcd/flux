@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
@@ -11,9 +12,10 @@ import (
 )
 
 const (
-	minLimit  = 0.1
-	backOffBy = 2.0
-	recoverBy = 1.5
+	minLimit          = 0.1
+	backOffBy         = 2.0
+	recoverBy         = 1.5
+	coolDownInSeconds = 1200
 )
 
 // RateLimiters keeps track of per-host rate limiting for an arbitrary
@@ -29,11 +31,12 @@ const (
 // without incident, which will increase the rate limit modestly back
 // towards the given ideal.
 type RateLimiters struct {
-	RPS     float64
-	Burst   int
-	Logger  log.Logger
-	perHost map[string]*rate.Limiter
-	mu      sync.Mutex
+	RPS                  float64
+	Burst                int
+	Logger               log.Logger
+	perHost              map[string]*rate.Limiter
+	latestBackOffPerHost map[string]time.Time
+	mu                   sync.Mutex
 }
 
 func (limiters *RateLimiters) clip(limit float64) float64 {
@@ -70,7 +73,12 @@ func (limiters *RateLimiters) backOff(host string) {
 	if oldLimit != newLimit && limiters.Logger != nil {
 		limiters.Logger.Log("info", "reducing rate limit", "host", host, "limit", strconv.FormatFloat(newLimit, 'f', 2, 64))
 	}
-	limiter.SetLimit(rate.Limit(newLimit))
+	backOffTime := time.Now()
+	limiter.SetLimitAt(backOffTime, rate.Limit(newLimit))
+	if limiters.latestBackOffPerHost == nil {
+		limiters.latestBackOffPerHost = map[string]time.Time{}
+	}
+	limiters.latestBackOffPerHost[host] = backOffTime
 }
 
 // Recover should be called when a use of a RoundTripper has
@@ -80,6 +88,11 @@ func (limiters *RateLimiters) Recover(host string) {
 	defer limiters.mu.Unlock()
 	if limiters.perHost == nil {
 		return
+	}
+	if limiters.latestBackOffPerHost != nil {
+		if t, ok := limiters.latestBackOffPerHost[host]; ok && time.Since(t) < coolDownInSeconds*time.Second {
+			return
+		}
 	}
 	if limiter, ok := limiters.perHost[host]; ok {
 		oldLimit := float64(limiter.Limit())
