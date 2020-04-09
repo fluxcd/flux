@@ -12,6 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: niden/actions-memcached@v7
+      - uses: shogo82148/actions-setup-redis@v1
       - name: Restore Go cache
         uses: actions/cache@v1
         with:
