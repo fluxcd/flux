@@ -12,6 +12,7 @@ var (
 	completionShells = map[string]func(out io.Writer, cmd *cobra.Command) error{
 		"bash": runCompletionBash,
 		"zsh":  runCompletionZsh,
+		"fish": runCompletionFish,
 	}
 )
 
@@ -24,7 +25,7 @@ func newCompletionCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:                   "completion SHELL",
 		DisableFlagsInUseLine: true,
-		Short:                 "Output shell completion code for the specified shell (bash or zsh)",
+		Short:                 "Output shell completion code for the specified shell (bash, zsh, or fish)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				return newUsageError("please specify a shell")
@@ -51,4 +52,8 @@ func runCompletionBash(out io.Writer, fluxctl *cobra.Command) error {
 
 func runCompletionZsh(out io.Writer, fluxctl *cobra.Command) error {
 	return fluxctl.GenZshCompletion(out)
+}
+
+func runCompletionFish(out io.Writer, fluxctl *cobra.Command) error {
+	return fluxctl.GenFishCompletion(out, true)
 }
