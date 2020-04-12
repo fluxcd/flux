@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -32,15 +33,16 @@ func newCompletionCommand() *cobra.Command {
 			}
 
 			if len(args) > 1 {
+				sort.Strings(shells)
 				return newUsageError(fmt.Sprintf("please specify one of the following shells: %s", strings.Join(shells, " ")))
 			}
 
 			run, found := completionShells[args[0]]
 			if !found {
-				return newUsageError(fmt.Sprintf("unsupported shell type %q.", args[0]))
+				return newUsageError(fmt.Sprintf("unsupported shell type %q", args[0]))
 			}
 
-			return run(cmd.OutOrStdout(), cmd.Parent())
+			return run(cmd.OutOrStdout(), cmd)
 		},
 		ValidArgs: shells,
 	}
