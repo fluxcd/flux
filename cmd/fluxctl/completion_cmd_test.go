@@ -49,15 +49,15 @@ func TestCompletionCommand_Success(t *testing.T) {
 	}{
 		{
 			shell:    "bash",
-			expected: "#bash completion for completion",
+			expected: "bash completion for completion",
 		},
 		{
 			shell:    "zsh",
-			expected: "#compdef _completion completion",
+			expected: "compdef _completion completion",
 		},
 		{
 			shell:    "fish",
-			expected: "#fish completion for completion",
+			expected: "fish completion for completion",
 		},
 	}
 
