@@ -42,6 +42,6 @@ jobs:
         id: lc
         uses: peter-evans/link-checker@v1
         with:
-          args: -v -d ./site -r ./site
+          args: -d ./site -r ./site
       - name: Fail if there were link errors
         run: exit ${{ steps.lc.outputs.exit_code }}
