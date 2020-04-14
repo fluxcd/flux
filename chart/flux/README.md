@@ -252,8 +252,8 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `registry.acr.hostPath`                           | `/etc/kubernetes/azure.json`                         | Alternative location of `azure.json` on the host
 | `registry.acr.secretName`                         | `None`                                               | Secret to mount instead of a hostPath
 | `registry.dockercfg.enabled`                      | `false`                                              | Mount `config.json` via Secret into the Flux Pod, enabling Flux to use a custom docker config file
-| `registry.dockercfg.secretName`                   | `None`                                               | Kubernetes secret with the docker config.json
-| `registry.dockercfg.configFileName`               | `/dockercfg/config.json`                             | Alternative path/name of the docker config.json
+| `registry.dockercfg.secretName`                   | `None`                                               | Kubernetes secret with the docker config.json, mounted on `/dockercfg/`
+| `registry.dockercfg.configFileName`               | `/dockercfg/config.json`                             | Path to the custom docker config.json
 | `memcached.enabled`                               | `true`                                               | Create a memcached deployment and service. When set to `false` you must set an external memcached service.
 | `memcached.hostnameOverride`                      | `None`                                               | Override the hostname to the memcached service. Useful when using memcached deployed separately from this chart.
 | `memcached.verbose`                               | `false`                                              | Enable request logging in memcached
