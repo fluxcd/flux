@@ -57,6 +57,7 @@ func contains(strs []string, str string) bool {
 func validECRHost(domain string) bool {
 	switch {
 	case strings.HasSuffix(domain, awsPartitionSuffix):
+		return true
 	case strings.HasSuffix(domain, awsCnPartitionSuffix):
 		return true
 	}
