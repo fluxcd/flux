@@ -22,7 +22,7 @@ Kubernetes >= v1.11
 ## Installation
 
 We put together a simple [Get Started
-tutorial](https://docs.fluxcd.io/en/stable/tutorials/get-started-helm.html) which takes about 5-10 minutes to follow.
+tutorial](https://docs.fluxcd.io/en/stable/tutorials/get-started-helm) which takes about 5-10 minutes to follow.
 You will have a fully working Flux installation deploying workloads to your cluster.
 
 ## Installing Flux using Helm
@@ -58,7 +58,7 @@ helm repo add fluxcd https://charts.fluxcd.io
    > **Note:** this not required when [using git over HTTPS](#flux-with-git-over-https).
 
    At startup Flux generates a SSH key and logs the public key. Find the
-   SSH public key by installing [fluxctl](https://docs.fluxcd.io/en/stable/references/fluxctl.html)
+   SSH public key by installing [fluxctl](https://docs.fluxcd.io/en/stable/references/fluxctl)
    and running:
 
    ```sh
@@ -262,21 +262,24 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `memcached.pullSecret`                            | `None`                                               | Image pull secret
 | `memcached.repository`                            | `memcached`                                          | Image repository
 | `memcached.resources`                             | `None`                                               | CPU/memory resource requests/limits for memcached
-| `memcached.securityContext`                       | [See values.yaml](/chart/flux/values.yaml#L176-L179) | Container security context for memcached
+| `memcached.securityContext`                       | [See values.yaml][memcached-reference]               | Container security context for memcached
 | `memcached.nodeSelector`                          | `{}`                                                 | Node Selector properties for the memcached deployment
 | `memcached.tolerations`                           | `[]`                                                 | Tolerations properties for the memcached deployment
 | `memcached.priorityClassName`                     | `""`                                                 | The name of the priority class to assign to the memcached pod.
-| `kube.config`                                     | [See values.yaml](/chart/flux/values.yaml#L200-L212) | Override for kubectl default config in the Flux pod(s).
+| `kube.config`                                     | [See values.yaml][kubeconfig-ref]                    | Override for kubectl default config in the Flux pod(s).
 | `priorityClassName`                               | `""`                                                 | Set priority class for Flux
 | `prometheus.enabled`                              | `false`                                              | If enabled, adds prometheus annotations to Flux and helmOperator pod(s)
 | `prometheus.serviceMonitor.create`                | `false`                                              | Set to true if using the Prometheus Operator
 | `prometheus.serviceMonitor.interval`              | ``                                                   | Interval at which metrics should be scraped
 | `prometheus.serviceMonitor.namespace`             | ``                                                   | The namespace where the ServiceMonitor is deployed
 | `prometheus.serviceMonitor.additionalLabels`      | `{}`                                                 | Additional labels to add to the ServiceMonitor
-| `syncGarbageCollection.enabled`                   | `false`                                              | If enabled, fluxd will delete resources that it created, but are no longer present in git (see [garbage collection](/docs/references/garbagecollection.md))
-| `syncGarbageCollection.dry`                       | `false`                                              | If enabled, fluxd won't delete any resources, but log the garbage collection output (see [garbage collection](/docs/references/garbagecollection.md))
+| `syncGarbageCollection.enabled`                   | `false`                                              | If enabled, fluxd will delete resources that it created, but are no longer present in git (see [garbage collection](../../docs/references/garbagecollection.md))
+| `syncGarbageCollection.dry`                       | `false`                                              | If enabled, fluxd won't delete any resources, but log the garbage collection output (see [garbage collection](../../docs/references/garbagecollection.md))
 | `manifestGeneration`                              | `false`                                              | If enabled, fluxd will look for `.flux.yaml` and run Kustomize or other manifest generators
 | `hostAliases`                                     | `{}`                                                 | Additional hostAliases to add to the Flux pod(s). See <https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/>
+
+[memcached-ref]: https://github.com/fluxcd/flux/blob/master/chart/flux/values.yaml#L201-L204
+[kubeconfig-ref]: https://github.com/fluxcd/flux/blob/master/chart/flux/values.yaml#L232-L244
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example:
 

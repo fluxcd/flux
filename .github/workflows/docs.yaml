@@ -15,18 +15,19 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       # Using markdown-link-check to check markdown docs
-      - name: Link Checker (for top-level markdown docs)
-        uses: gaurav-nelson/github-action-markdown-link-check@v1
-        with:
-          use-verbose-mode: 'yes'
-          config-file: '.github/workflows/markdown-link-check-config.json'
-          folder-path: ./
-          max-depth: 1
-      - name: Link Checker (for ./internal markdown docs)
-        uses: gaurav-nelson/github-action-markdown-link-check@v1
-        with:
-          use-verbose-mode: 'yes'
-          folder-path: ./internal/docs/
+      - name: Install markdown-link-check
+        run: |
+          npm i markdown-link-check
+
+      - name: Check non-docs markdown files
+        run: |
+          find . \
+            -name docs -prune -o \
+            -name node_modules -prune -o \
+            -name vendor -prune -o \
+            -iname '*.md' \
+            -exec ./node_modules/markdown-link-check/markdown-link-check --config .github/workflows/markdown-link-check-config.json {} \;
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
