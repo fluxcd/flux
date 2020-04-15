@@ -40,9 +40,15 @@ The project uses Slack: To join the conversation, simply join the
 
 The Flux developers use a mailing list to discuss development as well.
 Simply subscribe to [flux-dev on cncf.io](https://lists.cncf.io/g/cncf-flux-dev)
-to join the conversation (this will also add an invitation to your
-Google calendar for our [Flux
-meeting](https://docs.google.com/document/d/1l_M0om0qUEN_NNiGgpqJ2tvsF2iioHkaARDeh6b70B0/edit#)).
+to join the conversation.
+
+### Meetings
+
+Agenda and minutes of previous Flux Dev meetings can be reviewed in this
+[Google doc](https://docs.google.com/document/d/1l_M0om0qUEN_NNiGgpqJ2tvsF2iioHkaARDeh6b70B0/edit#).
+
+Meeting recordings can be viewed in this [Youtube
+playlist](https://www.youtube.com/playlist?list=PLbx4FZ4kOKntmgJqaT-iJ8tn4xat150yL).
 
 ## Getting Started
 
