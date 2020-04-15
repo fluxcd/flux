@@ -1,7 +1,7 @@
 site_name: Flux
 site_description: Documentation for Flux, the GitOps Kubernetes operator.
 site_author: The Flux contributors
-site_url: https://docs.fluxcd.io/
+site_url: https://docs.fluxcd.io
 
 # Repository
 repo_name: fluxcd/flux
@@ -12,8 +12,6 @@ theme:
   name: material
   logo: _files/flux-icon@2x.png
   language: en
-  feature:
-    tabs: false
   palette:
     primary: blue
     accent: indigo
@@ -25,10 +23,6 @@ extra_css:
 
 plugins:
   - search
-    #  - redirects:
-    #  redirect_maps:
-    #    'guides/upgrading-to-ga.md': 'how-to/upgrade-to-ga.md'
-    #    'guides/upgrading-to-beta.md': 'how-to/upgrade-to-beta.md'
 
 markdown_extensions:
   - admonition
@@ -36,7 +30,7 @@ markdown_extensions:
       guess_lang: false
   - toc:
       permalink: true
-  - pymdownx.superfences
+  - pymdownx.tabbed
 
 nav:
   - Introducing Flux: introduction.md
