@@ -247,27 +247,28 @@ func (c *Cluster) getAllowedResourcesBySelector(selector string) (map[string]*ku
 		return nil, err
 	}
 
-	resources := []*meta_v1.APIResourceList{}
+	var resources []*meta_v1.APIResourceList
 	for i := range sgs.Groups {
-		gv := sgs.Groups[i].PreferredVersion.GroupVersion
-
-		excluded := false
-		for _, exp := range c.resourceExcludeList {
-			if glob.Glob(exp, fmt.Sprintf("%s/", gv)) {
-				excluded = true
-				break
-			}
-		}
-
-		if !excluded {
-			if r, err := c.client.discoveryClient.ServerResourcesForGroupVersion(gv); err == nil {
-				if r != nil {
-					resources = append(resources, c.filterResources(r))
+		for _, v := range sgs.Groups[i].Versions {
+			gv := v.GroupVersion
+			excluded := false
+			for _, exp := range c.resourceExcludeList {
+				if glob.Glob(exp, fmt.Sprintf("%s/", gv)) {
+					excluded = true
+					break
 				}
-			} else {
-				// ignore errors for resources with empty group version instead of failing to sync
-				if err.Error() != fmt.Sprintf("Got empty response for: %v", gv) {
-					return nil, err
+			}
+
+			if !excluded {
+				if r, err := c.client.discoveryClient.ServerResourcesForGroupVersion(gv); err == nil {
+					if r != nil {
+						resources = append(resources, c.filterResources(r))
+					}
+				} else {
+					// ignore errors for resources with empty group version instead of failing to sync
+					if err.Error() != fmt.Sprintf("Got empty response for: %v", gv) {
+						return nil, err
+					}
 				}
 			}
 		}
