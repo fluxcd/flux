@@ -1,6 +1,6 @@
 # Using GKE Workload Identity with Flux
 
-When Flux is running a GKE cluster with [Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity) enabled and you use Google Container Registry to host private images in your project, there are additional steps required for Flux to be able to check for updated images.
+When Flux is running in a GKE cluster with [Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity) enabled and you use Google Container Registry to host private images in your project, there are additional steps required for Flux to be able to check for updated images.
 
 Without Workload Identity, Pods in the cluster by default assume the default IAM account of the GCP compute instances they are running on. With Workload Identity enabled, however, VM instance and Pod identity is completely separate. This results in Flux no longer being able to access a private GCR registry in the same project.
 
