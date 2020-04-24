@@ -19,12 +19,12 @@ gcloud iam service-accounts add-iam-policy-binding \
   gsa_name@gsa_project.iam.gserviceaccount.com
 ```
 
-So if your GCP project is called `total-mayhem-123456` and the GCP service account `flux-gcp` and Flux in your Kubernetes cluster(s) are running in the namespace `flux` and using the service account `flux-pods`, this would translate to the following:
+So if your GCP project is called `total-mayhem-123456` and the GCP service account `flux-gcp` and Flux in your Kubernetes cluster(s) are running in the namespace `flux` and using the service account `flux` (the default), this would translate to the following:
 
 ```bash
 gcloud iam service-accounts add-iam-policy-binding \
   --role roles/iam.workloadIdentityUser \
-  --member "serviceAccount:total-mayhem-123456.svc.id.goog[flux/flux-pods]" \
+  --member "serviceAccount:total-mayhem-123456.svc.id.goog[flux/flux]" \
   flux-gcp@total-mayhem-123456.iam.gserviceaccount.com
 ```
 
