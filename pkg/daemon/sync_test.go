@@ -41,8 +41,8 @@ var (
 	events *mockEventWriter
 )
 
-func daemon(t *testing.T) (*Daemon, func()) {
-	repo, repoCleanup := gittest.Repo(t)
+func daemon(t *testing.T, files map[string]string) (*Daemon, func()) {
+	repo, repoCleanup := gittest.Repo(t, files)
 
 	k8s = &mock.Mock{}
 	k8s.ExportFunc = func(ctx context.Context) ([]byte, error) { return nil, nil }
@@ -132,7 +132,7 @@ func checkSyncManifestsMetrics(t *testing.T, manifestSuccess, manifestFailures i
 }
 
 func TestPullAndSync_InitialSync(t *testing.T) {
-	d, cleanup := daemon(t)
+	d, cleanup := daemon(t, testfiles.Files)
 	defer cleanup()
 
 	syncCalled := 0
@@ -199,7 +199,7 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 }
 
 func TestDoSync_NoNewCommits(t *testing.T) {
-	d, cleanup := daemon(t)
+	d, cleanup := daemon(t, testfiles.Files)
 	defer cleanup()
 
 	var syncTag = "syncity"
@@ -279,7 +279,7 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 }
 
 func TestDoSync_WithNewCommit(t *testing.T) {
-	d, cleanup := daemon(t)
+	d, cleanup := daemon(t, testfiles.Files)
 	defer cleanup()
 
 	ctx := context.Background()
@@ -407,7 +407,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 }
 
 func TestDoSync_WithErrors(t *testing.T) {
-	d, cleanup := daemon(t)
+	d, cleanup := daemon(t, testfiles.Files)
 	defer cleanup()
 
 	expectedResourceIDs := resource.IDs{}

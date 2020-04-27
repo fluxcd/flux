@@ -365,7 +365,7 @@ func createRepo(dir string, subdirs []string) error {
 			return err
 		}
 
-		if err = testfiles.WriteTestFiles(fullPath); err != nil {
+		if err = testfiles.WriteTestFiles(fullPath, testfiles.Files); err != nil {
 			return err
 		}
 		if err = execCommand("git", "-C", dir, "add", "--all"); err != nil {
