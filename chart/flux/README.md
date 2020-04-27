@@ -214,7 +214,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `git.url`                                         | `None`                                               | URL of git repo with Kubernetes manifests
 | `git.readonly`                                    | `false`                                              | If `true`, the git repo will be considered read-only, Flux will not attempt to write to it
 | `git.branch`                                      | `master`                                             | Branch of git repo to use for Kubernetes manifests
-| `git.path`                                        | `None`                                               | Path within git repo to locate Kubernetes manifests (relative path)
+| `git.path`                                        | `None`                                               | One or more paths within git repo to locate Kubernetes manifests (relative path(s))
 | `git.user`                                        | `Weave Flux`                                         | Username to use as git committer
 | `git.email`                                       | `support@weave.works`                                | Email to use as git committer
 | `git.setAuthor`                                   | `false`                                              | If set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.
