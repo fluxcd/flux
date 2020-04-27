@@ -406,6 +406,124 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 	}
 }
 
+func TestDoSync_WithKustomize(t *testing.T) {
+	d, cleanup := daemon(t, testfiles.FilesForKustomize)
+	defer cleanup()
+
+	d.GitConfig.Paths = []string{"staging"}
+	d.ManifestGenerationEnabled = true
+
+	ctx := context.Background()
+
+	var syncTag = "syncy-mcsyncface"
+	// Set the sync tag to head
+	var oldRevision, newRevision string
+	err := d.WithWorkingClone(ctx, func(checkout *git.Checkout) error {
+		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+
+		var err error
+		tagAction := git.TagAction{
+			Tag:      syncTag,
+			Revision: "master",
+			Message:  "Sync pointer",
+		}
+		err = checkout.MoveTagAndPush(ctx, tagAction)
+		if err != nil {
+			return err
+		}
+		oldRevision, err = checkout.HeadRevision(ctx)
+		if err != nil {
+			return err
+		}
+
+		// Push some new changes
+		absolutePath := path.Join(checkout.Dir(), "base", "foo.yaml")
+		def, err := ioutil.ReadFile(absolutePath)
+		if err != nil {
+			return err
+		}
+
+		newDef := bytes.Replace(def, []byte("key: value"), []byte("key: value2"), -1)
+		if err := ioutil.WriteFile(absolutePath, newDef, 0600); err != nil {
+			return err
+		}
+
+		commitAction := git.CommitAction{Author: "", Message: "test commit"}
+		err = checkout.CommitAndPush(ctx, commitAction, nil, true)
+		if err != nil {
+			return err
+		}
+		newRevision, err = checkout.HeadRevision(ctx)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = d.Repo.Refresh(ctx)
+	if err != nil {
+		t.Error(err)
+	}
+
+	syncCalled := 0
+	var syncDef *cluster.SyncSet
+	k8s.SyncFunc = func(def cluster.SyncSet) error {
+		syncCalled++
+		syncDef = &def
+		return nil
+	}
+
+	head, err := d.Repo.BranchHead(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	gitSync, _ := fluxsync.NewGitTagSyncProvider(d.Repo, syncTag, "", fluxsync.VerifySignaturesModeNone, d.GitConfig)
+	syncState := &lastKnownSyncState{logger: d.Logger, state: gitSync}
+
+	if err := d.Sync(ctx, time.Now().UTC(), head, syncState); err != nil {
+		t.Error(err)
+	}
+
+	// It applies everything
+	if syncCalled != 1 {
+		t.Errorf("Sync was not called once, was called %d times", syncCalled)
+	} else if syncDef == nil {
+		t.Errorf("Sync was called with a nil syncDef")
+	}
+
+	// The emitted event has no workload ids
+	es, err := events.AllEvents(time.Time{}, -1, time.Time{})
+	if err != nil {
+		t.Error(err)
+	} else if len(es) != 1 {
+		t.Errorf("Unexpected events: %#v", es)
+	} else if es[0].Type != event.EventSync {
+		t.Errorf("Unexpected event type: %#v", es[0])
+	} else {
+		gotResourceIDs := es[0].ServiceIDs
+		resource.IDs(gotResourceIDs).Sort()
+		// Event should only have changed workload ids
+		if !reflect.DeepEqual(gotResourceIDs, []resource.ID{resource.MustParseID("default:namespace/foo")}) {
+			t.Errorf("Unexpected event workload ids: %#v, expected: %#v", gotResourceIDs, []resource.ID{resource.MustParseID("default:namespace/foo")})
+		}
+	}
+
+	// It moves the tag
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	if err := d.Repo.Refresh(ctx); err != nil {
+		t.Errorf("pulling sync tag: %v", err)
+	} else if revs, err := d.Repo.CommitsBetween(ctx, oldRevision, syncTag, false); err != nil {
+		t.Errorf("finding revisions before sync tag: %v", err)
+	} else if len(revs) <= 0 {
+		t.Errorf("Should have moved sync tag forward")
+	} else if revs[len(revs)-1].Revision != newRevision {
+		t.Errorf("Should have moved sync tag to HEAD (%s), but was moved to: %s", newRevision, revs[len(revs)-1].Revision)
+	}
+}
+
 func TestDoSync_WithErrors(t *testing.T) {
 	d, cleanup := daemon(t, testfiles.Files)
 	defer cleanup()
