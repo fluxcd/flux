@@ -69,6 +69,10 @@ const (
 	defaultGitNotesRef    = "flux"
 	defaultGitSkipMessage = "\n\n[ci skip]"
 
+	// registry scanning backend enums
+	redisBackend     = "redis"
+	memcachedBackend = "memcached"
+
 	RequireECR = "ecr"
 
 	k8sInClusterSecretsBaseDir = "/var/run/secrets/kubernetes.io"
@@ -145,7 +149,7 @@ func main() {
 		syncState    = fs.String("sync-state", fluxsync.GitTagStateMode, fmt.Sprintf("method used by flux for storing state (one of {%s})", strings.Join([]string{fluxsync.GitTagStateMode, fluxsync.NativeStateMode}, ",")))
 
 		// registry scanning cache backend
-		cacheBackend = fs.String("cache-backend", "memcached", "select the registry cache backend (supported: memcached, redis)")
+		cacheBackend = fs.String("cache-backend", memcachedBackend, fmt.Sprintf("select the registry cache backend (supported: %s, %s)", memcachedBackend, redisBackend))
 		cacheTimeout = fs.Duration("cache-request-timeout", time.Second, "maximum time to wait before giving up on cache requests.")
 		// memcached
 		memcachedHostname = fs.String("memcached-hostname", "memcached", "hostname for memcached service.")
@@ -591,7 +595,7 @@ func main() {
 		var cacheClient cache.Client
 
 		switch *cacheBackend {
-		case "memcached":
+		case memcachedBackend:
 			var memcacheClient *cache.MemcacheClient
 			memcacheConfig := cache.MemcacheConfig{
 				Host:           *memcachedHostname,
@@ -610,7 +614,7 @@ func main() {
 			}
 			defer memcacheClient.Stop()
 			cacheClient = memcacheClient
-		case "redis":
+		case redisBackend:
 			redisConfig := cache.RedisConfig{
 				Service: *redisService,
 				Port:    *redisPort,
