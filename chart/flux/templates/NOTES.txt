@@ -7,7 +7,7 @@ https://docs.fluxcd.io/en/latest/references/fluxctl#installing-fluxctl
 and running:
 
   fluxctl identity --k8s-fwd-ns {{ .Release.Namespace }}
-{{ if eq .Values.redis.enabled true }}
+{{ if eq .Values.redis.enabled }}
 
 WARNING
 -------

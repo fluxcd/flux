@@ -267,14 +267,13 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `memcached.nodeSelector`                          | `{}`                                                 | Node Selector properties for the memcached deployment
 | `memcached.tolerations`                           | `[]`                                                 | Tolerations properties for the memcached deployment
 | `memcached.priorityClassName`                     | `""`                                                 | The name of the priority class to assign to the memcached pod.
-| `kube.config`                                     | [See values.yaml][kubeconfig-ref]                    | Override for kubectl default config in the Flux pod(s).
 | `priorityClassName`                               | `""`                                                 | Set priority class for Flux
 | `redis.enabled`                                   | `false`                                              | _Experimental_: create a redis deployment and service.
 | `redis.pullSecret`                                | `None`                                               | _Experimental_: Image pull secret
 | `redis.repository`                                | `redis`                                              | _Experimental_: Image repository
 | `redis.tag`                                       | `5.0.7`                                              | _Experimental_: Image tag
-| `redis.resources`                                 | `None`                                               | _Experimental_: CPU/memory resource requests/limits for reds
-| `redis.securityContext`                           | [See values.yaml](/chart/flux/values.yaml#L211-L214) | _Experimental_: Container security context for reds
+| `redis.resources`                                 | `None`                                               | _Experimental_: CPU/memory resource requests/limits for redis
+| `redis.securityContext`                           | [See values.yaml](/chart/flux/values.yaml#L211-L214) | _Experimental_: Container security context for redis
 | `redis.nodeSelector`                              | `{}`                                                 | _Experimental_: Node Selector properties for the redis deployment
 | `redis.tolerations`                               | `[]`                                                 | _Experimental_: Tolerations properties for the redis deployment
 | `kube.config`                                     | [See values.yaml](/chart/flux/values.yaml#L235-L247) | Override for kubectl default config in the Flux pod(s).
