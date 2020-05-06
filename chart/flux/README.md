@@ -208,6 +208,8 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `clusterRole.create`                              | `true`                                               | If `false`, Flux will be restricted to the namespaces given in `allowedNamespaces` and the namespace where it is deployed
 | `service.type`                                    | `ClusterIP`                                          | Service type to be used (exposing the Flux API outside of the cluster is not advised)
 | `service.port`                                    | `3030`                                               | Service port to be used
+| `service.annotations`                             | `{}`                                                 | Service annotations
+| `service.loadBalancerSourceRanges`                | `{}`                                                 | for service.type == LoadBalancer, Array of whitelisted IP addresses for the service
 | `sync.state`                                      | `git`                                                | Where to keep sync state; either a tag in the upstream repo (`git`), or as an annotation on the SSH secret (`secret`)
 | `sync.timeout`                                    | `None`                                               | Duration after which sync operations time out (defaults to `1m`)
 | `sync.interval`                                   | `<git.pollInterval>`                                 | Controls how often Flux will apply what’s in git, to the cluster, absent new commits (defaults to `git.pollInterval`)

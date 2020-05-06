@@ -16,6 +16,8 @@ image:
 service:
   type: ClusterIP
   port: 3030
+  annotations: {}
+  loadBalancerSourceRanges: {}
 
 # Specifies which namespaces flux should have access to
 allowedNamespaces: []

@@ -7,6 +7,10 @@ metadata:
     chart: {{ template "flux.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
+  {{- if .Values.service.annotations }}
+  annotations:
+{{ toYaml .Values.service.annotations | trim | indent 4 }}
+  {{- end }}
 spec:
   type: {{ .Values.service.type }}
   ports:
@@ -17,3 +21,7 @@ spec:
   selector:
     app: {{ template "flux.name" . }}
     release: {{ .Release.Name }}
+  {{- if .Values.service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges:
+{{ toYaml .Values.service.loadBalancerSourceRanges | indent 4 }}
+  {{- end }}
