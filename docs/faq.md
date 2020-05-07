@@ -295,31 +295,8 @@ to enumerate the namespaces that Flux attempts to scan for workloads.
 
 ### Can I change the namespace Flux puts things in by default?
 
-Yes. The `fluxd` image has a "kubeconfig" file baked in, which specifies
-a default namespace of `"default"`. That means any manifest not
-specifying a namespace (in `.metadata.namespace`) will be given the
-namespace `"default"` when applied to the cluster.
-
-You can override this by mounting your own "kubeconfig" file into the
-container from a configmap, and using the `KUBECONFIG` environment
-entry to point to it. The [example
-deployment](https://github.com/fluxcd/flux/blob/master/deploy/flux-deployment.yaml) shows how to do this, in
-commented out sections -- it needs extra bits of config in three
-places (the `volume`, `volumeMount`, and `env` entries).
-
-The easiest way to create a suitable "kubeconfig" will be to adapt the
-[file that is baked into the image](https://github.com/fluxcd/flux/blob/master/docker/kubeconfig). Save that
-locally as `my-kubeconfig`, edit it to change the default namespace,
-then create the configmap, in the same namespace you run Flux in, with
-something like:
-
-    kubectl create configmap flux-kubeconfig --from-file=config=./my-kubeconfig
-
-Be aware that the expected location (`$HOME/.kube/`) of the
-`kubeconfig` file is _also_ used by `kubectl` to cache API responses,
-and mounting from a configmap will make it read-only and thus
-effectively disable the caching. For that reason, take care to mount
-your configmap elsewhere in the filesystem, as the example shows.
+Yes. The default namespace can be changed by passing the command-line flag
+`--k8s-default-namespace` to `fluxd`.
 
 ### Can I temporarily make Flux ignore a manifest?
 
