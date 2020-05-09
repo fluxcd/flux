@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -12,6 +13,11 @@ import (
 	fluxmetrics "github.com/fluxcd/flux/pkg/metrics"
 	fluxsync "github.com/fluxcd/flux/pkg/sync"
 )
+
+// Either 0 (nothing's run yet) or unix timestamp of when to consider the main
+// loop as being stuck. Used for flux's liveness endpoint to signal that the
+// daemon may need to be rebooted.
+var LoopStuckAt int64
 
 type LoopVars struct {
 	SyncInterval            time.Duration
@@ -70,7 +76,21 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 	d.AskForSync()
 	d.AskForAutomatedWorkloadImageUpdates()
 
+	// How long until we consider a loop to be "stuck", in seconds, for
+	// failing liveness checks, which is given to be the smallest interval
+	// + corresponding timeout, and no less than 1 minute.
+	loopTimeout := (d.SyncInterval.Milliseconds() + d.SyncTimeout.Milliseconds()) / 1000
+	// FIXME: What timeout should we use for AutomationInterval?
+	if x := (d.AutomationInterval.Milliseconds() * 2) / 1000; x < loopTimeout {
+		loopTimeout = x
+	}
+	if loopTimeout < 60 {
+		loopTimeout = 60
+	}
+
 	for {
+		atomic.StoreInt64(&LoopStuckAt, time.Now().Unix()+loopTimeout)
+
 		select {
 		case <-stop:
 			logger.Log("stopping", "true")

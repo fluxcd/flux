@@ -77,7 +77,7 @@ spec:
         livenessProbe:
           httpGet:
             port: 3030
-            path: /api/flux/v6/identity.pub
+            path: /liveness
           initialDelaySeconds: 5
           timeoutSeconds: 5
         readinessProbe:

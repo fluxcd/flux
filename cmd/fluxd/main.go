@@ -15,10 +15,12 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
 	"github.com/go-kit/kit/log"
+	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
 	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -790,6 +792,7 @@ func main() {
 		if *listenMetricsAddr == "" {
 			mux.Handle("/metrics", promhttp.Handler())
 		}
+		mux.HandleFunc("/liveness", livenessHandler)
 		handler := daemonhttp.NewHandler(daemon, daemonhttp.NewRouter())
 		mux.Handle("/api/flux/", http.StripPrefix("/api/flux", handler))
 		logger.Log("addr", *listenAddr)
@@ -821,4 +824,14 @@ func homeDir() string {
 		return h
 	}
 	return ""
+}
+
+func livenessHandler(w http.ResponseWriter, r *http.Request) {
+	stuckAt := atomic.LoadInt64(&daemon.LoopStuckAt)
+	now := time.Now().Unix()
+
+	if stuckAt != 0 && stuckAt < now {
+		err := errors.New(fmt.Sprintf("daemon loop is overdue by %d seconds, it may be stuck", now-stuckAt))
+		transport.WriteError(w, r, 500, err)
+	}
 }
