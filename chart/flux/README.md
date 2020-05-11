@@ -244,6 +244,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `dnsPolicy`                                       | ``                                                   | Pod DNS policy
 | `dnsConfig`                                       | ``                                                   | Pod DNS config
 | `token`                                           | `None`                                               | Weave Cloud service token
+| `upstreamService`                                 | `None`                                               | An upstream service address. If token is not empty, upstreamService=wss://cloud.weave.works/api/flux
 | `extraEnvs`                                       | `[]`                                                 | Extra environment variables for the Flux pod(s)
 | `extraEnvsFrom`                                   | `[]`                                                 | Extra environment variables from a list of sources for the Flux pod(s)
 | `env.secretName`                                  | ``                                                   | Name of the secret that contains environment variables which should be defined in the Flux container (using `envFrom`)

@@ -290,6 +290,9 @@ spec:
           - --connect=wss://cloud.weave.works/api/flux
           - --token={{ .Values.token }}
           {{- end }}
+          {{- if .Values.upstreamService }}
+          - --connect={{ .Values.upstreamService }}
+          {{- end }}
           {{- if and .Values.syncGarbageCollection.enabled (not .Values.syncGarbageCollection.dry) }}
           - --sync-garbage-collection={{ .Values.syncGarbageCollection.enabled }}
           {{- else if .Values.syncGarbageCollection.dry }}

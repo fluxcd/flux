@@ -2,6 +2,7 @@
 
 # Weave Cloud service token
 token: ""
+upstreamService: ""
 
 replicaCount: 1
 
