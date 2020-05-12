@@ -140,7 +140,7 @@ func (cs Credentials) credsFor(host string) creds {
 	if cred, found := cs.m[host]; found {
 		return cred
 	}
-	if host == "gcr.io" || strings.HasSuffix(host, ".gcr.io") {
+	if host == "gcr.io" || strings.HasSuffix(host, ".gcr.io") || strings.HasSuffix(host, "-docker.pkg.dev") {
 		if cred, err := GetGCPOauthToken(host); err == nil {
 			return cred
 		}
