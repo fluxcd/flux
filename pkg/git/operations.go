@@ -37,6 +37,10 @@ var allowedEnvVars = []string{
 	// these are for Google Cloud SDK to find its files (which will
 	// have to be mounted, if running in a container)
 	"CLOUDSDK_CONFIG", "CLOUDSDK_PYTHON",
+	// those vars are for NSS_WRAPPER, which is used to solve ssh error - "No user exists for uid xxxxxxxxxx",
+	// when container is running in hardened Openshift environments and user id is not found in /etc/passwd
+	// for usage flux must be wrapped using https://cwrap.org/nss_wrapper.html library
+	"NSS_WRAPPER_PASSWD", "NSS_WRAPPER_GROUP", "LD_PRELOAD",
 }
 
 type gitCmdConfig struct {
