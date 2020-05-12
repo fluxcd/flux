@@ -376,7 +376,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 		t.Errorf("Sync was called with a nil syncDef")
 	}
 
-	// The emitted event has no workload ids
+	// An event is emitted and it only has a changed workload id
 	es, err := events.AllEvents(time.Time{}, -1, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -387,7 +387,6 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 	} else {
 		gotResourceIDs := es[0].ServiceIDs
 		resource.IDs(gotResourceIDs).Sort()
-		// Event should only have changed workload ids
 		if !reflect.DeepEqual(gotResourceIDs, []resource.ID{resource.MustParseID("default:deployment/helloworld")}) {
 			t.Errorf("Unexpected event workload ids: %#v, expected: %#v", gotResourceIDs, []resource.ID{resource.MustParseID("default:deployment/helloworld")})
 		}
@@ -493,7 +492,7 @@ func TestDoSync_WithKustomize(t *testing.T) {
 		t.Errorf("Sync was called with a nil syncDef")
 	}
 
-	// The emitted event has no workload ids
+	// An event is emitted and it only has a changed workload id
 	es, err := events.AllEvents(time.Time{}, -1, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -504,7 +503,6 @@ func TestDoSync_WithKustomize(t *testing.T) {
 	} else {
 		gotResourceIDs := es[0].ServiceIDs
 		resource.IDs(gotResourceIDs).Sort()
-		// Event should only have changed workload ids
 		if !reflect.DeepEqual(gotResourceIDs, []resource.ID{resource.MustParseID("default:namespace/foo")}) {
 			t.Errorf("Unexpected event workload ids: %#v, expected: %#v", gotResourceIDs, []resource.ID{resource.MustParseID("default:namespace/foo")})
 		}
