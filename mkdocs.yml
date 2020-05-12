@@ -51,6 +51,7 @@ nav:
     - Using Git over HTTPS: guides/use-git-https.md
     - Using a private Git host: guides/use-private-git-host.md
     - Upgrading to Flux v1: guides/upgrading-to-1.0.md
+    - Use GKE Workload Identity: guides/use-gke-workload-identity.md
   - Tutorials:
     - Get started: tutorials/get-started.md
     - Get started using Helm: tutorials/get-started-helm.md
