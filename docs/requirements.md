@@ -9,10 +9,6 @@ Flux has some requirements of the files it finds in your git repo.
    comments and whitespace in YAMLs when updating them. You may see
    updates with incidental, harmless changes, like reindented blocks.
 
- * All Kubernetes resource manifests should explicitly specify the
-   namespace in which you want them to run. Otherwise, the
-   conventional default (`"default"`) will be assumed.
-
  * Flux will ignore directories that look like Helm charts, to avoid
    applying templated YAML manifests. A directory will be skipped if
    its contents include the files `Chart.yaml` and `values.yaml`, as
