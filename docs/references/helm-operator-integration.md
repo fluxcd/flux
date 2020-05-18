@@ -96,7 +96,9 @@ is required for any of these to take effect.
 | **`repository.fluxcd.io/<alias>`** | `sub.repo`       |     ✅    |
 | `registry.fluxcd.io/<alias>`       | `sub.reg`        |           |
 | `tag.fluxcd.io/<alias>`            | `sub.tag`        |           |
-| `filter.fluxcd.io/<alias>`         | `glob: master-*` |           |
+| `filter.fluxcd.io/<alias>`         | `glob:master-*` |           |
+
+> Note: Glob patterns following `glob:` are sensitive to spaces
 
 The following example `HelmRelease` specifies two images:
 
@@ -106,7 +108,7 @@ metadata:
     # image and tag
     repository.fluxcd.io/app: appImage
     tag.fluxcd.io/app: appTag
-    filter.fluxcd.io/app: 'glob: *'
+    filter.fluxcd.io/app: 'glob:*'
     # nested image with registry and tag
     registry.fluxcd.io/submarine: sub.marinesystem.reg
     repository.fluxcd.io/submarine: sub.marinesystem.img
