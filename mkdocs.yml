@@ -13,6 +13,7 @@ theme:
   logo: _files/flux-icon@2x.png
   language: en
   palette:
+    scheme: slate
     primary: blue
     accent: indigo
 
