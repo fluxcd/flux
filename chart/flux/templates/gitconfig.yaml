@@ -3,6 +3,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: {{ include "git.config.secretName" . }}
+  namespace: {{ .Release.Namespace }}
 type: Opaque
 data:
   gitconfig: {{ .Values.git.config.data | b64enc }}
