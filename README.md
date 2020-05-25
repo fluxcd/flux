@@ -47,7 +47,7 @@ container images and config changes are propagated to the cluster.
 
 |    |     |     |
 | -- | --- | --- |
-|[ABA English](https://www.abaenglish.com)|[Alea Play Solutions](http://www.aleaplay.com)|[APPUiO](https://appuio.ch)
+|[ABA English](https://www.abaenglish.com)|[Alea Play Solutions](http://www.alea.com)|[APPUiO](https://appuio.ch)
 |[Apester](https://apester.com)|[ArangoDB Oasis](https://arangodb.com/managed-service)|[Avisi](https://avisi.nl)
 |[B3i](https://b3i.tech/)|[Babylon Health](https://www.babylonhealth.com/)|[bimspot](https://bimspot.io)
 |[BlaBlaCar](https://www.blablacar.com/)|[blackmirror media](https://blackmirror.media)|[Canva](https://www.canva.com/)
