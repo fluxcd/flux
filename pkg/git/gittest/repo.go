@@ -14,7 +14,7 @@ import (
 
 // Repo creates a new clone-able git repo, pre-populated with some kubernetes
 // files and a few commits. Also returns a cleanup func to clean up after.
-func Repo(t *testing.T) (*git.Repo, func()) {
+func Repo(t *testing.T, files map[string]string) (*git.Repo, func()) {
 	newDir, cleanup := testfiles.TempDir(t)
 
 	filesDir := filepath.Join(newDir, "files")
@@ -36,7 +36,8 @@ func Repo(t *testing.T) (*git.Repo, func()) {
 		cleanup()
 		t.Fatal(err)
 	}
-	if err = testfiles.WriteTestFiles(filesDir); err != nil {
+
+	if err = testfiles.WriteTestFiles(filesDir, files); err != nil {
 		cleanup()
 		t.Fatal(err)
 	}
@@ -79,7 +80,7 @@ func CheckoutWithConfig(t *testing.T, config git.Config, syncTag string) (*git.C
 	// This is to make sure that git commands don't have ambiguity problems between revisions and files.
 	testfiles.Files[config.Branch] = "Filename doctored to create a conflict with the git branch name"
 	testfiles.Files[syncTag] = "Filename doctored to create a conflict with the git sync tag"
-	repo, cleanup := Repo(t)
+	repo, cleanup := Repo(t, testfiles.Files)
 	if err := repo.Ready(context.Background()); err != nil {
 		cleanup()
 		t.Fatal(err)

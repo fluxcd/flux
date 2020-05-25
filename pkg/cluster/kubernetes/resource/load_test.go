@@ -268,7 +268,7 @@ func debyte(r resource.Resource) resource.Resource {
 func TestLoadSome(t *testing.T) {
 	dir, cleanup := testfiles.TempDir(t)
 	defer cleanup()
-	if err := testfiles.WriteTestFiles(dir); err != nil {
+	if err := testfiles.WriteTestFiles(dir, testfiles.Files); err != nil {
 		t.Fatal(err)
 	}
 	objs, err := Load(dir, []string{dir}, false)
@@ -283,7 +283,7 @@ func TestLoadSome(t *testing.T) {
 func TestChartTracker(t *testing.T) {
 	dir, cleanup := testfiles.TempDir(t)
 	defer cleanup()
-	if err := testfiles.WriteTestFiles(dir); err != nil {
+	if err := testfiles.WriteTestFiles(dir, testfiles.Files); err != nil {
 		t.Fatal(err)
 	}
 
@@ -331,7 +331,7 @@ func TestChartTracker(t *testing.T) {
 func TestLoadSomeWithSopsNoneEncrypted(t *testing.T) {
 	dir, cleanup := testfiles.TempDir(t)
 	defer cleanup()
-	if err := testfiles.WriteTestFiles(dir); err != nil {
+	if err := testfiles.WriteTestFiles(dir, testfiles.Files); err != nil {
 		t.Fatal(err)
 	}
 	objs, err := Load(dir, []string{dir}, true)

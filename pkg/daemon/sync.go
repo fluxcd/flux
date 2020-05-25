@@ -65,7 +65,7 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, newRevision string
 	}
 
 	// Retrieve change set of commits we need to sync
-	c, err := getChangeSet(ctx, ratchet, newRevision, d.Repo, d.GitTimeout, d.GitConfig.Paths)
+	c, err := d.getChangeSet(ctx, ratchet, newRevision)
 	if err != nil {
 		return err
 	}
@@ -127,7 +127,7 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, newRevision string
 
 // getChangeSet returns the change set of commits for this sync,
 // including the revision range and if it is an initial sync.
-func getChangeSet(ctx context.Context, state revisionRatchet, headRev string, repo *git.Repo, timeout time.Duration, paths []string) (changeSet, error) {
+func (d *Daemon) getChangeSet(ctx context.Context, state revisionRatchet, headRev string) (changeSet, error) {
 	var c changeSet
 	var err error
 
@@ -139,12 +139,17 @@ func getChangeSet(ctx context.Context, state revisionRatchet, headRev string, re
 	c.oldTagRev = currentRev
 	c.newTagRev = headRev
 
-	ctx, cancel := context.WithTimeout(ctx, timeout)
+	paths := d.GitConfig.Paths
+	if d.ManifestGenerationEnabled {
+		paths = []string{}
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, d.GitTimeout)
 	if c.oldTagRev != "" {
-		c.commits, err = repo.CommitsBetween(ctx, c.oldTagRev, c.newTagRev, false, paths...)
+		c.commits, err = d.Repo.CommitsBetween(ctx, c.oldTagRev, c.newTagRev, false, paths...)
 	} else {
 		c.initialSync = true
-		c.commits, err = repo.CommitsBefore(ctx, c.newTagRev, false, paths...)
+		c.commits, err = d.Repo.CommitsBefore(ctx, c.newTagRev, false, paths...)
 	}
 	cancel()
 
