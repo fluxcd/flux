@@ -302,7 +302,7 @@ func (r *Repo) step(bg context.Context) bool {
 		// process, so just exit.
 		return false
 
-	case RepoNew:
+	case RepoNew, RepoUnreachable:
 		rootdir, err := ioutil.TempDir(os.TempDir(), "flux-gitclone")
 		if err != nil {
 			panic(err)
@@ -323,12 +323,12 @@ func (r *Repo) step(bg context.Context) bool {
 			r.setUnready(RepoCloned, ErrClonedOnly)
 			return true
 		}
+		dir = ""
+		os.RemoveAll(rootdir)
 		if strings.Contains(strings.ToLower(err.Error()), "could not resolve hostname") {
 			r.setUnready(RepoUnreachable, err)
 			return false
 		}
-		dir = ""
-		os.RemoveAll(rootdir)
 		r.setUnready(RepoNew, err)
 		return false
 
@@ -372,9 +372,6 @@ func (r *Repo) step(bg context.Context) bool {
 		// that any listeners can respond in the same way.
 		r.refreshed()
 		return true
-
-	case RepoUnreachable:
-		return false
 
 	case RepoReady:
 		return false

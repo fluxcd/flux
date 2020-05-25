@@ -21,6 +21,7 @@ import (
 	"github.com/fluxcd/flux/pkg/api/v9"
 	"github.com/fluxcd/flux/pkg/cluster"
 	"github.com/fluxcd/flux/pkg/cluster/kubernetes"
+	"github.com/fluxcd/flux/pkg/cluster/kubernetes/testfiles"
 	"github.com/fluxcd/flux/pkg/cluster/mock"
 	"github.com/fluxcd/flux/pkg/event"
 	"github.com/fluxcd/flux/pkg/git"
@@ -664,7 +665,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *mock.Mock, *mockEventWr
 		},
 	}
 
-	repo, repoCleanup := gittest.Repo(t)
+	repo, repoCleanup := gittest.Repo(t, testfiles.Files)
 
 	syncTag := "flux-test"
 	params := git.Config{

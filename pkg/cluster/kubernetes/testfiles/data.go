@@ -27,8 +27,8 @@ func TempDir(t *testing.T) (string, func()) {
 }
 
 // WriteTestFiles ... given a directory, create files in it, based on predetermined file content
-func WriteTestFiles(dir string) error {
-  return writeFiles(dir, Files)
+func WriteTestFiles(dir string, files map[string]string) error {
+	return writeFiles(dir, files)
 }
 
 // WriteSopsEncryptedTestFiles ... given a directory, create files in it, based on predetermined file content.
@@ -355,6 +355,43 @@ spec:
         - -addr=:8080
         ports:
         - containerPort: 8080
+`,
+}
+
+// -+- .flux.yaml
+//  +- base/    -+- kustomization.yaml
+//  |            +- foo.yaml
+//  +- staging/ -+- kustomization.yaml
+//               +- staging.yaml
+
+var FilesForKustomize = map[string]string{
+	".flux.yaml": `version: 1
+patchUpdated:
+  generators:
+  - command: kustomize build .
+  patchFile: flux-patch.yaml
+`,
+	"base/kustomization.yaml": `resources:
+- foo.yaml
+`,
+	"base/foo.yaml": `apiVersion: v1
+kind: Namespace
+metadata:
+  name: foo
+  annotations:
+    key: value
+`,
+	"staging/kustomization.yaml": `bases:
+- ../base/
+patches:
+- staging.yaml
+`,
+	"staging/staging.yaml": `apiVersion: v1
+kind: Namespace
+metadata:
+  name: foo
+  annotations:
+    env: staging
 `,
 }
 

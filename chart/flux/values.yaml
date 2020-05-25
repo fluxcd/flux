@@ -226,6 +226,9 @@ ssh:
     # “PKCS8” (PEM PKCS8 public key) or
     # “PEM” (PEM public key).
     format: "RFC4716"
+  secret:
+    # Annotations for the Secret
+    annotations: {}
 
 kube:
   # Override for kubectl default config

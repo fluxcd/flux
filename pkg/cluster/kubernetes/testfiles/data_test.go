@@ -10,7 +10,7 @@ func TestWriteTestFiles(t *testing.T) {
 	dir, cleanup := TempDir(t)
 	defer cleanup()
 
-	if err := WriteTestFiles(dir); err != nil {
+	if err := WriteTestFiles(dir, Files); err != nil {
 		cleanup()
 		t.Fatal(err)
 	}

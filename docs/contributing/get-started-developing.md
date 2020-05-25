@@ -83,7 +83,7 @@ and run what we have locally.
     minikube delete
     ```
 
-4. The [`minikube` addon](https://github.com/kubernetes/minikube/blob/master/docs/addons.md)
+4. The [`minikube` addon](https://minikube.sigs.k8s.io/docs/commands/addons/)
    called [freshpod](https://github.com/GoogleCloudPlatform/freshpod)
    that will be very useful to us later. You'll see. It's gonna be cool.
 

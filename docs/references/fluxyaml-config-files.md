@@ -128,7 +128,7 @@ scanForFiles: {}
 
 This is to account for the case in which you have a `.flux.yaml`
 higher in the directory tree, applying to several target paths beneath
-it, but want to have a directory wth regular YAMLs as well.
+it, but want to have a directory with regular YAMLs as well.
 
 In the following example, the top-level `.flux.yaml` would take effect
 for `--git-path=staging` or `--git-path=production`.
