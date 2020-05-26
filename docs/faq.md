@@ -258,10 +258,10 @@ There's a couple of reasons this can happen.
 
 The first is that Flux pushes commits to your git repo, and if that
 repo is configured to go through CI, usually those commits will
-trigger a build. You can avoid this by supplying the flag `--ci-skip`
+trigger a build. You can avoid this by supplying the flag `--git-ci-skip`
 so that Flux's commit will append `[ci skip]` to its commit
 messages. Many CI systems will treat that as meaning they should not
-run a build for that commit. You can use `--ci-skip-message`, if you
+run a build for that commit. You can use `--git-ci-skip-message`, if you
 need a different piece of text appended to commit messages.
 
 The other thing that can trigger CI is that Flux pushes a tag to the
