@@ -241,7 +241,7 @@ If you have installed flux through Helm, make sure to pass
 
 As part of using git+ssh securely from the Flux daemon, we make sure
 `StrictHostKeyChecking` is on in the
-[SSH config](http://man7.org/linux/man-pages/man5/ssh_config.5.html). This
+[SSH config](https://man7.org/linux/man-pages/man5/ssh_config.5.html). This
 mitigates against man-in-the-middle attacks.
 
 We bake host keys for `github.com`, `gitlab.com`, `bitbucket.org`, `dev.azure.com`, and `vs-ssh.visualstudio.com`
