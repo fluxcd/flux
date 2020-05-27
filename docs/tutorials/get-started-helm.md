@@ -18,13 +18,13 @@ Download Helm v3:
 
 - On MacOS:
 
-  ```sh
-  brew install helm
-  ```
+    ```sh
+    brew install helm
+    ```
 
 - On Linux:
-  - Download the [latest release](https://github.com/kubernetes/helm/releases/latest),
-    unpack the tarball and put the binary in your `$PATH`.
+    - Download the [latest release](https://github.com/kubernetes/helm/releases/latest),
+      unpack the tarball and put the binary in your `$PATH`.
 
 If you are using Helm v2 you have to create a service account and a cluster role binding for Tiller:
 
@@ -42,10 +42,11 @@ Deploy Tiller in `kube-system` namespace (Helm v2 only):
 helm init --skip-refresh --upgrade --service-account tiller --history-max 10
 ```
 
-> **Note:** This is a quick guide and by no means a production ready
-> Tiller setup, please look into ['Securing your Helm installation'](https://helm.sh/docs/using_helm/#securing-your-helm-installation)
-> and be aware of the `--history-max` flag before promoting to
-> production.
+!!!note
+    This is a quick guide and by no means a production ready
+    Tiller setup, please look into ['Securing your Helm installation'](https://helm.sh/docs/using_helm/#securing-your-helm-installation)
+    and be aware of the `--history-max` flag before promoting to
+    production.
 
 ## Install Flux
 
@@ -63,41 +64,40 @@ kubectl apply -f https://raw.githubusercontent.com/fluxcd/helm-operator/master/d
 
 In this next step you install Flux using `helm`. Simply
 
- 1. Fork [`fluxcd/flux-get-started`](https://github.com/fluxcd/flux-get-started)
-    on GitHub and replace the `fluxcd` with your GitHub username in
-    [here](https://github.com/fluxcd/flux-get-started/blob/master/releases/ghost.yaml#L13)
- 
- 1. Create the flux namespace:
- 
+1. Fork [`fluxcd/flux-get-started`](https://github.com/fluxcd/flux-get-started) on GitHub and replace the `fluxcd` with your GitHub username in [here](https://github.com/fluxcd/flux-get-started/blob/master/releases/ghost.yaml#L13)
+
+1. Create the flux namespace:
+
     ```sh
     kubectl create namespace flux
     ```
- 
- 1. Install Flux and the Helm Operator by specifying your fork URL:
 
-      *Just make sure you replace `YOURUSER` with your GitHub username
-      in the command below:*
+1. Install Flux and the Helm Operator by specifying your fork URL:
+
+    *Just make sure you replace `YOURUSER` with your GitHub username
+    in the command below:*
 
     - Using a public git server from `bitbucket.com`, `github.com`, `gitlab.com`, `dev.azure.com`, or `vs-ssh.visualstudio.com`:
 
-      ```sh
-      helm upgrade -i flux fluxcd/flux \
-      --set git.url=git@github.com:YOURUSER/flux-get-started \
-      --namespace flux
+         ```sh
+         helm upgrade -i flux fluxcd/flux \
+            --set git.url=git@github.com:YOURUSER/flux-get-started \
+            --namespace flux
 
-      helm upgrade -i helm-operator fluxcd/helm-operator \
-      --set git.ssh.secretName=flux-git-deploy \
-      --namespace flux
-      ```
+          helm upgrade -i helm-operator fluxcd/helm-operator \
+            --set git.ssh.secretName=flux-git-deploy \
+            --namespace flux
+         ```
 
-    > **Note:** By default the helm-operator chart will install with support for both Helm v2 (which requires Tiller) and v3.  You can target specific versions by setting the `helm.versions` value, e.g. `--set helm.versions=v3`.
+        !!!note
+            By default the helm-operator chart will install with support for both Helm v2 (which requires Tiller) and v3.  You can target specific versions by setting the `helm.versions` value, e.g. `--set helm.versions=v3`.
 
     - Using a private git server:
 
-      When deploying from a private repo, the known_hosts of the git server needs
-      to be configured into a kubernetes configmap so that `StrictHostKeyChecking` is respected.
-      See the [README of the chart](https://github.com/fluxcd/flux/blob/master/chart/flux/README.md#to-install-flux-with-the-helm-operator-and-a-private-git-repository)
-      for further installation instructions in this case.
+        When deploying from a private repo, the known_hosts of the git server needs
+        to be configured into a kubernetes configmap so that `StrictHostKeyChecking` is respected.
+        See the [README of the chart](https://github.com/fluxcd/flux/blob/master/chart/flux/README.md#to-install-flux-with-the-helm-operator-and-a-private-git-repository)
+        for further installation instructions in this case.
 
 Allow some time for all containers to get up and running. If you're
 impatient, run the following command and see the pod creation
