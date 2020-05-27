@@ -30,7 +30,10 @@ markdown_extensions:
       guess_lang: false
   - toc:
       permalink: true
+  - pymdownx.superfences:
+      highlight_code: true
   - pymdownx.tabbed
+
 
 nav:
   - Introducing Flux: introduction.md
