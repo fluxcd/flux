@@ -35,7 +35,7 @@ LABEL maintainer="Flux CD <https://github.com/fluxcd/flux/issues>" \
 ENTRYPOINT [ "/sbin/tini", "--", "fluxd" ]
 
 # Get the kubeyaml binary (files) and put them on the path
-COPY --from=quay.io/squaremo/kubeyaml:0.7.0 /usr/lib/kubeyaml /usr/lib/kubeyaml/
+COPY --from=squaremo/kubeyaml:0.7.0 /usr/lib/kubeyaml /usr/lib/kubeyaml/
 ENV PATH=/bin:/usr/bin:/usr/local/bin:/usr/lib/kubeyaml
 
 # Create minimal nsswitch.conf file to prioritize the usage of /etc/hosts over DNS queries.
