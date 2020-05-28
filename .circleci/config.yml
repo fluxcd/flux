@@ -1,49 +1,5 @@
 version: 2
 jobs:
-  helm:
-    docker:
-      - image: circleci/golang:1.12
-    steps:
-      - checkout
-      - run:
-          name: Install kubectl
-          command: sudo curl -L https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl -o /usr/local/bin/kubectl && sudo chmod +x /usr/local/bin/kubectl
-      - run:
-          name: Install helm
-          command: sudo curl -L https://storage.googleapis.com/kubernetes-helm/helm-v2.14.2-linux-amd64.tar.gz | tar xz && sudo mv linux-amd64/helm /bin/helm && sudo rm -rf linux-amd64
-      - run:
-          name: Initialize helm
-          command:  helm init --client-only --kubeconfig=$HOME/.kube/kubeconfig
-      - run:
-          name: Lint chart
-          command: |
-            helm lint ./chart/flux
-      - run:
-          name: Package chart
-          command: |
-            mkdir $HOME/chart
-            helm package ./chart/flux --destination $HOME/chart
-      - run:
-          name: Publish chart
-          command: |
-            git config --global user.email fluxcdbot@users.noreply.github.com
-            git config --global user.name fluxcdbot
-
-            # Push to fluxcd/charts gh-pages branch
-            if echo "${CIRCLE_TAG}" | grep -Eq "chart-[0-9]+(\.[0-9]+)*(-[a-z]+)?$"; then
-              REPOSITORY="https://fluxcdbot:${GITHUB_TOKEN}@github.com/fluxcd/charts.git"
-              mkdir $HOME/fluxcd-charts
-              cd $HOME/fluxcd-charts && git clone ${REPOSITORY}
-              cd $HOME/fluxcd-charts/charts
-              git checkout gh-pages
-              mv $HOME/chart/*.tgz .
-              helm repo index . --url https://charts.fluxcd.io
-              git add .
-              git commit -m "Publish chart to fluxcd/charts"
-              git push origin gh-pages
-            else
-              echo "Not a chart release! Skip chart publish"
-            fi
   build:
     working_directory: /home/circleci/go/src/github.com/fluxcd/flux
     machine:
@@ -149,17 +105,7 @@ workflows:
   version: 2
   build-and-push:
     jobs:
-      - helm
       - build:
           filters:
             tags:
               only: /[0-9]+(\.[0-9]+)*(-[a-z0-9]+)?/
-
-  release-helm:
-    jobs:
-      - helm:
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /^chart.*/
