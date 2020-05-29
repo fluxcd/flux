@@ -47,26 +47,26 @@ container images and config changes are propagated to the cluster.
 
 |    |     |     |
 | -- | --- | --- |
-|[ABA English](https://www.abaenglish.com)|[Alea Play Solutions](http://www.alea.com)|[APPUiO](https://appuio.ch)
-|[Apester](https://apester.com)|[ArangoDB Oasis](https://arangodb.com/managed-service)|[Avisi](https://avisi.nl)
-|[B3i](https://b3i.tech/)|[Babylon Health](https://www.babylonhealth.com/)|[bimspot](https://bimspot.io)
-|[BlaBlaCar](https://www.blablacar.com/)|[blackmirror media](https://blackmirror.media)|[Canva](https://www.canva.com/)
-|[Chattigo](https://chattigo.com)|[Cloudlets](https://cloudlets.io)|[CLVR Cloud Ltd](https://clvr.cloud)
-|[College of William & Mary](https://www.wm.edu)|[Control Plane](https://control-plane.io)|[Consorcio Chile](https://www.consorcio.cl)
-|[CrowdRiff](https://crowdriff.com)|[Cybrary](https://cybrary.it)|[FireHydrant](https://firehydrant.io)
-|[gastromatic](https://www.gastromatic.de/)|[Gini](https://gini.net)|[Greenpass](https://www.greenpass.com.br/)
-|[HMCTS](https://www.gov.uk/government/organisations/hm-courts-and-tribunals-service)|[IBM Cloudant](https://www.ibm.com/cloud/cloudant)|[Improwised Technologies](https://www.improwised.com/)
-|[Infabode](https://infabode.com)|[iQmetrix](https://www.iqmetrix.com)|[karriere tutor GmbH](https://www.karrieretutor.de)
-|[Limejump](https://limejump.com)|[loveholidays](https://www.loveholidays.com/)|[LUNAR](https://www.lunarway.com/)
-|[MediaMarktSaturn](https://www.mediamarktsaturn.com)|[Mettle](https://mettle.co.uk)|[Mintel](https://www.mintel.com)
-|[Multicaja S.A](https://www.multicaja.cl)|[Okteto Cloud](https://okteto.com/)|[Omise](https://www.omise.co)
-|[Payout](https://payout.one)|[Qordoba](https://qordoba.com)|[Rakuten](https://rakuten.com)
-|[Replicated](https://replicated.com)|[Resulta](https://resulta.com)|[Rungway](https://rungway.com)
-|[Sage AI Labs](https://www.sage.com)|[Starbucks](https://www.starbucks.com/)|[Troii](https://troii.com/)
-|[UK Hydrographic Office](https://www.gov.uk/government/organisations/uk-hydrographic-office)|[Under Armour](https://www.underarmour.com)|[VSHN](https://vshn.ch)|[Walmart Chile](https://www.walmartchile.cl)
-|[Weave Cloud](https://cloud.weave.works)|[Workable](https://www.workable.com)|[Workarea](https://www.workarea.com)
-|[Working Group Two](https://wgtwo.com)|[Yusofleet](https://yusofleet.com)|[Yad2](https://yad2.co.il)
-|[Zaaksysteem](https://zaaksysteem.nl)
+|[ABA English](https://www.abaenglish.com)|[Alea Play Solutions](http://www.alea.com)|[APPUiO](https://appuio.ch)|
+|[Apester](https://apester.com)|[ArangoDB Oasis](https://arangodb.com/managed-service)|[Avisi](https://avisi.nl)|
+|[B3i](https://b3i.tech/)|[Babylon Health](https://www.babylonhealth.com/)|[bimspot](https://bimspot.io)|
+|[BlaBlaCar](https://www.blablacar.com/)|[blackmirror media](https://blackmirror.media)|[Canva](https://www.canva.com/)|
+|[Chattigo](https://chattigo.com)|[Cloudlets](https://cloudlets.io)|[CLVR Cloud Ltd](https://clvr.cloud)|
+|[College of William & Mary](https://www.wm.edu)|[Control Plane](https://control-plane.io)|[Consorcio Chile](https://www.consorcio.cl)|
+|[CrowdRiff](https://crowdriff.com)|[Cybrary](https://cybrary.it)|[FireHydrant](https://firehydrant.io)|
+|[gastromatic](https://www.gastromatic.de/)|[Gini](https://gini.net)|[Greenpass](https://www.greenpass.com.br/)|
+|[HMCTS](https://www.gov.uk/government/organisations/hm-courts-and-tribunals-service)|[IBM Cloudant](https://www.ibm.com/cloud/cloudant)|[Improwised Technologies](https://www.improwised.com/)|
+|[Infabode](https://infabode.com)|[iQmetrix](https://www.iqmetrix.com)|[karriere tutor GmbH](https://www.karrieretutor.de)|
+|[Limejump](https://limejump.com)|[loveholidays](https://www.loveholidays.com/)|[LUNAR](https://www.lunarway.com/)|
+|[MediaMarktSaturn](https://www.mediamarktsaturn.com)|[Mettle](https://mettle.co.uk)|[Mintel](https://www.mintel.com)|
+|[Multicaja S.A](https://www.multicaja.cl)|[Okteto Cloud](https://okteto.com/)|[Omise](https://www.omise.co)|
+|[Payout](https://payout.one)|[Plex Systems](https://www.plex.com/)|[Qordoba](https://qordoba.com)|
+|[Rakuten](https://rakuten.com)|[Replicated](https://replicated.com)|[Resulta](https://resulta.com)|
+|[Rungway](https://rungway.com)|[Sage AI Labs](https://www.sage.com)|[Starbucks](https://www.starbucks.com/)|
+|[Troii](https://troii.com/)|[UK Hydrographic Office](https://www.gov.uk/government/organisations/uk-hydrographic-office)|[Under Armour](https://www.underarmour.com)|
+|[VSHN](https://vshn.ch)|[Walmart Chile](https://www.walmartchile.cl)|[Weave Cloud](https://cloud.weave.works)|
+|[Workable](https://www.workable.com)|[Workarea](https://www.workarea.com)|[Working Group Two](https://wgtwo.com)|
+|[Yad2](https://yad2.co.il)|[Yusofleet](https://yusofleet.com)|[Zaaksysteem](https://zaaksysteem.nl)|
 
 If you too are using Flux in production; please submit a PR to add your organization to the list!
 
