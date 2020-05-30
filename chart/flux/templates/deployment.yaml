@@ -17,6 +17,9 @@ spec:
   template:
     metadata:
       annotations:
+      {{- if .Values.ssh.known_hosts }}
+        checksum/ssh: {{ include (print $.Template.BasePath "/ssh.yaml") . | sha256sum | quote }}
+      {{- end }}
       {{- if .Values.prometheus.enabled }}
         prometheus.io/scrape: "true"
       {{- end }}
@@ -299,7 +302,7 @@ spec:
       dnsConfig:
 {{ toYaml .Values.dnsConfig | indent 8 }}
 {{- end }}
-      nodeSelector: 
+      nodeSelector:
         beta.kubernetes.io/os: linux
       {{- with .Values.nodeSelector }}
 {{ toYaml . | indent 8 }}
