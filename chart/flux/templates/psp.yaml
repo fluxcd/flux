@@ -3,6 +3,7 @@ apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
 metadata:
   name: {{ template "flux.fullname" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     app: {{ include "flux.name" . }}
     chart: {{ include "flux.chart" . }}
