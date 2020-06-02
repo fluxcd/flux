@@ -10,6 +10,9 @@ metadata:
     heritage: {{ .Release.Service }}
 spec:
   type: {{ .Values.service.type }}
+  {{- if and (eq .Values.service.type "ClusterIP") (eq .Values.service.createClusterIP false) }}
+  clusterIP: None
+  {{- end }}
   ports:
     - port: {{ .Values.service.port }}
       targetPort: http

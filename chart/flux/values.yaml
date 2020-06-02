@@ -15,6 +15,7 @@ image:
 
 service:
   type: ClusterIP
+  createClusterIP: true
   port: 3030
 
 # Specifies which namespaces flux should have access to
