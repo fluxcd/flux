@@ -22,14 +22,14 @@ Version controlling of cluster manifests provides reproducibility and a historic
         
 1. Automate vs Deautomate
 
-   Deployment happens automatically when a new image tag is
-   detected. Deautomated deployment will not proceed until
-   manually released (through the CLI tool `fluxctl`).
+    Deployment happens automatically when a new image tag is
+    detected. Deautomated deployment will not proceed until
+    manually released (through the CLI tool `fluxctl`).
 
 2. Lock vs Unlock
 
-   Deployment is pinned to a particular image tag.
-   New deployment will not proceed upon triggered release.
+    Deployment is pinned to a particular image tag.
+    New deployment will not proceed upon triggered release.
 
 ## Setup and configuration
 

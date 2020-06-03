@@ -22,9 +22,8 @@ Download Helm v3:
     brew install helm
     ```
 
-- On Linux:
-    - Download the [latest release](https://github.com/kubernetes/helm/releases/latest),
-      unpack the tarball and put the binary in your `$PATH`.
+- On Linux: Download the [latest release](https://github.com/kubernetes/helm/releases/latest),
+  unpack the tarball and put the binary in your `$PATH`.
 
 If you are using Helm v2 you have to create a service account and a cluster role binding for Tiller:
 
