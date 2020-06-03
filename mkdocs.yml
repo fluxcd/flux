@@ -47,7 +47,6 @@ nav:
     - Garbage collection: references/garbagecollection.md
     - Git commit signing and verification: references/git-gpg.md
     - Automated deployment of new container images: references/automated-image-update.md
-    - Integration with the Helm Operator: references/helm-operator-integration.md
     - Monitoring Flux: references/monitoring.md
   - Guides:
     - Providing your own SSH key: guides/provide-own-ssh-key.md
@@ -60,6 +59,9 @@ nav:
     - Get started using Helm: tutorials/get-started-helm.md
     - How to bootstrap Flux using Kustomize: tutorials/get-started-kustomize.md
     - Automations, locks and annotations: tutorials/driving-flux.md
+  - Helm Operator:
+    - Documentation: https://docs.fluxcd.io/projects/helm-operator/en/stable/
+    - Flux integration: references/helm-operator-integration.md
   - Frequently asked questions: faq.md
   - Troubleshooting: troubleshooting.md
   - Contributing:
