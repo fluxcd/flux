@@ -32,9 +32,10 @@ In the second step we will use `fluxctl` to talk to Flux in the cluster and
 interact with the deployments. (It enables you to drive all of Flux, so have a look at the output of
 `fluxctl -h` to get a better idea.)
 
-> **Note:** Another option (without installing `fluxctl` is to take a look
-at the resulting annotation changes and make the changes in Git. This is
-GitOps after all. :-)
+!!!note
+    Another option (without installing `fluxctl` is to take a look
+    at the resulting annotation changes and make the changes in Git. This is
+    GitOps after all. :-)
 
 Tell fluxctl in which namespace is Flux installed:
 

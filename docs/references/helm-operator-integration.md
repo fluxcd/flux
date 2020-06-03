@@ -16,10 +16,11 @@ If the chart you're using in a `HelmRelease` lets you specify the
 particular images to run, you will usually be able to update them with
 Flux, the same way you can with Deployments and so on.
 
-> **Note:** for automation to work, the repository _and_ tag should be
-> defined (either as a whole string, or under separate keys), as Flux
-> determines image updates based on what it reads in the `.spec.values`
-> of the `HelmRelease`.
+!!!note
+    For automation to work, the repository _and_ tag should be
+    defined (either as a whole string, or under separate keys), as Flux
+    determines image updates based on what it reads in the `.spec.values`
+    of the `HelmRelease`.
 
 ### Automated image detection
 
@@ -98,7 +99,8 @@ is required for any of these to take effect.
 | `tag.fluxcd.io/<alias>`            | `sub.tag`        |           |
 | `filter.fluxcd.io/<alias>`         | `glob:master-*` |           |
 
-> Note: Glob patterns following `glob:` are sensitive to spaces
+!!!note
+    Note: Glob patterns following `glob:` are sensitive to spaces
 
 The following example `HelmRelease` specifies two images:
 
