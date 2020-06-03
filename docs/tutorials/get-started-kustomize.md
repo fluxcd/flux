@@ -37,9 +37,10 @@ patchesStrategicMerge:
 EOF
 ```
 
-> **Note:** If you want to install a specific Flux release,
-> add the version number to the base URL:
-> `github.com/fluxcd/flux//deploy?ref=v1.14.1`
+!!!note
+    If you want to install a specific Flux release,
+    add the version number to the base URL:
+    `github.com/fluxcd/flux//deploy?ref=v1.14.1`
 
 Create a patch file for Flux deployment and set the `--git-url`
 parameter to point to the config repository

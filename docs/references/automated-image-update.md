@@ -9,8 +9,9 @@ You can enable the automate image tag updates by annotating your deployments, st
 daemonsets or cronjobs objects. You can also control what tags should be considered for an
 update by using glob, regex or semantic version expressions.
 
-> **Note:** that Flux only works with immutable image tags (`:latest` is not supported).
-Every image tag must be unique, for this you can use the Git commit SHA or semver when tagging images.
+!!!note
+    Flux only works with immutable image tags (`:latest` is not supported).
+    Every image tag must be unique, for this you can use the Git commit SHA or semver when tagging images.
 
 ## Examples
 

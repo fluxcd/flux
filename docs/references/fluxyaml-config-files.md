@@ -5,8 +5,9 @@ instead of having to include them in your git repo as YAML files. For
 example, you can use `kustomize` to patch a common set of resources to
 suit a particular environment.
 
-> Note: For a full, self-contained example of Flux generating manifests
-> with `kustomize` you can go to [https://github.com/fluxcd/flux-kustomize-example](https://github.com/fluxcd/flux-kustomize-example)
+!!!note
+    For a full, self-contained example of Flux generating manifests
+    with `kustomize` you can go to [https://github.com/fluxcd/flux-kustomize-example](https://github.com/fluxcd/flux-kustomize-example)
 
 Manifest generation is controlled by the flags given to `fluxd`, and
 `.flux.yaml` files in your git repo.
@@ -241,8 +242,9 @@ gives a path, relative to the target path, in which to record
 patches. `fluxd` will create or update the file when needed, and
 commit any changes it makes to git.
 
-> Note: at present, it is necessary to manually remove patches that
-> refer to deleted manifests. See [issue #2428][#2428]
+!!!note
+    At present, it is necessary to manually remove patches that
+    refer to deleted manifests. See [issue #2428][#2428].
 
 ### Using command-updated configuration
 

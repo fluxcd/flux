@@ -5,8 +5,9 @@ takes a couple of minutes to get set up. By the end you will
 have Flux running in your cluster and it will be deploying any
 code changes for you.
 
-> **Note:** If you would like to install Flux using Helm, refer to the
-> [Helm section](get-started-helm.md).
+!!!note
+    If you would like to install Flux using Helm, refer to the
+    [Helm section](get-started-helm.md).
 
 ## Prerequisites
 
@@ -82,11 +83,12 @@ for more info on how to manage deploy keys.
 `https://github.com/YOURUSER/flux-get-started/settings/keys/new` and
 paste the key there.)
 
-> **Note:** the SSH key must be configured to have R/W access to the
-> repository. More specifically, the SSH key must be able to create
-> and update tags. E.g. in Gitlab, that means it requires `Maintainer`
-> permissions. The `Developer` permission can create tags, but not
-> update them.
+!!!note
+    The SSH key must be configured to have R/W access to the
+    repository. More specifically, the SSH key must be able to create
+    and update tags. E.g. in Gitlab, that means it requires `Maintainer`
+    permissions. The `Developer` permission can create tags, but not
+    update them.
 
 ## Committing a small change
 

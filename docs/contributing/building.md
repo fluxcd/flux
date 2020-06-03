@@ -14,13 +14,14 @@ make
 
 This makes Docker images, and installs binaries to `$GOBIN` (if you define it) or `$(go env GOPATH)/bin`.
 
-> **Note:** the default target architecture is amd64. If you would like
-> to try to build Docker images and binaries for a different
-> architecture you will have to set ARCH variable:
->
-> ```sh
-> $ make ARCH=<target_arch>
-> ```
+!!!note
+    The default target architecture is amd64. If you would like
+    to try to build Docker images and binaries for a different
+    architecture you will have to set ARCH variable:
+    
+    ```sh
+    $ make ARCH=<target_arch>
+    ```
 
 ## Running tests
 
