@@ -34,6 +34,12 @@ markdown_extensions:
       highlight_code: true
   - pymdownx.tabbed
 
+extra:
+  social:
+    - icon: fontawesome/solid/globe-europe
+      link: https://fluxcd.io
+    - icon: fontawesome/brands/github-alt
+      link: https://github.com/fluxcd
 
 nav:
   - Introducing Flux: introduction.md
