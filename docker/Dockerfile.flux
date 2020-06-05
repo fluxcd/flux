@@ -1,8 +1,8 @@
-FROM alpine:3.11
+FROM alpine:3.12
 
 WORKDIR /home/flux
 
-RUN apk add --no-cache openssh-client ca-certificates tini 'git>=2.12.0' 'gnutls>=3.6.7' 'glib>=2.62.5-r0' gnupg gawk socat
+RUN apk add --no-cache openssh-client ca-certificates tini 'git>=2.24.2' 'gnutls>=3.6.7' 'glib>=2.62.5-r0' gnupg gawk socat
 RUN apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/testing git-secret
 
 # Add git hosts to known hosts file so we can use
