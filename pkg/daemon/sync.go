@@ -75,8 +75,6 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, newRevision string
 
 	// Determine what resources changed and deleted during the sync
 	updatedIDs, deletedIDs := compareResources(lastResources, resources)
-	// TODO(ordovicia): include deleted resources in sync events
-	_ = deletedIDs
 
 	// Retrieve git notes and collect events from them
 	notes, err := d.getNotes(ctx, d.GitTimeout)
@@ -89,7 +87,7 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, newRevision string
 	}
 
 	// Report all synced commits
-	if err := logCommitEvent(d, changeSet, updatedIDs, started, includesEvents, resourceErrors, d.Logger); err != nil {
+	if err := logCommitEvent(d, changeSet, updatedIDs, deletedIDs, started, includesEvents, resourceErrors, d.Logger); err != nil {
 		return err
 	}
 
@@ -407,8 +405,15 @@ func (d *Daemon) collectNoteEvents(ctx context.Context, c changeSet, notes map[s
 }
 
 // logCommitEvent reports all synced commits to the upstream.
-func logCommitEvent(el eventLogger, c changeSet, serviceIDs resource.IDSet, started time.Time,
-	includesEvents map[string]bool, resourceErrors []event.ResourceError, logger log.Logger) error {
+func logCommitEvent(
+	el eventLogger,
+	c changeSet,
+	updatedIDs, deletedIDs resource.IDSet,
+	started time.Time,
+	includesEvents map[string]bool,
+	resourceErrors []event.ResourceError,
+	logger log.Logger,
+) error {
 	if len(c.commits) == 0 {
 		return nil
 	}
@@ -418,11 +423,12 @@ func logCommitEvent(el eventLogger, c changeSet, serviceIDs resource.IDSet, star
 		cs[i].Message = ci.Message
 	}
 	if err := el.LogEvent(event.Event{
-		ServiceIDs: serviceIDs.ToSlice(),
-		Type:       event.EventSync,
-		StartedAt:  started,
-		EndedAt:    started,
-		LogLevel:   event.LogLevelInfo,
+		ServiceIDs:         updatedIDs.ToSlice(),
+		DeletedWorkloadIDs: deletedIDs.ToSlice(),
+		Type:               event.EventSync,
+		StartedAt:          started,
+		EndedAt:            started,
+		LogLevel:           event.LogLevelInfo,
 		Metadata: &event.SyncEventMetadata{
 			Commits:     cs,
 			InitialSync: c.initialSync,

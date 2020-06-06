@@ -43,6 +43,10 @@ type Event struct {
 	// TODO: rename to WorkloadIDs after adding versioning.
 	ServiceIDs []resource.ID `json:"serviceIDs"`
 
+	// Identifiers of workloads that were deleted in this event.
+	// This field is populated only for sync events.
+	DeletedWorkloadIDs []resource.ID `json:"deletedWorkloadIDs"`
+
 	// Type is the type of event, usually "release" for now, but could be other
 	// things later
 	Type string `json:"type"`
@@ -73,9 +77,18 @@ type EventWriter interface {
 	LogEvent(Event) error
 }
 
-func (e Event) WorkloadIDStrings() []string {
+func (e Event) UpdatedWorkloadIDString() []string {
 	var strWorkloadIDs []string
 	for _, workloadID := range e.ServiceIDs {
+		strWorkloadIDs = append(strWorkloadIDs, workloadID.String())
+	}
+	sort.Strings(strWorkloadIDs)
+	return strWorkloadIDs
+}
+
+func (e Event) DeletedWorkloadIDStrings() []string {
+	var strWorkloadIDs []string
+	for _, workloadID := range e.DeletedWorkloadIDs {
 		strWorkloadIDs = append(strWorkloadIDs, workloadID.String())
 	}
 	sort.Strings(strWorkloadIDs)
@@ -87,7 +100,7 @@ func (e Event) String() string {
 		return e.Message
 	}
 
-	strWorkloadIDs := e.WorkloadIDStrings()
+	strWorkloadIDs := e.UpdatedWorkloadIDString()
 	switch e.Type {
 	case EventRelease:
 		metadata := e.Metadata.(*ReleaseEventMetadata)
@@ -150,11 +163,15 @@ func (e Event) String() string {
 				shortRevision(metadata.Commits[0].Revision),
 			)
 		}
-		svcStr := "no workloads changed"
+		updatedStr := "<no changes>"
 		if len(strWorkloadIDs) > 0 {
-			svcStr = strings.Join(strWorkloadIDs, ", ")
+			updatedStr = strings.Join(strWorkloadIDs, ", ")
 		}
-		return fmt.Sprintf("Sync: %s, %s", revStr, svcStr)
+		deletedStr := "<no changes>"
+		if len(e.DeletedWorkloadIDs) > 0 {
+			deletedStr = strings.Join(e.DeletedWorkloadIDStrings(), ", ")
+		}
+		return fmt.Sprintf("Sync: %s, updated: %s, deleted: %s", revStr, updatedStr, deletedStr)
 	case EventAutomate:
 		return fmt.Sprintf("Automated: %s", strings.Join(strWorkloadIDs, ", "))
 	case EventDeautomate:
