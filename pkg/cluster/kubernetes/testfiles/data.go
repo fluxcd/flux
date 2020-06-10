@@ -395,6 +395,24 @@ metadata:
 `,
 }
 
+var FilesMultidoc = map[string]string{
+	"namespaces.yaml": `---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: foo
+  annotations:
+    key: value
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bar
+  annotations:
+    key: value
+`,
+}
+
 var SopsEncryptedFiles = map[string]string{
   "garbage": "This should just be ignored, since it is not YAML",
   "helloworld-deploy.yaml": `apiVersion: ENC[AES256_GCM,data:N/68Js00AtWIvks/pt+be5AW,iv:9Ke36D3faRNrMzm82Z9ETl3lOMhhWy8fh907K5e2Ar4=,tag:EfAzs1AQvLRH/tIQ+iZttw==,type:str]

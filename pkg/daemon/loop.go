@@ -10,6 +10,7 @@ import (
 
 	"github.com/fluxcd/flux/pkg/git"
 	fluxmetrics "github.com/fluxcd/flux/pkg/metrics"
+	"github.com/fluxcd/flux/pkg/resource"
 	fluxsync "github.com/fluxcd/flux/pkg/sync"
 )
 
@@ -180,26 +181,34 @@ func (d *LoopVars) AskForAutomatedWorkloadImageUpdates() {
 	}
 }
 
-// -- internals to keep track of sync tag state
+// -- internals to keep track of sync tag and resources state
 type lastKnownSyncState struct {
 	logger log.Logger
 	state  fluxsync.State
 
 	// bookkeeping
 	revision          string
+	resources         map[string]resource.Resource
 	warnedAboutChange bool
 }
 
-// Current returns the revision from the state
-func (s *lastKnownSyncState) Current(ctx context.Context) (string, error) {
+// CurrentRevision returns the revision from the state
+func (s *lastKnownSyncState) CurrentRevision(ctx context.Context) (string, error) {
 	return s.state.GetRevision(ctx)
+}
+
+// CurrentResources returns the synced resources from the state.
+// If the state is not initialized (i.e. `Update()` has not been called yet), the returned value
+// will be `nil`.
+func (s *lastKnownSyncState) CurrentResources() map[string]resource.Resource {
+	return s.resources
 }
 
 // Update records the synced revision in persistent storage (the
 // sync.State). In addition, it checks that the old revision matches
 // the last sync revision before making the update; mismatches suggest
 // multiple Flux daemons are using the same state, so we log these.
-func (s *lastKnownSyncState) Update(ctx context.Context, oldRev, newRev string) (bool, error) {
+func (s *lastKnownSyncState) Update(ctx context.Context, oldRev, newRev string, resources map[string]resource.Resource) (bool, error) {
 	// Check if something other than the current instance of fluxd
 	// changed the sync tag. This is likely caused by another instance
 	// using the same tag. Having multiple instances fight for the same
@@ -220,8 +229,9 @@ func (s *lastKnownSyncState) Update(ctx context.Context, oldRev, newRev string) 
 		return false, err
 	}
 
-	// Update in-memory revision
+	// Update in-memory revision and resources
 	s.revision = newRev
+	s.resources = resources
 
 	s.logger.Log("state", s.state.String(), "old", oldRev, "new", newRev)
 	return true, nil
