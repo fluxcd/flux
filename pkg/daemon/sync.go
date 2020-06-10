@@ -130,10 +130,7 @@ func (d *Daemon) getLastResources(ctx context.Context, rat ratchet) (map[string]
 		return make(map[string]resource.Resource), nil
 	}
 
-	// First sync
-	d.Logger.Log("info", "resource map is not initialized, despite repo has been cloned")
-
-	// Load resources from clone of currentRevision
+	// Fist sync -- load resources from clone of currentRevision
 	lastResourcestore, cleanup, err := d.getManifestStoreByRevision(ctx, currentRevision)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading the repository checkout")
