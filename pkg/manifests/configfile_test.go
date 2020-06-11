@@ -2,6 +2,7 @@ package manifests
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -142,10 +143,32 @@ func TestExecGeneratorsTimeout(t *testing.T) {
 	assert.NotNil(t, result[2].Error)
 }
 
+func TestManifestGenerationError(t *testing.T) {
+	var cf ConfigFile
+	err := ParseConfigFile([]byte(patchUpdatedConfigFile), &cf)
+	assert.NoError(t, err)
+	cf.configPathRelative = ".flux.yaml"
+
+	_, err = cf.getGeneratedManifests(context.Background(), nil, cf.PatchUpdated.Generators)
+	genErr, ok := err.(GenerationError)
+	assert.True(t, ok)
+	assert.Equal(t, ".flux.yaml", genErr.File())
+	assert.Equal(t, "foo", genErr.Command())
+	assert.True(
+		t,
+		strings.Contains(
+			genErr.Error(),
+			"error executing generator command \"foo\" from file \".flux.yaml\": exit status 127\n"+"error output:\n",
+		),
+	)
+	assert.True(t, strings.Contains(genErr.Error(), "foo"))
+	assert.True(t, strings.Contains(genErr.Error(), "not found"))
+}
+
 const echoCmdUpdatedConfigFile = `---
 version: 1
 commandUpdated:
-  generators: 
+  generators:
     - command: echo g1
     - command: echo g2
   updaters:

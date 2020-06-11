@@ -159,6 +159,36 @@ func (cf *ConfigFile) IsScanForFiles() bool {
 	return cf.ScanForFiles != nil
 }
 
+// GenerationError is returned when manifest generation causes an error.
+type GenerationError interface {
+	error
+
+	// File returns the relative path of a .flux.yaml file that caused the error.
+	File() string
+	// Command returns what command caused the error.
+	Command() string
+}
+
+var _ GenerationError = &generationError{}
+
+type generationError struct {
+	file       string
+	command    string
+	stderr     []byte
+	underlying error
+}
+
+// Error implements error interface
+func (e *generationError) Error() string {
+	return fmt.Sprintf(
+		"error executing generator command %q from file %q: %s\nerror output:\n%s",
+		e.command, e.file, e.underlying, string(e.stderr),
+	)
+}
+
+func (e *generationError) File() string    { return e.file }
+func (e *generationError) Command() string { return e.command }
+
 func ParseConfigFile(fileBytes []byte, result *ConfigFile) error {
 	// The file contents are unmarshaled into a map so that we will
 	// see any extraneous fields. This is important, for example, for
@@ -362,13 +392,12 @@ func (cf *ConfigFile) getGeneratedManifests(ctx context.Context, manifests Manif
 	buf := bytes.NewBuffer(nil)
 	for i, cmdResult := range cf.execGenerators(ctx, generators, defaultTimeout) {
 		if cmdResult.Error != nil {
-			err := fmt.Errorf("error executing generator command %q from file %q: %s\nerror output:\n%s\ngenerated output:\n%s",
-				generators[i].Command,
-				cf.configPathRelative,
-				cmdResult.Error,
-				string(cmdResult.Stderr),
-				string(cmdResult.Stderr),
-			)
+			err := &generationError{
+				file:       cf.configPathRelative,
+				command:    generators[i].Command,
+				stderr:     cmdResult.Stderr,
+				underlying: cmdResult.Error,
+			}
 			return nil, err
 		}
 		if err := manifests.AppendManifestToBuffer(cmdResult.Stdout, buf); err != nil {
