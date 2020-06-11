@@ -192,6 +192,127 @@ func ImageCredsWithAWSAuth(lookup func() ImageCreds, logger log.Logger, config A
 		// the creds exist and are before the use-by; nothing to be done.
 		return nil
 
+		ensureCreds := func(domain, region, accountID string, now time.Time) error {
+			// if we had an error getting a token before, don't try again
+			// until the embargo has passed
+			if embargo, ok := regionEmbargo[region]; ok {
+				if embargo.After(now) {
+					return nil // i.e., fail silently
+				}
+				delete(regionEmbargo, region)
+			}
+
+			// if we don't have the entry at all, we need to get a
+			// token. NB we can't check the inverse and return early,
+			// since if the creds do exist, we need to check their expiry.
+			if c := awsCreds.credsFor(domain); c == (creds{}) {
+				goto refresh
+			}
+
+			// otherwise, check if the tokens have expired
+			if expiry, ok := regionExpire[region]; !ok || expiry.Before(now) {
+				goto refresh
+			}
+
+			// the creds exist and are before the use-by; nothing to be done.
+			return nil
+			ensureCreds := func(domain, region, accountID string, now time.Time) error {
+				// if we had an error getting a token before, don't try again
+				// until the embargo has passed
+				if embargo, ok := regionEmbargo[region]; ok {
+					if embargo.After(now) {
+						return nil // i.e., fail silently
+					}
+					delete(regionEmbargo, region)
+				}
+
+				// if we don't have the entry at all, we need to get a
+				// token. NB we can't check the inverse and return early,
+				// since if the creds do exist, we need to check their expiry.
+				if c := awsCreds.credsFor(domain); c == (creds{}) {
+					goto refresh
+				}
+
+				// otherwise, check if the tokens have expired
+				if expiry, ok := regionExpire[region]; !ok || expiry.Before(now) {
+					goto refresh
+				}
+
+				// the creds exist and are before the use-by; nothing to be done.
+				return nil
+				ensureCreds := func(domain, region, accountID string, now time.Time) error {
+					// if we had an error getting a token before, don't try again
+					// until the embargo has passed
+					if embargo, ok := regionEmbargo[region]; ok {
+						if embargo.After(now) {
+							return nil // i.e., fail silently
+						}
+						delete(regionEmbargo, region)
+					}
+
+					// if we don't have the entry at all, we need to get a
+					// token. NB we can't check the inverse and return early,
+					// since if the creds do exist, we need to check their expiry.
+					if c := awsCreds.credsFor(domain); c == (creds{}) {
+						goto refresh
+					}
+
+					// otherwise, check if the tokens have expired
+					if expiry, ok := regionExpire[region]; !ok || expiry.Before(now) {
+						goto refresh
+					}
+
+					// the creds exist and are before the use-by; nothing to be done.
+					return nil
+					ensureCreds := func(domain, region, accountID string, now time.Time) error {
+						// if we had an error getting a token before, don't try again
+						// until the embargo has passed
+						if embargo, ok := regionEmbargo[region]; ok {
+							if embargo.After(now) {
+								return nil // i.e., fail silently
+							}
+							delete(regionEmbargo, region)
+						}
+
+						// if we don't have the entry at all, we need to get a
+						// token. NB we can't check the inverse and return early,
+						// since if the creds do exist, we need to check their expiry.
+						if c := awsCreds.credsFor(domain); c == (creds{}) {
+							goto refresh
+						}
+
+						// otherwise, check if the tokens have expired
+						if expiry, ok := regionExpire[region]; !ok || expiry.Before(now) {
+							goto refresh
+						}
+
+						// the creds exist and are before the use-by; nothing to be done.
+						return nil
+						ensureCreds := func(domain, region, accountID string, now time.Time) error {
+							// if we had an error getting a token before, don't try again
+							// until the embargo has passed
+							if embargo, ok := regionEmbargo[region]; ok {
+								if embargo.After(now) {
+									return nil // i.e., fail silently
+								}
+								delete(regionEmbargo, region)
+							}
+
+							// if we don't have the entry at all, we need to get a
+							// token. NB we can't check the inverse and return early,
+							// since if the creds do exist, we need to check their expiry.
+							if c := awsCreds.credsFor(domain); c == (creds{}) {
+								goto refresh
+							}
+
+							// otherwise, check if the tokens have expired
+							if expiry, ok := regionExpire[region]; !ok || expiry.Before(now) {
+								goto refresh
+							}
+
+							// the creds exist and are before the use-by; nothing to be done.
+							return nil
+
 	refresh:
 		// unconditionally append the sought-after account, and let
 		// the AWS API figure out if it's a duplicate.
