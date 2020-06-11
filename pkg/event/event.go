@@ -203,6 +203,12 @@ type ResourceError struct {
 	Error string
 }
 
+type ManifestGenerationError struct {
+	File    string
+	Command string
+	Error   string
+}
+
 // SyncEventMetadata is the metadata for when new a commit is synced to the cluster
 type SyncEventMetadata struct {
 	// for parsing old events; Commits is now used in preference
@@ -214,6 +220,8 @@ type SyncEventMetadata struct {
 	Includes map[string]bool `json:"includes,omitempty"`
 	// Per-resource errors
 	Errors []ResourceError `json:"errors,omitempty"`
+	// Manifest generation error
+	GenerationError *ManifestGenerationError `json:"generationErrors,omitempty"`
 	// `true` if we have no record of having synced before
 	InitialSync bool `json:"initialSync,omitempty"`
 }

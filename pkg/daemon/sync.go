@@ -71,6 +71,18 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, newRevision string
 	syncSetName := makeGitConfigHash(d.Repo.Origin(), d.GitConfig)
 	resources, resourceErrors, err := doSync(ctx, resourceStore, d.Cluster, syncSetName, d.Logger)
 	if err != nil {
+		// Report manifest generation error
+		if genErr, ok := errors.Cause(err).(manifests.GenerationError); ok {
+			generationError := &event.ManifestGenerationError{
+				File:    genErr.File(),
+				Command: genErr.Command(),
+				Error:   genErr.Error(),
+			}
+			if e := logGenerationErrorEvent(d, changeSet, started, generationError, d.Logger); e != nil {
+				return e
+			}
+		}
+
 		return err
 	}
 
@@ -405,6 +417,36 @@ func (d *Daemon) collectNoteEvents(ctx context.Context, c changeSet, notes map[s
 		}
 	}
 	return noteEvents, eventTypes, nil
+}
+
+// logGenerationErrorEvent reports manifest generation error to the upstream.
+func logGenerationErrorEvent(
+	el eventLogger, c changeSet, started time.Time, generationError *event.ManifestGenerationError, logger log.Logger,
+) error {
+	if len(c.commits) == 0 {
+		return nil
+	}
+	cs := make([]event.Commit, len(c.commits))
+	for i, ci := range c.commits {
+		cs[i].Revision = ci.Revision
+		cs[i].Message = ci.Message
+	}
+	if err := el.LogEvent(event.Event{
+		ServiceIDs: []resource.ID{},
+		Type:       event.EventSync,
+		StartedAt:  started,
+		EndedAt:    started,
+		LogLevel:   event.LogLevelError,
+		Metadata: &event.SyncEventMetadata{
+			Commits:         cs,
+			InitialSync:     c.initialSync,
+			GenerationError: generationError,
+		},
+	}); err != nil {
+		logger.Log("err", err)
+		return err
+	}
+	return nil
 }
 
 // logCommitEvent reports all synced commits to the upstream.

@@ -231,6 +231,11 @@ func (s *lastKnownSyncState) Update(ctx context.Context, oldRev, newRev string, 
 
 	// Update in-memory revision and resources
 	s.revision = newRev
+
+	// Differentiate uninitialized resource map and initialized empty map in CurrentResources()
+	if resources == nil {
+		resources = map[string]resource.Resource{}
+	}
 	s.resources = resources
 
 	s.logger.Log("state", s.state.String(), "old", oldRev, "new", newRev)
