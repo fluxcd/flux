@@ -620,7 +620,7 @@ func TestDoSync_WithMultidoc(t *testing.T) {
 		t.Errorf("Sync was called with a nil syncDef")
 	}
 
-    // A sync event is emitted and it only has updated workload ids
+	// A sync event is emitted and it only has updated workload ids
 	es, err := events.AllEvents(time.Time{}, -1, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -768,4 +768,142 @@ func TestDoSync_WithErrors(t *testing.T) {
 
 	// Check 2 sync error in stats
 	checkSyncManifestsMetrics(t, len(expectedResourceIDs)-2, 2)
+}
+
+func TestDoSync_WithManifestGenerationError(t *testing.T) {
+	d, cleanup := daemon(t, testfiles.FilesForKustomize)
+	defer cleanup()
+
+	d.GitConfig.Paths = []string{"staging"}
+	d.ManifestGenerationEnabled = true
+
+	k8s.SyncFunc = func(def cluster.SyncSet) error {
+		return nil
+	}
+
+	ctx := context.Background()
+	head, err := d.Repo.BranchHead(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	syncTag := "sync"
+	gitSync, _ := fluxsync.NewGitTagSyncProvider(d.Repo, syncTag, "", fluxsync.VerifySignaturesModeNone, d.GitConfig)
+	syncState := &lastKnownSyncState{logger: d.Logger, state: gitSync}
+
+	if err := d.Sync(ctx, time.Now().UTC(), head, syncState); err != nil {
+		t.Error(err)
+	}
+
+	// Check 0 error stats
+	checkSyncManifestsMetrics(t, 1, 0)
+
+	// Now add wrong manifest
+	err = d.WithWorkingClone(ctx, func(checkout *git.Checkout) error {
+		ctx, cancel := context.WithTimeout(ctx, 5000*time.Second)
+		defer cancel()
+
+		absolutePath := path.Join(checkout.Dir(), ".flux.yaml")
+		def, err := ioutil.ReadFile(absolutePath)
+		if err != nil {
+			return err
+		}
+		newDef := bytes.Replace(def, []byte("kustomize"), []byte("non-existing-command"), -1)
+		if err := ioutil.WriteFile(absolutePath, newDef, 0600); err != nil {
+			return err
+		}
+
+		commitAction := git.CommitAction{Author: "", Message: "test error commit"}
+		err = checkout.CommitAndPush(ctx, commitAction, nil, true)
+		if err != nil {
+			return err
+		}
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = d.Repo.Refresh(ctx)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if err := d.Sync(ctx, time.Now().UTC(), "HEAD", syncState); err != nil {
+		// Check error not nil, manifest counters remain the same
+		checkSyncManifestsMetrics(t, 1, 0)
+
+		// A manifest generation error event is emmited
+		// First event: successful initial sync, second event: manifest generation error
+		es, err := events.AllEvents(time.Time{}, -1, time.Time{})
+		if err != nil {
+			t.Error(err)
+		} else if len(es) != 2 {
+			t.Errorf("Unexpected events: %#v", es)
+		} else if es[0].Type != event.EventSync || es[1].Type != event.EventSync {
+			t.Errorf("Unexpected event type: %#v, %#v", es[0], es[1])
+		} else {
+			metadata, ok := es[1].Metadata.(*event.SyncEventMetadata)
+			if !ok {
+				t.Errorf("Unexpected event metadata: %#v", metadata)
+			}
+
+			genErr := metadata.GenerationError
+			if genErr.File != "../.flux.yaml" || genErr.Command != "non-existing-command build ." {
+				t.Errorf("Unexpected manifest generation error: %#v", genErr)
+			}
+		}
+	} else {
+		t.Error("Sync must fail because of invalid manifest")
+	}
+
+	// Fix manifest
+	err = d.WithWorkingClone(ctx, func(checkout *git.Checkout) error {
+		ctx, cancel := context.WithTimeout(ctx, 5000*time.Second)
+		defer cancel()
+
+		// .flux.yaml
+		absolutePath := path.Join(checkout.Dir(), ".flux.yaml")
+		def, err := ioutil.ReadFile(absolutePath)
+		if err != nil {
+			return err
+		}
+		newDef := bytes.Replace(def, []byte("non-existing-command"), []byte("kustomize"), -1)
+		if err := ioutil.WriteFile(absolutePath, newDef, 0600); err != nil {
+			return err
+		}
+
+		// foo namespace
+		absolutePath = path.Join(checkout.Dir(), "base", "foo.yaml")
+		def, err = ioutil.ReadFile(absolutePath)
+		if err != nil {
+			return err
+		}
+		newDef = bytes.Replace(def, []byte("key: value"), []byte("key2: value2"), -1)
+		if err = ioutil.WriteFile(absolutePath, newDef, 0600); err != nil {
+			return err
+		}
+
+		commitAction := git.CommitAction{Author: "", Message: "test fix commit"}
+		err = checkout.CommitAndPush(ctx, commitAction, nil, true)
+		if err != nil {
+			return err
+		}
+		return err
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = d.Repo.Refresh(ctx)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if err := d.Sync(ctx, time.Now().UTC(), "HEAD", syncState); err != nil {
+		t.Error(err)
+	}
+	// Check 0 manifest error stats
+	checkSyncManifestsMetrics(t, 1, 0)
 }
