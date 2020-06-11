@@ -250,6 +250,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `rbac.create`                                     | `true`                                               | If `true`, create and use RBAC resources
 | `rbac.pspEnabled`                                 | `false`                                              | If `true`, create and use a restricted pod security policy for Flux pod(s)
 | `allowedNamespaces`                               | `[]`                                                 | Allow flux to manage resources in the specified namespaces. The namespace flux is deployed in will always be included
+| `defaultNamespace`                                | `""`                                                 | The namespace flux should use for resources where a namespace is not specified. If none is provided here, the default namespace in kubeconfig is used
 | `serviceAccount.create`                           | `true`                                               | If `true`, create a new service account
 | `serviceAccount.name`                             | `flux`                                               | Service account to be used
 | `serviceAccount.annotations`                      | ``                                                   | Additional Service Account annotations
