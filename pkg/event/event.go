@@ -198,15 +198,15 @@ type Commit struct {
 }
 
 type ResourceError struct {
-	ID    resource.ID
-	Path  string
-	Error string
+	ID    resource.ID `json:"id"`
+	Path  string      `json:"path"`
+	Error string      `json:"error"`
 }
 
 type ManifestGenerationError struct {
-	File    string
-	Command string
-	Error   string
+	File    string `json:"file"`
+	Command string `json:"command"`
+	Error   string `json:"error"`
 }
 
 // SyncEventMetadata is the metadata for when new a commit is synced to the cluster
@@ -221,7 +221,7 @@ type SyncEventMetadata struct {
 	// Per-resource errors
 	Errors []ResourceError `json:"errors,omitempty"`
 	// Manifest generation error
-	GenerationError *ManifestGenerationError `json:"generationErrors,omitempty"`
+	GenerationError *ManifestGenerationError `json:"generationError,omitempty"`
 	// `true` if we have no record of having synced before
 	InitialSync bool `json:"initialSync,omitempty"`
 }
