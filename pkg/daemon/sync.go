@@ -74,7 +74,7 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, newRevision string
 	}
 
 	// Determine what resources changed and deleted during the sync
-	updatedIDs, deletedIDs := compareResources(lastResources, resources)
+	updatedIDs, deletedIDs := compareResources(lastResources, resources, resourceErrors)
 
 	// Retrieve git notes and collect events from them
 	notes, err := d.getNotes(ctx, d.GitTimeout)
@@ -248,11 +248,20 @@ func updateSyncManifestsMetric(success, failure int) {
 	syncManifestsMetric.With(metrics.LabelSuccess, "false").Set(float64(failure))
 }
 
-func compareResources(old, new map[string]resource.Resource) (updated, deleted resource.IDSet) {
-	updated, deleted = resource.IDSet{}, resource.IDSet{}
+func compareResources(old, new map[string]resource.Resource, errs []event.ResourceError) (updated, deleted resource.IDSet) {
+	updated, deleted, errored := resource.IDSet{}, resource.IDSet{}, resource.IDSet{}
+	for _, err := range errs {
+		errored[err.ID] = struct{}{}
+	}
+
 	toIDs := func(r resource.Resource) []resource.ID { return []resource.ID{r.ResourceID()} }
 
 	for newID, newResource := range new {
+		// This resource was not created/updated because applying it failed
+		if errored.Contains(newResource.ResourceID()) {
+			continue
+		}
+
 		if oldResource, ok := old[newID]; ok {
 			if !bytes.Equal(oldResource.Bytes(), newResource.Bytes()) {
 				updated.Add(toIDs(newResource))
