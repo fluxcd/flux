@@ -8,12 +8,13 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"github.com/ryanuber/go-glob"
 	"io"
 	"os/exec"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/ryanuber/go-glob"
 
 	"github.com/go-kit/kit/log"
 	"github.com/imdario/mergo"
@@ -352,6 +353,9 @@ func (c *Cluster) listAllowedResources(
 	for _, ns := range namespaces {
 		data, err := c.client.dynamicClient.Resource(gvr).Namespace(ns).List(options)
 		if err != nil {
+			if apierrors.IsForbidden(err) {
+				c.logger.Log("info", "listing resources is forbidden", "gvr", fmt.Sprintf("%v", gvr), "namespace", ns)
+			}
 			return result, err
 		}
 		result = append(result, data.Items...)
