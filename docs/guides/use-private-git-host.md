@@ -25,7 +25,7 @@ Host key verification failed.
 fatal: Could not read from remote repository
 
 container$ # ^ that was expected. Now we'll try with a modified known_hosts
-container$ ssh-keyscan $GITHOST >> ~/.ssh/known_hosts
+container$ ssh-keyscan $GITHOST >> /root/.ssh/known_hosts
 container$ git clone $GITREPO
 Cloning into '...'
 ...
@@ -35,8 +35,12 @@ If `git clone` doesn't succeed, you'll need to check that the SSH key
 has been installed properly first, then come back. `ssh -vv $GITHOST`
 from within the container may help debug it.
 
+## If deploying flux via `kubectl`
+
 If it _did_ work, you will need to make it a more permanent
-arrangement. Back in that shell, create a ConfigMap for the cluster. To
+arrangement.
+
+Back in that shell, create a ConfigMap for the cluster. To
 make sure the ConfigMap is created in the namespace of the Flux
 deployment, the namespace is set explicitly:
 
@@ -85,3 +89,11 @@ metadata:
 You will need to explicitly tell `fluxd` to use that service account by
 uncommenting and possible adapting the line `# serviceAccountName:
 flux` in the file `flux-deployment.yaml` before applying it.
+
+## If using Helm
+
+If you are deploying flux via a Helm chart, then you will need to add 
+the contents of you known_hosts file as a Value `ssh.known_hosts`.
+
+Currently you can't reference a pre-existing ConfigMap from the Helm 
+Chart. 
