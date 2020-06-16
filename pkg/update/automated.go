@@ -60,19 +60,28 @@ func (a *Automated) ReleaseKind() ReleaseKind {
 func (a *Automated) CommitMessage(result Result) string {
 	images := result.ChangedImages()
 	buf := &bytes.Buffer{}
-	prefix := ""
-	switch len(images) {
+
+	switch total := len(images); total {
 	case 0: // FIXME(michael): can we get here?
 		fmt.Fprintln(buf, "Auto-release (no images)")
+
 	case 1:
-		fmt.Fprint(buf, "Auto-release ")
+		fmt.Fprintf(buf, "Auto-release %s", images[0])
+
 	default:
-		fmt.Fprintln(buf, "Auto-release multiple images")
-		fmt.Fprintln(buf)
-		prefix = " - "
-	}
-	for _, im := range images {
-		fmt.Fprintf(buf, "%s%s\n", prefix, im)
+		limit := 10
+
+		fmt.Fprintf(buf, "Auto-release multiple (%d) images\n\n", total)
+		if total > limit {
+			// Take first 10 images to keep commit message size in bounds
+			images = images[:limit]
+		}
+		for _, im := range images {
+			fmt.Fprintf(buf, " - %s\n", im)
+		}
+		if total > limit {
+			fmt.Fprintln(buf, " ... ")
+		}
 	}
 	return buf.String()
 }
