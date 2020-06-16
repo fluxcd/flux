@@ -80,7 +80,7 @@ func (a *Automated) CommitMessage(result Result) string {
 			fmt.Fprintf(buf, " - %s\n", im)
 		}
 		if total > limit {
-			fmt.Fprintln(buf, " ... ")
+			fmt.Fprintln(buf, " ...")
 		}
 	}
 	return buf.String()
