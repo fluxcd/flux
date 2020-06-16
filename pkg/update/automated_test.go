@@ -67,7 +67,7 @@ func TestCommitMessage10Max(t *testing.T) {
  - docker.io/image:v6
  - docker.io/image:v7
  - docker.io/image:v8
- ...
+   ...
 `
 	if actual != expected {
 		t.Fatalf("Expected git commit message: '%s', was '%s'", expected, actual)
