@@ -202,10 +202,8 @@ interpret:
 		var list manifestlist.ManifestList = deserialised.ManifestList
 		// TODO(michael): is it valid to just pick the first one that matches?
 		for _, m := range list.Manifests {
-			if m.Platform.OS == "linux" && m.Platform.Architecture == "amd64" {
-				manifest, fetchErr = manifests.Get(ctx, m.Digest, digestOpt)
-				goto interpret
-			}
+			manifest, fetchErr = manifests.Get(ctx, m.Digest, digestOpt)
+			goto interpret
 		}
 		entry := ImageEntry{}
 		entry.ExcludedReason = "no suitable manifest (linux amd64) in manifestlist"
