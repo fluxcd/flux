@@ -44,17 +44,32 @@ type changeSet struct {
 }
 
 // Sync starts the synchronization of the cluster with git.
-func (d *Daemon) Sync(ctx context.Context, started time.Time, newRevision string, rat ratchet) error {
+func (d *Daemon) Sync(ctx context.Context, started time.Time, newRevision string, rat ratchet) (rerr error) {
+
+	defer func() {
+		if rerr != nil {
+			d.LogEvent(event.Event{
+				Type:      event.EventSync,
+				StartedAt: started,
+				EndedAt:   time.Now().UTC(),
+				LogLevel:  event.LogLevelError,
+				Message:   rerr.Error(),
+			})
+
+		}
+	}()
 	// Load last-synced resources for comparison
 	lastResources, err := d.getLastResources(ctx, rat)
 	if err != nil {
-		return errors.Wrap(err, "loading last-synced resources")
+		rerr = errors.Wrap(err, "loading last-synced resources")
+		return
 	}
 
 	// Retrieve change set of commits we need to sync
 	changeSet, err := d.getChangeSet(ctx, rat, newRevision)
 	if err != nil {
-		return err
+		rerr = err
+		return
 	}
 
 	d.Logger.Log("info", "trying to sync git changes to the cluster", "old", changeSet.oldTagRev, "new", changeSet.newTagRev)
@@ -62,7 +77,8 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, newRevision string
 	// Load resources from the new revision
 	resourceStore, cleanup, err := d.getManifestStoreByRevision(ctx, newRevision)
 	if err != nil {
-		return errors.Wrap(err, "loading new resources")
+		rerr = errors.Wrap(err, "loading new resources")
+		return
 	}
 	defer cleanup()
 
@@ -70,7 +86,8 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, newRevision string
 	syncSetName := makeGitConfigHash(d.Repo.Origin(), d.GitConfig)
 	resources, resourceErrors, err := doSync(ctx, resourceStore, d.Cluster, syncSetName, d.Logger)
 	if err != nil {
-		return err
+		rerr = err
+		return
 	}
 
 	// Determine what resources changed and deleted during the sync
@@ -81,16 +98,19 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, newRevision string
 	// Retrieve git notes and collect events from them
 	notes, err := d.getNotes(ctx, d.GitTimeout)
 	if err != nil {
-		return err
+		rerr = err
+		return
 	}
 	noteEvents, includesEvents, err := d.collectNoteEvents(ctx, changeSet, notes, d.GitTimeout, started, d.Logger)
 	if err != nil {
-		return err
+		rerr = err
+		return
 	}
 
 	// Report all synced commits
 	if err := logCommitEvent(d, changeSet, updatedIDs, started, includesEvents, resourceErrors, d.Logger); err != nil {
-		return err
+		rerr = err
+		return
 	}
 
 	// Report all collected events
@@ -98,19 +118,21 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, newRevision string
 		if err = d.LogEvent(event); err != nil {
 			d.Logger.Log("err", err)
 			// Abort early to ensure at least once delivery of events
-			return err
+			rerr = err
+			return
 		}
 	}
 
 	// Move the revision the sync state points to
 	if ok, err := rat.Update(ctx, changeSet.oldTagRev, changeSet.newTagRev, resources); err != nil {
-		return err
+		rerr = err
+		return
 	} else if !ok {
-		return nil
+		return
 	}
 
-	err = refresh(ctx, d.GitTimeout, d.Repo)
-	return err
+	rerr = refresh(ctx, d.GitTimeout, d.Repo)
+	return
 }
 
 // getLastResources loads last-synced resources
