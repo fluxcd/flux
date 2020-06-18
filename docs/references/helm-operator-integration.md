@@ -94,10 +94,12 @@ is required for any of these to take effect.
 
 | Annotation                         | Value            | Required? |
 |------------------------------------|------------------|   :---:   |
+| **`fluxcd.io/automated`**          | `"true"`         |     ✅ <br> * Note: This must be a string `"true"` <br> rather than a boolean `true` or all other `*.fluxcd.io/*` <br> annotations will be silently ignored    |
 | **`repository.fluxcd.io/<alias>`** | `sub.repo`       |     ✅    |
 | `registry.fluxcd.io/<alias>`       | `sub.reg`        |           |
 | `tag.fluxcd.io/<alias>`            | `sub.tag`        |           |
-| `filter.fluxcd.io/<alias>`         | `glob:master-*` |           |
+| `filter.fluxcd.io/<alias>`         | `glob:master-*`  |           |
+
 
 !!!note
     Note: Glob patterns following `glob:` are sensitive to spaces
