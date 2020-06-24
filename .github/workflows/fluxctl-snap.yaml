@@ -20,7 +20,7 @@ jobs:
           use_lxd: true
 
       - name: Run Snapcraft build
-        run: sudo snapcraft --use-lxd
+        run: sg lxd -c 'snapcraft --use-lxd'
 
       - name: Upload to Snapcraft store (edge channel for revs in master)
         if: ${{ ! startsWith(github.event.ref, 'refs/tags') }}
