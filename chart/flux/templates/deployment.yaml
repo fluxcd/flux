@@ -158,7 +158,7 @@ spec:
           {{- end }}
           {{- if .Values.registry.dockercfg.enabled }}
           - name: docker-credentials
-            mountPath: /dockercfg/
+            mountPath: /dockercfg/config.json 
             readOnly: true
           {{- end }}
           {{- if .Values.gpgKeys.secretName }}
