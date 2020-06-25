@@ -15,4 +15,14 @@ data:
         {{ .Values.ssh.known_hosts }}
       {{- end }}
     {{- end }}
+  {{- if .Values.ssh.config }}
+  config: |
+      {{- if contains "\n" .Values.ssh.config }}
+        {{- range $value := .Values.ssh.config | splitList "\n" }}
+          {{ print $value }}
+      {{- end }}
+      {{- else }}
+          {{ .Values.ssh.config }}
+      {{- end }}
+  {{- end }}
 {{- end -}}

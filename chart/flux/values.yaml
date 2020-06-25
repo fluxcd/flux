@@ -229,6 +229,17 @@ ssh:
   secret:
     # Annotations for the Secret
     annotations: {}
+  config: ""
+    # specify the config which would go in /root/.ssh/config file
+    # for e.g.
+  # config: |
+  #   Host github.com
+  #   ProxyCommand socat STDIO PROXY:<proxyIP>:%h:%p,proxyport=<proxyPort>,proxyauth=<username:password>
+  #   User git
+  #   Hostname ssh.github.com
+  #   Port 443
+  #   IdentityFile /etc/fluxd/ssh/identity
+
 
 kube:
   # Override for kubectl default config
