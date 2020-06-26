@@ -3,7 +3,7 @@ name: Build snap
 on:
   push:
     branches:
-      - disabled
+      - master
 
 jobs:
   build-snap:
@@ -12,6 +12,7 @@ jobs:
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v2
+      - run: git fetch --all --tags
 
       - name: Install Snapcraft
         uses: samuelmeuli/action-snapcraft@v1
