@@ -118,7 +118,10 @@ git:
   # Label to keep track of sync progress
   label:
   # Append "[ci skip]" to commit messages so that CI will skip builds
-  ciSkip: false
+  ciSkip:
+    enabled: false
+    # If set, fluxd will append this to commit messages (overrides "[ci skip]")
+    message: ""
   # Period at which to poll git repo for new commits
   pollInterval: "5m"
   # Duration after which git operations time out

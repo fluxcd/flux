@@ -221,7 +221,8 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `git.signingKey`                                  | `None`                                               | If set, commits will be signed with this GPG key
 | `git.verifySignatures`                            | `false`                                              | If set, the signatures of the sync tag and commits will be verified
 | `git.label`                                       | `flux-sync`                                          | Label to keep track of sync progress, used to tag the Git branch
-| `git.ciSkip`                                      | `false`                                              | Append "[ci skip]" to commit messages so that CI will skip builds
+| `git.ciSkip.enabled`                              | `false`                                              | Append "[ci skip]" to commit messages so that CI will skip builds
+| `git.ciSkip.message`                              | ``                                                   | If set, fluxd will append this to commit messages (overrides "[ci skip]")
 | `git.pollInterval`                                | `5m`                                                 | Period at which to poll git repo for new commits
 | `git.timeout`                                     | `20s`                                                | Duration after which git operations time out
 | `git.secretName`                                  | `None`                                               | Kubernetes secret with the SSH private key. Superseded by `helmOperator.git.secretName` if set.
