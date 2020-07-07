@@ -1,0 +1,20 @@
+{{- if .Values.dashboards.enabled -}}
+{{- $files := .Files }}
+{{- range $path, $_ :=  .Files.Glob  "dashboards/*.json" }}
+{{- $filename := trimSuffix (ext $path) (base $path) }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flux-dashboards-{{ $filename }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    grafana_dashboard: "1"
+    app: {{ template "flux.name" $ }}
+    chart: {{ template "flux.chart" $ }}
+    release: {{ $.Release.Name }}
+    heritage: {{ $.Release.Service }}
+data:
+  {{ base $path }}: '{{ $files.Get $path }}'
+---
+{{- end }}
+{{- end -}}
