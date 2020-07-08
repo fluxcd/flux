@@ -3,7 +3,7 @@ name: Build snap
 on:
   push:
     branches:
-      - master
+      - disabled
 
 jobs:
   build-snap:
