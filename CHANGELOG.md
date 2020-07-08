@@ -1,3 +1,123 @@
+## 1.20.0 (2020-07-08)
+
+This minor version release updates dependencies, and includes some
+quality of life improvements, such as having a cooldown for rate
+limiting.
+
+### Fixes
+
+- Whitelist three env vars for Git cmd executions [fluxcd/flux#3016][]
+- git: retry repo clone on status unreachable [fluxcd/flux#3013][]
+- Get ChangeSet from outside of paths if manifest generation is enabled [fluxcd/flux#3022][]
+- Direct comparison of last-synced and newly-synced resources [fluxcd/flux#3039][]
+- Ignore some errors during manifest loading [fluxcd/flux#1559][]
+- Fix missing return on ECR domain check [fluxcd/flux#3002][]
+- Take all resource versions into account during GC [fluxcd/flux#3008][]
+- Add AWS China region domain to recognized ECR hosts [fluxcd/flux#2982][]
+- Introduce cooldown period in rate limiter [fluxcd/flux#2986][]
+
+### Enhancements
+
+- Limit git commit message to first 10 images [fluxcd/flux#3140][]
+- Support completion for fish [fluxcd/flux#2997][]
+- Expand the GCP credentials support to GAR ( `*-docker.pkg.dev` ) [fluxcd/flux#3038][]
+
+### Maintenance and documentation
+
+- Fix typo in fluxyaml-config-files.md doc [fluxcd/flux#3001][]
+- build fluxctl snap using GH action [fluxcd/flux#3072][]
+- Correct parameter name in docs [fluxcd/flux#3079][]
+- Migrate chart publishing to GitHub Actions [fluxcd/flux#3085][]
+- ci: Run CVE scanning for latest release and master build [fluxcd/flux#3086][]
+- Fix use of 'lxd' and 'snapcraft' in GH action [fluxcd/flux#3153][]
+- Update location of kubeyaml image [fluxcd/flux#3087][]
+- Update alpine and git version [fluxcd/flux#3115][]
+- Update kubectl and kustomize [fluxcd/flux#3176][], [fluxcd/flux#2987][], [fluxcd/flux#3088][]
+- document previous meetings [fluxcd/flux#3006][]
+- README: Add more companies to production users [fluxcd/flux#3104][],
+  [fluxcd/flux#3071][], [fluxcd/flux#3070][], [fluxcd/flux#3092][],
+  [fluxcd/flux#3100][], [fluxcd/flux#3094][], [fluxcd/flux#3091][],
+  [fluxcd/flux#3155][], [fluxcd/flux#3149][], [fluxcd/flux#3139][],
+  [fluxcd/flux#3130][], [fluxcd/flux#2993][], [fluxcd/flux#2995][],
+  [fluxcd/flux#2974][], [fluxcd/flux#3067][]
+- Add social links to the footer [fluxcd/flux#3106][]
+- docs: (re-)add link to Helm Operator documentation [fluxcd/flux#3105][]
+- update theme/mkdocs, use note admonitions, fix identation [fluxcd/flux#3102][]
+- Fix markup in ordered lists + fenced code groups [fluxcd/flux#3084][]
+- docs: update helm operator integration glob patterns [fluxcd/flux#3060][]
+- Update docs for changing default namespace [fluxcd/flux#3047][]
+- Add guide to use GKE workload identity with private GCR registry [fluxcd/flux#3023][]
+- fix broken minikube link, only report broken links in GH action [fluxcd/flux#3000][]
+- build: move back to upstream gh action [fluxcd/flux#2977][]
+- Update get started docs [fluxcd/flux#2973][]
+- ci: more thorough link checking [fluxcd/flux#2956][]
+- Fix 404 pages in documentation [fluxcd/flux#3007][]
+
+### Thanks
+
+Thanks to @BitProcessor, @Frizlab, @GregoireW, @alex-shpak, @bboreham,
+@billyshambrook, @bpinter, @christiangda, @circa10a, @colinrymer,
+@cpressland, @dholbach, @edernucci, @faweis, @hiddeco, @jaydeland,
+@jpreese, @marratj, @michaelbeaumont, @nipponilyal, @ordovicia,
+@rndstr, @sayboras, @schnatterer, @squaremo, @stefanprodan,
+@stephenshaw-felfel, @tux-00, @victorsalaun and @vyckou for their
+contributions to this release.
+
+[fluxcd/flux#3176]: https://github.com/fluxcd/flux/pull/3176
+[fluxcd/flux#3175]: https://github.com/fluxcd/flux/pull/3175
+[fluxcd/flux#3155]: https://github.com/fluxcd/flux/pull/3155
+[fluxcd/flux#3153]: https://github.com/fluxcd/flux/pull/3153
+[fluxcd/flux#3149]: https://github.com/fluxcd/flux/pull/3149
+[fluxcd/flux#3140]: https://github.com/fluxcd/flux/pull/3140
+[fluxcd/flux#3139]: https://github.com/fluxcd/flux/pull/3139
+[fluxcd/flux#3130]: https://github.com/fluxcd/flux/pull/3130
+[fluxcd/flux#3115]: https://github.com/fluxcd/flux/pull/3115
+[fluxcd/flux#3106]: https://github.com/fluxcd/flux/pull/3106
+[fluxcd/flux#3105]: https://github.com/fluxcd/flux/pull/3105
+[fluxcd/flux#3104]: https://github.com/fluxcd/flux/pull/3104
+[fluxcd/flux#3102]: https://github.com/fluxcd/flux/pull/3102
+[fluxcd/flux#3100]: https://github.com/fluxcd/flux/pull/3100
+[fluxcd/flux#3094]: https://github.com/fluxcd/flux/pull/3094
+[fluxcd/flux#3092]: https://github.com/fluxcd/flux/pull/3092
+[fluxcd/flux#3091]: https://github.com/fluxcd/flux/pull/3091
+[fluxcd/flux#3088]: https://github.com/fluxcd/flux/pull/3088
+[fluxcd/flux#3087]: https://github.com/fluxcd/flux/pull/3087
+[fluxcd/flux#3086]: https://github.com/fluxcd/flux/pull/3086
+[fluxcd/flux#3085]: https://github.com/fluxcd/flux/pull/3085
+[fluxcd/flux#3084]: https://github.com/fluxcd/flux/pull/3084
+[fluxcd/flux#3079]: https://github.com/fluxcd/flux/pull/3079
+[fluxcd/flux#3072]: https://github.com/fluxcd/flux/pull/3072
+[fluxcd/flux#3071]: https://github.com/fluxcd/flux/pull/3071
+[fluxcd/flux#3070]: https://github.com/fluxcd/flux/pull/3070
+[fluxcd/flux#3067]: https://github.com/fluxcd/flux/pull/3067
+[fluxcd/flux#3060]: https://github.com/fluxcd/flux/pull/3060
+[fluxcd/flux#3047]: https://github.com/fluxcd/flux/pull/3047
+[fluxcd/flux#3039]: https://github.com/fluxcd/flux/pull/3039
+[fluxcd/flux#3038]: https://github.com/fluxcd/flux/pull/3038
+[fluxcd/flux#3023]: https://github.com/fluxcd/flux/pull/3023
+[fluxcd/flux#3022]: https://github.com/fluxcd/flux/pull/3022
+[fluxcd/flux#3016]: https://github.com/fluxcd/flux/pull/3016
+[fluxcd/flux#3013]: https://github.com/fluxcd/flux/pull/3013
+[fluxcd/flux#3008]: https://github.com/fluxcd/flux/pull/3008
+[fluxcd/flux#3007]: https://github.com/fluxcd/flux/pull/3007
+[fluxcd/flux#3006]: https://github.com/fluxcd/flux/pull/3006
+[fluxcd/flux#3002]: https://github.com/fluxcd/flux/pull/3002
+[fluxcd/flux#3001]: https://github.com/fluxcd/flux/pull/3001
+[fluxcd/flux#3000]: https://github.com/fluxcd/flux/pull/3000
+[fluxcd/flux#2997]: https://github.com/fluxcd/flux/pull/2997
+[fluxcd/flux#2995]: https://github.com/fluxcd/flux/pull/2995
+[fluxcd/flux#2993]: https://github.com/fluxcd/flux/pull/2993
+[fluxcd/flux#2987]: https://github.com/fluxcd/flux/pull/2987
+[fluxcd/flux#2986]: https://github.com/fluxcd/flux/pull/2986
+[fluxcd/flux#2982]: https://github.com/fluxcd/flux/pull/2982
+[fluxcd/flux#2977]: https://github.com/fluxcd/flux/pull/2977
+[fluxcd/flux#2974]: https://github.com/fluxcd/flux/pull/2974
+[fluxcd/flux#2973]: https://github.com/fluxcd/flux/pull/2973
+[fluxcd/flux#2971]: https://github.com/fluxcd/flux/pull/2971
+[fluxcd/flux#2969]: https://github.com/fluxcd/flux/pull/2969
+[fluxcd/flux#2956]: https://github.com/fluxcd/flux/pull/2956
+[fluxcd/flux#1559]: https://github.com/fluxcd/flux/pull/1559
+
 ## 1.19.0 (2020-04-02)
 
 This minor version release is a bumper edition with many
