@@ -2,18 +2,26 @@ package kubernetes
 
 import (
 	"bytes"
-	"os"
 	"testing"
 	"text/template"
 
-	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/fluxcd/flux/pkg/policy"
 	"github.com/fluxcd/flux/pkg/resource"
+	zapLogfmt "github.com/sykesm/zap-logfmt"
 )
 
 func TestUpdatePolicies(t *testing.T) {
+	zap.RegisterEncoder("logfmt", func(config zapcore.EncoderConfig) (zapcore.Encoder, error) {
+		enc := zapLogfmt.NewEncoder(config)
+		return enc, nil
+	})
+	logCfg := zap.NewDevelopmentConfig()
+	logCfg.Encoding = "logfmt"
+	logger, _ := logCfg.Build()
 	for _, c := range []struct {
 		name    string
 		in, out []string
@@ -191,7 +199,7 @@ func TestUpdatePolicies(t *testing.T) {
 			caseIn := templToString(t, annotationsTemplate, cLocal.in)
 			caseOut := templToString(t, annotationsTemplate, cLocal.out)
 			resourceID := resource.MustParseID("default:deployment/nginx")
-			manifests := NewManifests(ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
+			manifests := NewManifests(ConstNamespacer("default"), logger)
 			out, err := manifests.UpdateWorkloadPolicies([]byte(caseIn), resourceID, cLocal.update)
 			assert.Equal(t, cLocal.wantErr, err != nil, "unexpected error value: %s", err)
 			if !cLocal.wantErr {

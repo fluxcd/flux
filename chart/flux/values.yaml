@@ -6,6 +6,8 @@ token: ""
 replicaCount: 1
 
 logFormat: fmt
+logLevel: info
+logDevel: false
 
 image:
   repository: docker.io/fluxcd/flux

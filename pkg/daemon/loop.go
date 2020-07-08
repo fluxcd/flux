@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-kit/kit/log"
+	"go.uber.org/zap"
 
 	"github.com/fluxcd/flux/pkg/git"
 	fluxmetrics "github.com/fluxcd/flux/pkg/metrics"
@@ -35,7 +35,7 @@ func (loop *LoopVars) ensureInit() {
 	})
 }
 
-func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger) {
+func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger *zap.Logger) {
 	defer wg.Done()
 
 	// We want to sync at least every `SyncInterval`. Being told to
@@ -59,12 +59,12 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 	// avoid repeated failures in the log, mention it here and
 	// otherwise skip it when it comes around.
 	if d.Repo.Readonly() {
-		logger.Log("info", "Repo is read-only; no image updates will be attempted")
+		logger.Info("Repo is read-only; no image updates will be attempted")
 	}
 
 	// Same for registry scanning
 	if d.ImageScanDisabled {
-		logger.Log("info", "Registry scanning is disabled; no image updates will be attempted")
+		logger.Info("Registry scanning is disabled; no image updates will be attempted")
 	}
 
 	// Ask for a sync, and to check
@@ -74,7 +74,10 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 	for {
 		select {
 		case <-stop:
-			logger.Log("stopping", "true")
+			logger.Info(
+				"stopping",
+				zap.Bool("stopping", true),
+			)
 			return
 		case <-d.automatedWorkloadsSoon:
 			if !automatedWorkloadTimer.Stop() {
@@ -105,7 +108,10 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 				fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 			).Observe(time.Since(started).Seconds())
 			if err != nil {
-				logger.Log("err", err)
+				logger.Error(
+					"sync error",
+					zap.NamedError("err", err),
+				)
 			}
 			syncTimer.Reset(d.SyncInterval)
 		case <-syncTimer.C:
@@ -124,22 +130,35 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 			cancel()
 
 			if err != nil {
-				logger.Log("url", d.Repo.Origin().SafeURL(), "err", err)
+				logger.Error(
+					"sync error",
+					zap.String("url", d.Repo.Origin().SafeURL()),
+					zap.NamedError("err", err),
+				)
 				continue
 			}
 			if invalidCommit.Revision != "" {
-				logger.Log("err", "found invalid GPG signature for commit", "revision", invalidCommit.Revision, "key", invalidCommit.Signature.Key)
+				logger.Error("found invalid GPG signature for commit", zap.String("revision", invalidCommit.Revision), zap.String("key", invalidCommit.Signature.Key))
 			}
 
-			logger.Log("event", "refreshed", "url", d.Repo.Origin().SafeURL(), "branch", d.GitConfig.Branch, "HEAD", newSyncHead)
+			logger.Info(
+				"sync success",
+				zap.String("event", "refreshed"),
+				zap.String("url", d.Repo.Origin().SafeURL()),
+				zap.String("branch", d.GitConfig.Branch),
+				zap.String("HEAD", newSyncHead),
+			)
 			if newSyncHead != syncHead {
 				syncHead = newSyncHead
 				d.AskForSync()
 			}
 		case job := <-d.Jobs.Ready():
 			queueLength.Set(float64(d.Jobs.Len()))
-			jobLogger := log.With(logger, "jobID", job.ID)
-			jobLogger.Log("state", "in-progress")
+			jobLogger := logger.With(zap.Any("jobID", job.ID))
+			jobLogger.Info(
+				"job",
+				zap.String("state", "in-progress"),
+			)
 			// It's assumed that (successful) jobs will push commits
 			// to the upstream repo, and therefore we probably want to
 			// pull from there and sync the cluster afterwards.
@@ -149,13 +168,25 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 				fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 			).Observe(time.Since(start).Seconds())
 			if err != nil {
-				jobLogger.Log("state", "done", "success", "false", "err", err)
+				jobLogger.Info(
+					"job failure",
+					zap.String("state", "done"),
+					zap.Bool("success", false),
+					zap.NamedError("err", err),
+				)
 			} else {
-				jobLogger.Log("state", "done", "success", "true")
+				jobLogger.Error(
+					"job success",
+					zap.String("state", "done"),
+					zap.Bool("success", true),
+				)
 				ctx, cancel := context.WithTimeout(context.Background(), d.GitTimeout)
 				err := d.Repo.Refresh(ctx)
 				if err != nil {
-					logger.Log("err", err)
+					logger.Error(
+						"repo refresh failure",
+						zap.NamedError("err", err),
+					)
 				}
 				cancel()
 			}
@@ -183,7 +214,7 @@ func (d *LoopVars) AskForAutomatedWorkloadImageUpdates() {
 
 // -- internals to keep track of sync tag and resources state
 type lastKnownSyncState struct {
-	logger log.Logger
+	logger *zap.Logger
 	state  fluxsync.State
 
 	// bookkeeping
@@ -214,9 +245,10 @@ func (s *lastKnownSyncState) Update(ctx context.Context, oldRev, newRev string, 
 	// using the same tag. Having multiple instances fight for the same
 	// tag can lead to fluxd missing manifest changes.
 	if s.revision != "" && oldRev != s.revision && !s.warnedAboutChange {
-		s.logger.Log("warning",
+		s.logger.Warn(
 			"detected external change in sync state; the sync state should not be shared by fluxd instances",
-			"state", s.state.String())
+			zap.String("state", s.state.String()),
+		)
 		s.warnedAboutChange = true
 	}
 
@@ -233,6 +265,11 @@ func (s *lastKnownSyncState) Update(ctx context.Context, oldRev, newRev string, 
 	s.revision = newRev
 	s.resources = resources
 
-	s.logger.Log("state", s.state.String(), "old", oldRev, "new", newRev)
+	s.logger.Info(
+		"sync update",
+		zap.String("state", s.state.String()),
+		zap.String("old", oldRev),
+		zap.String("new", newRev),
+	)
 	return true, nil
 }

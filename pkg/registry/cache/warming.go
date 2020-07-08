@@ -2,12 +2,13 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"github.com/fluxcd/flux/pkg/image"
 	"github.com/fluxcd/flux/pkg/registry"
@@ -76,7 +77,7 @@ type backlogItem struct {
 
 // Loop continuously gets the images to populate the cache with,
 // and populate the cache with them.
-func (w *Warmer) Loop(logger log.Logger, stop <-chan struct{}, wg *sync.WaitGroup, imagesToFetchFunc func() registry.ImageCreds) {
+func (w *Warmer) Loop(logger *zap.Logger, stop <-chan struct{}, wg *sync.WaitGroup, imagesToFetchFunc func() registry.ImageCreds) {
 	defer wg.Done()
 
 	refresh := time.Tick(askForNewImagesInterval)
@@ -92,11 +93,11 @@ func (w *Warmer) Loop(logger log.Logger, stop <-chan struct{}, wg *sync.WaitGrou
 	// image has to have been running the last time we
 	// requested the credentials.
 	priorityWarm := func(name image.Name) {
-		logger.Log("priority", name.String())
+		logger.Info("priority warming", zap.String("priority", name.String()))
 		if creds, ok := imageCreds[name]; ok {
 			w.warm(ctx, time.Now(), logger, name, creds)
 		} else {
-			logger.Log("priority", name.String(), "err", "no creds available")
+			logger.Error("error missing creds", zap.String("priority", name.String()), zap.Error(fmt.Errorf("no creds available")))
 		}
 	}
 
@@ -109,7 +110,7 @@ func (w *Warmer) Loop(logger log.Logger, stop <-chan struct{}, wg *sync.WaitGrou
 	for {
 		select {
 		case <-stop:
-			logger.Log("stopping", "true")
+			logger.Info("stopping warmer", zap.Bool("stopping", true))
 			return
 		case name := <-w.Priority:
 			priorityWarm(name)
@@ -124,7 +125,7 @@ func (w *Warmer) Loop(logger log.Logger, stop <-chan struct{}, wg *sync.WaitGrou
 		} else {
 			select {
 			case <-stop:
-				logger.Log("stopping", "true")
+				logger.Info("stopping warmer", zap.Bool("stopping", true))
 				return
 			case <-refresh:
 				imageCreds = imagesToFetchFunc()
@@ -146,12 +147,12 @@ func imageCredsToBacklog(imageCreds registry.ImageCreds) []backlogItem {
 	return backlog
 }
 
-func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id image.Name, creds registry.Credentials) {
-	errorLogger := log.With(logger, "canonical_name", id.CanonicalName(), "auth", creds)
+func (w *Warmer) warm(ctx context.Context, now time.Time, logger *zap.Logger, id image.Name, creds registry.Credentials) {
+	errorLogger := logger.With(zap.Any("canonical_name", id.CanonicalName()))
 
 	cacheManager, err := newRepoCacheManager(now, id, w.clientFactory, creds, time.Minute, w.burst, w.Trace, errorLogger, w.cache)
 	if err != nil {
-		errorLogger.Log("err", err.Error())
+		errorLogger.Error("error creating cache manager", zap.NamedError("err", err))
 		return
 	}
 
@@ -159,7 +160,7 @@ func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id 
 	var repo ImageRepository
 	repo, err = cacheManager.fetchRepository()
 	if err != nil && err != ErrNotCached {
-		errorLogger.Log("err", errors.Wrap(err, "fetching previous result from cache"))
+		errorLogger.Error("error fetching previous result from cache", zap.NamedError("err", err))
 		return
 	}
 	// Save for comparison later
@@ -170,14 +171,14 @@ func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id 
 	// we'll write something back.
 	defer func() {
 		if err := cacheManager.storeRepository(repo); err != nil {
-			errorLogger.Log("err", errors.Wrap(err, "writing result to cache"))
+			errorLogger.Error("error writing result to cache", zap.NamedError("err", err))
 		}
 	}()
 
 	tags, err := cacheManager.getTags(ctx)
 	if err != nil {
 		if !strings.Contains(err.Error(), context.DeadlineExceeded.Error()) && !strings.Contains(err.Error(), "net/http: request canceled") {
-			errorLogger.Log("err", errors.Wrap(err, "requesting tags"))
+			errorLogger.Error("error requesting tags", zap.NamedError("err", err))
 			repo.LastError = err.Error()
 		}
 		return
@@ -185,7 +186,7 @@ func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id 
 
 	fetchResult, err := cacheManager.fetchImages(tags)
 	if err != nil {
-		logger.Log("err", err, "tags", tags)
+		logger.Error("error fetching images", zap.NamedError("err", err), zap.Strings("tags", tags))
 		repo.LastError = err.Error()
 		return // abort and let the error be written
 	}
@@ -195,15 +196,25 @@ func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id 
 	var manifestUnknownCount int
 
 	if len(fetchResult.imagesToUpdate) > 0 {
-		logger.Log("info", "refreshing image", "image", id, "tag_count", len(tags),
-			"to_update", len(fetchResult.imagesToUpdate),
-			"of_which_refresh", fetchResult.imagesToUpdateRefreshCount, "of_which_missing", fetchResult.imagesToUpdateMissingCount)
+		logger.Info(
+			"refreshing image",
+			zap.String("image", id.String()),
+			zap.Int("tag_count", len(tags)),
+			zap.Int("to_update", len(fetchResult.imagesToUpdate)),
+			zap.Int("of_which_refresh", fetchResult.imagesToUpdateRefreshCount),
+			zap.Int("of_which_missing", fetchResult.imagesToUpdateMissingCount),
+		)
 		var images map[string]image.Info
 		images, successCount, manifestUnknownCount = cacheManager.updateImages(ctx, fetchResult.imagesToUpdate)
 		for k, v := range images {
 			newImages[k] = v
 		}
-		logger.Log("updated", id.String(), "successful", successCount, "attempted", len(fetchResult.imagesToUpdate))
+		logger.Info(
+			"image refreshed",
+			zap.String("updated", id.String()),
+			zap.Int("successful", successCount),
+			zap.Int("attempted", len(fetchResult.imagesToUpdate)),
+		)
 	}
 
 	// We managed to fetch new metadata for everything we needed.

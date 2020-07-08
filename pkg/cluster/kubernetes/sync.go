@@ -8,14 +8,15 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"github.com/ryanuber/go-glob"
 	"io"
 	"os/exec"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/go-kit/kit/log"
+	"github.com/ryanuber/go-glob"
+	"go.uber.org/zap"
+
 	"github.com/imdario/mergo"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
@@ -47,7 +48,7 @@ const (
 // in being synced, and some may fail (for example, they may be
 // malformed).
 func (c *Cluster) Sync(syncSet cluster.SyncSet) error {
-	logger := log.With(c.logger, "method", "Sync")
+	logger := c.logger.With(zap.String("method", "Sync"))
 
 	// Keep track of the checksum of each resource, so we can compare
 	// them during garbage collection.
@@ -76,14 +77,14 @@ func (c *Cluster) Sync(syncSet cluster.SyncSet) error {
 		checkHex := hex.EncodeToString(csum[:])
 		checksums[id] = checkHex
 		if res.Policies().Has(policy.Ignore) {
-			logger.Log("info", "not applying resource; ignore annotation in file", "resource", res.ResourceID(), "source", res.Source())
+			logger.Info("not applying resource; ignore annotation in file", zap.Any("resource", res.ResourceID()), zap.String("source", res.Source()))
 			continue
 		}
 		// It's possible to give a cluster resource the "ignore"
 		// annotation directly -- e.g., with `kubectl annotate` -- so
 		// we need to examine the cluster resource here too.
 		if cres, ok := clusterResources[id]; ok && cres.Policies().Has(policy.Ignore) {
-			logger.Log("info", "not applying resource; ignore annotation in cluster resource", "resource", cres.ResourceID())
+			logger.Info("not applying resource; ignore annotation in cluster resource", zap.Any("resource", cres.ResourceID()))
 			continue
 		}
 		resBytes, err := applyMetadata(res, syncSet.Name, checkHex)
@@ -96,7 +97,7 @@ func (c *Cluster) Sync(syncSet cluster.SyncSet) error {
 	}
 
 	if len(excluded) > 0 {
-		logger.Log("warning", "not applying resources; excluded by namespace constraints", "resources", strings.Join(excluded, ","))
+		logger.Warn("not applying resources; excluded by namespace constraints", zap.Strings("resources", excluded))
 	}
 
 	c.mu.Lock()
@@ -129,7 +130,7 @@ func (c *Cluster) Sync(syncSet cluster.SyncSet) error {
 func (c *Cluster) collectGarbage(
 	syncSet cluster.SyncSet,
 	checksums map[string]string,
-	logger log.Logger,
+	logger *zap.Logger,
 	dryRun bool) (cluster.SyncError, error) {
 
 	orphanedResources := makeChangeSet()
@@ -146,22 +147,22 @@ func (c *Cluster) collectGarbage(
 		switch {
 		case !ok: // was not recorded as having been staged for application
 			if res.Policies().Has(policy.Ignore) {
-				c.logger.Log("info", "skipping GC of cluster resource; resource has ignore policy true", "dry-run", dryRun, "resource", resourceID)
+				c.logger.Info("skipping GC of cluster resource; resource has ignore policy true", zap.Bool("dry-run", dryRun), zap.String("resource", resourceID))
 				continue
 			}
 
 			v, ok := res.Policies().Get(policy.Ignore)
 			if ok && v == policy.IgnoreSyncOnly {
-				c.logger.Log("info", "skipping GC of cluster resource; resource has ignore policy sync_only ", "dry-run", dryRun, "resource", resourceID)
+				c.logger.Info("skipping GC of cluster resource; resource has ignore policy sync_only ", zap.Bool("dry-run", dryRun), zap.String("resource", resourceID))
 				continue
 			}
 
-			c.logger.Log("info", "cluster resource not in resources to be synced; deleting", "dry-run", dryRun, "resource", resourceID)
+			c.logger.Info("cluster resource not in resources to be synced; deleting", zap.Bool("dry-run", dryRun), zap.String("resource", resourceID))
 			if !dryRun {
 				orphanedResources.stage("delete", res.ResourceID(), "<cluster>", res.IdentifyingBytes())
 			}
 		case actual != expected:
-			c.logger.Log("warning", "resource to be synced has not been updated; skipping", "dry-run", dryRun, "resource", resourceID)
+			c.logger.Warn("resource to be synced has not been updated; skipping", zap.Bool("dry-run", dryRun), zap.String("resource", resourceID))
 			continue
 		default:
 			// The checksum is the same, indicating that it was
@@ -447,7 +448,7 @@ func (c *changeSet) stage(cmd string, id resource.ID, source string, bytes []byt
 
 // Applier is something that will apply a changeset to the cluster.
 type Applier interface {
-	apply(log.Logger, changeSet, map[resource.ID]error) cluster.SyncError
+	apply(*zap.Logger, changeSet, map[resource.ID]error) cluster.SyncError
 }
 
 type Kubectl struct {
@@ -532,12 +533,17 @@ func (objs applyOrder) Less(i, j int) bool {
 	return ranki < rankj
 }
 
-func (c *Kubectl) apply(logger log.Logger, cs changeSet, errored map[resource.ID]error) (errs cluster.SyncError) {
+func (c *Kubectl) apply(logger *zap.Logger, cs changeSet, errored map[resource.ID]error) (errs cluster.SyncError) {
 	f := func(objs []applyObject, cmd string, args ...string) {
 		if len(objs) == 0 {
 			return
 		}
-		logger.Log("cmd", cmd, "args", strings.Join(args, " "), "count", len(objs))
+		logger.Info(
+			"applying",
+			zap.String("cmd", cmd),
+			zap.Strings("args", args),
+			zap.Int("count", len(objs)),
+		)
 		args = append(args, cmd)
 
 		var multi, single []applyObject
@@ -588,7 +594,7 @@ func (c *Kubectl) apply(logger log.Logger, cs changeSet, errored map[resource.ID
 	return errs
 }
 
-func (c *Kubectl) doCommand(logger log.Logger, r io.Reader, args ...string) error {
+func (c *Kubectl) doCommand(logger *zap.Logger, r io.Reader, args ...string) error {
 	args = append(args, "-f", "-")
 	cmd := c.kubectlCommand(args...)
 	cmd.Stdin = r
@@ -603,7 +609,22 @@ func (c *Kubectl) doCommand(logger log.Logger, r io.Reader, args ...string) erro
 		err = fmt.Errorf("running kubectl: %w, stderr: %s", err, strings.TrimSpace(stderr.String()))
 	}
 
-	logger.Log("cmd", "kubectl "+strings.Join(args, " "), "took", time.Since(begin), "err", err, "output", strings.TrimSpace(stdout.String()))
+	if err != nil {
+		logger.Error(
+			"error during apply",
+			zap.String("cmd", "kubectl "+strings.Join(args, " ")),
+			zap.Duration("took", time.Since(begin)),
+			zap.NamedError("err", err),
+			zap.String("output", strings.TrimSpace(stdout.String())),
+		)
+		return err
+	}
+	logger.Info(
+		"apply succeeded",
+		zap.String("cmd", "kubectl "+strings.Join(args, " ")),
+		zap.Duration("took", time.Since(begin)),
+		zap.String("output", strings.TrimSpace(stdout.String())),
+	)
 	return err
 }
 

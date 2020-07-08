@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"github.com/fluxcd/flux/pkg/image"
 	"github.com/fluxcd/flux/pkg/registry"
@@ -30,14 +30,14 @@ type repoCacheManager struct {
 	clientTimeout time.Duration
 	burst         int
 	trace         bool
-	logger        log.Logger
+	logger        *zap.Logger
 	cacheClient   Client
 	sync.Mutex
 }
 
 func newRepoCacheManager(now time.Time,
 	repoID image.Name, clientFactory registry.ClientFactory, creds registry.Credentials, repoClientTimeout time.Duration,
-	burst int, trace bool, logger log.Logger, cacheClient Client) (*repoCacheManager, error) {
+	burst int, trace bool, logger *zap.Logger, cacheClient Client) (*repoCacheManager, error) {
 	client, err := clientFactory.ClientFor(repoID.CanonicalName(), creds)
 	if err != nil {
 		return nil, err
@@ -123,19 +123,31 @@ func (c *repoCacheManager) fetchImages(tags []string) (fetchImagesResult, error)
 		switch {
 		case err != nil: // by and large these are cache misses, but any error shall count as "not found"
 			if err != ErrNotCached {
-				c.logger.Log("warning", "error from cache", "err", err, "ref", newID)
+				c.logger.Warn(
+					"error from cache",
+					zap.NamedError("err", err),
+					zap.Any("ref", newID),
+				)
 			}
 			missing++
 			toUpdate = append(toUpdate, imageToUpdate{ref: newID, previousRefresh: initialRefresh})
 		case len(bytes) == 0:
-			c.logger.Log("warning", "empty result from cache", "ref", newID)
+			c.logger.Warn(
+				"empty result from cache",
+				zap.String("ref", newID.String()),
+			)
 			missing++
 			toUpdate = append(toUpdate, imageToUpdate{ref: newID, previousRefresh: initialRefresh})
 		default:
 			var entry registry.ImageEntry
 			if err := json.Unmarshal(bytes, &entry); err == nil {
 				if c.trace {
-					c.logger.Log("trace", "found cached manifest", "ref", newID, "last_fetched", entry.LastFetched.Format(time.RFC3339), "deadline", deadline.Format(time.RFC3339))
+					c.logger.Debug(
+						"found cached manifest",
+						zap.Any("ref", newID),
+						zap.String("last_fetched", entry.LastFetched.Format(time.RFC3339)),
+						zap.String("deadline", deadline.Format(time.RFC3339)),
+					)
 				}
 
 				if entry.ExcludedReason == "" {
@@ -151,7 +163,11 @@ func (c *repoCacheManager) fetchImages(tags []string) (fetchImagesResult, error)
 					}
 				} else {
 					if c.trace {
-						c.logger.Log("trace", "excluded in cache", "ref", newID, "reason", entry.ExcludedReason)
+						c.logger.Debug(
+							"excluded in cache",
+							zap.Any("ref", newID),
+							zap.String("reason", entry.ExcludedReason),
+						)
 					}
 					if c.now.After(deadline) {
 						toUpdate = append(toUpdate, imageToUpdate{ref: newID, previousRefresh: excludedRefresh})
@@ -212,7 +228,7 @@ updates:
 				case strings.Contains(err.Error(), "429"):
 					// abort the image tags fetching if we've been rate limited
 					warnAboutRateLimit.Do(func() {
-						c.logger.Log("warn", "aborting image tag fetching due to rate limiting, will try again later")
+						c.logger.Warn("aborting image tag fetching due to rate limiting, will try again later")
 						cancel()
 					})
 				case strings.Contains(err.Error(), "manifest unknown"):
@@ -220,10 +236,18 @@ updates:
 					c.Lock()
 					manifestUnknownCount++
 					c.Unlock()
-					c.logger.Log("warn", fmt.Sprintf("manifest for tag %s missing in repository %s", up.ref.Tag, up.ref.Name),
-						"impact", "flux will fail to auto-release workloads with matching images, ask the repository administrator to fix the inconsistency")
+					c.logger.Warn(
+						"manifest for tag missing in repository",
+						zap.String("name", up.ref.Name.String()),
+						zap.String("tag", up.ref.Tag),
+						zap.String("impact", "flux will fail to auto-release workloads with matching images, ask the repository administrator to fix the inconsistency"),
+					)
 				default:
-					c.logger.Log("err", err, "ref", up.ref)
+					c.logger.Error(
+						"error updating image cache",
+						zap.NamedError("err", err),
+						zap.String("ref", up.ref.String()),
+					)
 				}
 				return
 			}
@@ -243,7 +267,11 @@ func (c *repoCacheManager) updateImage(ctx context.Context, update imageToUpdate
 	imageID := update.ref
 
 	if c.trace {
-		c.logger.Log("trace", "refreshing manifest", "ref", imageID, "previous_refresh", update.previousRefresh.String())
+		c.logger.Debug(
+			"refreshing manifest",
+			zap.Any("ref", imageID),
+			zap.String("previous_refresh", update.previousRefresh.String()),
+		)
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, c.clientTimeout)
@@ -257,14 +285,14 @@ func (c *repoCacheManager) updateImage(ctx context.Context, update imageToUpdate
 		if _, ok := err.(*image.LabelTimestampFormatError); !ok {
 			return registry.ImageEntry{}, err
 		}
-		c.logger.Log("err", err, "ref", imageID)
+		c.logger.Error("error refreshing manifest", zap.NamedError("err", err), zap.String("ref", imageID.String()))
 	}
 
 	refresh := update.previousRefresh
 	reason := ""
 	switch {
 	case entry.ExcludedReason != "":
-		c.logger.Log("excluded", entry.ExcludedReason, "ref", imageID)
+		c.logger.Info("image excluded", zap.String("excluded", entry.ExcludedReason), zap.Any("ref", imageID))
 		refresh = excludedRefresh
 		reason = "image is excluded"
 	case update.previousDigest == "":
@@ -282,7 +310,13 @@ func (c *repoCacheManager) updateImage(ctx context.Context, update imageToUpdate
 	}
 
 	if c.trace {
-		c.logger.Log("trace", "caching manifest", "ref", imageID, "last_fetched", c.now.Format(time.RFC3339), "refresh", refresh.String(), "reason", reason)
+		c.logger.Debug(
+			"caching manifest",
+			zap.Any("ref", imageID),
+			zap.String("last_fetched", c.now.Format(time.RFC3339)),
+			zap.String("refresh", refresh.String()),
+			zap.String("reason", reason),
+		)
 	}
 
 	key := NewManifestKey(imageID.CanonicalRef())

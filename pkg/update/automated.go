@@ -5,10 +5,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/go-kit/kit/log"
-
 	"github.com/fluxcd/flux/pkg/image"
 	"github.com/fluxcd/flux/pkg/resource"
+	"go.uber.org/zap"
 )
 
 type Automated struct {
@@ -25,7 +24,7 @@ func (a *Automated) Add(service resource.ID, container resource.Container, image
 	a.Changes = append(a.Changes, Change{service, container, image})
 }
 
-func (a *Automated) CalculateRelease(ctx context.Context, rc ReleaseContext, logger log.Logger) ([]*WorkloadUpdate, Result, error) {
+func (a *Automated) CalculateRelease(ctx context.Context, rc ReleaseContext, logger *zap.Logger) ([]*WorkloadUpdate, Result, error) {
 	prefilters := []WorkloadFilter{
 		&IncludeFilter{a.workloadIDs()},
 	}
@@ -88,7 +87,7 @@ func (a *Automated) markSkipped(results Result) {
 	}
 }
 
-func (a *Automated) calculateImageUpdates(rc ReleaseContext, candidates []*WorkloadUpdate, result Result, logger log.Logger) ([]*WorkloadUpdate, error) {
+func (a *Automated) calculateImageUpdates(rc ReleaseContext, candidates []*WorkloadUpdate, result Result, logger *zap.Logger) ([]*WorkloadUpdate, error) {
 	updates := []*WorkloadUpdate{}
 
 	workloadMap := a.workloadMap()

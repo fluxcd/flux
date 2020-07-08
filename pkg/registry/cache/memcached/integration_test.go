@@ -3,19 +3,20 @@
 package memcached
 
 import (
-	"os"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/fluxcd/flux/pkg/image"
 	"github.com/fluxcd/flux/pkg/registry"
 	"github.com/fluxcd/flux/pkg/registry/cache"
 	"github.com/fluxcd/flux/pkg/registry/middleware"
+	zapLogfmt "github.com/sykesm/zap-logfmt"
 )
 
 // memcachedIPs flag from memcached_test.go
@@ -25,10 +26,17 @@ import (
 // the warmer since I had a few bugs introduced when refactoring. This
 // should cover against these bugs.
 func TestWarming_WarmerWriteCacheRead(t *testing.T) {
+	zap.RegisterEncoder("logfmt", func(config zapcore.EncoderConfig) (zapcore.Encoder, error) {
+		enc := zapLogfmt.NewEncoder(config)
+		return enc, nil
+	})
+	logCfg := zap.NewDevelopmentConfig()
+	logCfg.Encoding = "logfmt"
+	logger, _ := logCfg.Build()
 	mc := NewFixedServerMemcacheClient(MemcacheConfig{
 		Timeout:        time.Second,
 		UpdateInterval: 1 * time.Minute,
-		Logger:         log.With(log.NewLogfmtLogger(os.Stderr), "component", "memcached"),
+		Logger:         logger.With(zap.String("component", "memcached")),
 	}, strings.Fields(*memcachedIPs)...)
 
 	// This repo has a stable number of images in the low tens (just
@@ -40,10 +48,8 @@ func TestWarming_WarmerWriteCacheRead(t *testing.T) {
 	// tens.
 	id, _ := image.ParseRef("docker.io/weaveworks/flagger-loadtester")
 
-	logger := log.NewLogfmtLogger(os.Stderr)
-
 	remote := &registry.RemoteClientFactory{
-		Logger:   log.With(logger, "component", "client"),
+		Logger:   logger.With(zap.String("component", "client")),
 		Limiters: &middleware.RateLimiters{RPS: 10, Burst: 5},
 		Trace:    true,
 	}
@@ -59,7 +65,7 @@ func TestWarming_WarmerWriteCacheRead(t *testing.T) {
 	}()
 
 	shutdownWg.Add(1)
-	go w.Loop(log.With(logger, "component", "warmer"), shutdown, shutdownWg, func() registry.ImageCreds {
+	go w.Loop(logger.With(zap.String("component", "warmer")), shutdown, shutdownWg, func() registry.ImageCreds {
 		return registry.ImageCreds{
 			id.Name: registry.NoCredentials(),
 		}

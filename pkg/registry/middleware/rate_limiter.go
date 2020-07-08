@@ -2,12 +2,11 @@ package middleware
 
 import (
 	"net/http"
-	"strconv"
 	"sync"
 	"time"
 
-	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 	"golang.org/x/time/rate"
 )
 
@@ -33,7 +32,7 @@ const (
 type RateLimiters struct {
 	RPS                  float64
 	Burst                int
-	Logger               log.Logger
+	Logger               *zap.Logger
 	perHost              map[string]*rate.Limiter
 	latestBackOffPerHost map[string]time.Time
 	mu                   sync.Mutex
@@ -71,7 +70,11 @@ func (limiters *RateLimiters) backOff(host string) {
 	oldLimit := float64(limiter.Limit())
 	newLimit := limiters.clip(oldLimit / backOffBy)
 	if oldLimit != newLimit && limiters.Logger != nil {
-		limiters.Logger.Log("info", "reducing rate limit", "host", host, "limit", strconv.FormatFloat(newLimit, 'f', 2, 64))
+		limiters.Logger.Info(
+			"reducing rate limit",
+			zap.String("host", host),
+			zap.Float64("limit", newLimit),
+		)
 	}
 	backOffTime := time.Now()
 	limiter.SetLimitAt(backOffTime, rate.Limit(newLimit))
@@ -98,7 +101,11 @@ func (limiters *RateLimiters) Recover(host string) {
 		oldLimit := float64(limiter.Limit())
 		newLimit := limiters.clip(oldLimit * recoverBy)
 		if newLimit != oldLimit && limiters.Logger != nil {
-			limiters.Logger.Log("info", "increasing rate limit", "host", host, "limit", strconv.FormatFloat(newLimit, 'f', 2, 64))
+			limiters.Logger.Info(
+				"increasing rate limit",
+				zap.String("host", host),
+				zap.Float64("limit", newLimit),
+			)
 		}
 		limiter.SetLimit(rate.Limit(newLimit))
 	}

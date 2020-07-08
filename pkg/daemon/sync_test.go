@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path"
 	"reflect"
 	"sync"
@@ -24,9 +23,11 @@ import (
 	registryMock "github.com/fluxcd/flux/pkg/registry/mock"
 	"github.com/fluxcd/flux/pkg/resource"
 	fluxsync "github.com/fluxcd/flux/pkg/sync"
-	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	promdto "github.com/prometheus/client_model/go"
+	zapLogfmt "github.com/sykesm/zap-logfmt"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -42,6 +43,13 @@ var (
 )
 
 func daemon(t *testing.T, files map[string]string) (*Daemon, func()) {
+	zap.RegisterEncoder("logfmt", func(config zapcore.EncoderConfig) (zapcore.Encoder, error) {
+		enc := zapLogfmt.NewEncoder(config)
+		return enc, nil
+	})
+	logCfg := zap.NewDevelopmentConfig()
+	logCfg.Encoding = "logfmt"
+	logger, _ := logCfg.Build()
 	repo, repoCleanup := gittest.Repo(t, files)
 
 	k8s = &mock.Mock{}
@@ -63,7 +71,7 @@ func daemon(t *testing.T, files map[string]string) (*Daemon, func()) {
 		UserEmail: gitEmail,
 	}
 
-	manifests := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
+	manifests := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), logger)
 
 	jobs := job.NewQueue(shutdown, wg)
 	d := &Daemon{
@@ -75,7 +83,7 @@ func daemon(t *testing.T, files map[string]string) (*Daemon, func()) {
 		Jobs:           jobs,
 		JobStatusCache: &job.StatusCache{Size: 100},
 		EventWriter:    events,
-		Logger:         log.NewLogfmtLogger(os.Stdout),
+		Logger:         logger,
 		LoopVars:       &LoopVars{SyncTimeout: timeout, GitTimeout: timeout},
 	}
 	return d, func() {

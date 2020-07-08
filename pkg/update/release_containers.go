@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/go-kit/kit/log"
+	"go.uber.org/zap"
 
 	"github.com/fluxcd/flux/pkg/image"
 	"github.com/fluxcd/flux/pkg/resource"
@@ -26,7 +26,7 @@ type ReleaseContainersSpec struct {
 // CalculateRelease computes required controller updates to satisfy this specification.
 // It returns an error if any spec calculation fails unless `SkipMismatches` is true.
 func (s ReleaseContainersSpec) CalculateRelease(ctx context.Context, rc ReleaseContext,
-	logger log.Logger) ([]*WorkloadUpdate, Result, error) {
+	logger *zap.Logger) ([]*WorkloadUpdate, Result, error) {
 	results := Result{}
 	prefilter, postfilter := s.filters()
 	all, err := rc.SelectWorkloads(ctx, results, prefilter, postfilter)

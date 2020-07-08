@@ -6,21 +6,21 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"github.com/fluxcd/flux/pkg/resource"
 	"github.com/fluxcd/flux/pkg/update"
 )
 
 type Changes interface {
-	CalculateRelease(context.Context, update.ReleaseContext, log.Logger) ([]*update.WorkloadUpdate, update.Result, error)
+	CalculateRelease(context.Context, update.ReleaseContext, *zap.Logger) ([]*update.WorkloadUpdate, update.Result, error)
 	ReleaseKind() update.ReleaseKind
 	ReleaseType() update.ReleaseType
 	CommitMessage(update.Result) string
 }
 
-func Release(ctx context.Context, rc *ReleaseContext, changes Changes, logger log.Logger) (results update.Result, err error) {
+func Release(ctx context.Context, rc *ReleaseContext, changes Changes, logger *zap.Logger) (results update.Result, err error) {
 	defer func(start time.Time) {
 		update.ObserveRelease(
 			start,
@@ -30,7 +30,7 @@ func Release(ctx context.Context, rc *ReleaseContext, changes Changes, logger lo
 		)
 	}(time.Now())
 
-	logger = log.With(logger, "type", "release")
+	logger = logger.With(zap.String("type", "release"))
 
 	before, err := rc.GetAllResources(ctx)
 	updates, results, err := changes.CalculateRelease(ctx, rc, logger)
@@ -55,10 +55,13 @@ func Release(ctx context.Context, rc *ReleaseContext, changes Changes, logger lo
 	return results, nil
 }
 
-func ApplyChanges(ctx context.Context, rc *ReleaseContext, updates []*update.WorkloadUpdate, logger log.Logger) error {
-	logger.Log("updates", len(updates))
+func ApplyChanges(ctx context.Context, rc *ReleaseContext, updates []*update.WorkloadUpdate, logger *zap.Logger) error {
+	logger.Info(
+		"applying releases",
+		zap.Int("updates", len(updates)),
+	)
 	if len(updates) == 0 {
-		logger.Log("exit", "no images to update for services given")
+		logger.Info("no images to update for services given")
 		return nil
 	}
 

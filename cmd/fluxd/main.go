@@ -18,7 +18,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
 	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -51,6 +50,9 @@ import (
 	"github.com/fluxcd/flux/pkg/remote"
 	"github.com/fluxcd/flux/pkg/ssh"
 	fluxsync "github.com/fluxcd/flux/pkg/sync"
+	zapLogfmt "github.com/sykesm/zap-logfmt"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 var version = "unversioned"
@@ -107,7 +109,11 @@ func main() {
 	}
 	// This mirrors how kubectl extracts information from the environment.
 	var (
-		logFormat         = fs.String("log-format", "fmt", "change the log format.")
+		// Log settings
+		logFormat = fs.String("log-format", "fmt", "change the log format.")
+		logLevel  = fs.String("log-level", "info", "flux log level (debug,info,warning,error,critical)")
+		logDevel  = fs.Bool("log-devel", false, "enable zap 'development' logging mode")
+
 		listenAddr        = fs.StringP("listen", "l", ":3030", "listen address where /metrics and API will be served")
 		listenMetricsAddr = fs.String("listen-metrics", "", "listen address for /metrics endpoint")
 		kubernetesKubectl = fs.String("kubernetes-kubectl", "", "optional, explicit path to kubectl tool")
@@ -243,29 +249,65 @@ func main() {
 	}
 
 	// Logger component.
-	var logger log.Logger
+	var logCfg zap.Config
+	var zapLevel zapcore.Level
+	// Select production or development configs
+	{
+		switch *logDevel {
+		case true:
+			logCfg = zap.NewDevelopmentConfig()
+		default:
+			logCfg = zap.NewProductionConfig()
+		}
+	}
+	// Set log level
+	{
+		switch *logLevel {
+		case "debug":
+			zapLevel = zap.DebugLevel
+		case "info":
+			zapLevel = zap.InfoLevel
+		case "warning":
+			zapLevel = zap.WarnLevel
+		case "error":
+			zapLevel = zap.ErrorLevel
+		case "critical":
+			zapLevel = zap.DPanicLevel
+		default:
+			zapLevel = zap.InfoLevel
+		}
+	}
+	// Set log format/encoding
 	{
 		switch *logFormat {
 		case "json":
-			logger = log.NewJSONLogger(log.NewSyncWriter(os.Stderr))
+			logCfg.Encoding = "json"
+		case "console":
+			logCfg.Encoding = "console"
 		case "fmt":
-			logger = log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr))
+			zap.RegisterEncoder("logfmt", func(config zapcore.EncoderConfig) (zapcore.Encoder, error) {
+				enc := zapLogfmt.NewEncoder(config)
+				return enc, nil
+			})
+			logCfg.Encoding = "logfmt"
 		default:
-			logger = log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr))
+			logCfg.Encoding = "console"
 		}
-		logger = log.With(logger, "ts", log.DefaultTimestampUTC)
-		logger = log.With(logger, "caller", log.DefaultCaller)
 	}
-	logger.Log("version", version)
+	logCfg.EncoderConfig.TimeKey = "ts"
+	logCfg.EncoderConfig.EncodeTime = zapcore.RFC3339NanoTimeEncoder
+	logCfg.EncoderConfig.CallerKey = "caller"
+	logCfg.Level = zap.NewAtomicLevelAt(zapLevel)
+	// Standard zap Logger
+	logger, err := logCfg.Build()
+	if err != nil {
+		fmt.Printf("error building logger: %s", err.Error())
+		os.Exit(1)
+	}
+	logger.Info(fmt.Sprintf("version %s", version))
 
 	// Silence access errors logged internally by client-go
-	k8slog := log.With(logger,
-		"type", "internal kubernetes error",
-		"kubernetes_caller", log.Valuer(func() interface{} {
-			_, file, line, _ := runtime.Caller(5) // we want to log one level deeper than k8sruntime.HandleError
-			idx := strings.Index(file, "/k8s.io/")
-			return file[idx+1:] + ":" + strconv.Itoa(line)
-		}))
+	k8slog := logger.With(zap.String("type", "internal kubernetes error"))
 	logErrorUnlessAccessRelated := func(err error) {
 		errLower := strings.ToLower(err.Error())
 		if k8serrors.IsForbidden(err) || k8serrors.IsNotFound(err) ||
@@ -273,7 +315,9 @@ func main() {
 			strings.Contains(errLower, "not found") {
 			return
 		}
-		k8slog.Log("err", err)
+		_, file, line, _ := runtime.Caller(5) // we want to log one level deeper than k8sruntime.HandleError
+		idx := strings.Index(file, "/k8s.io/")
+		k8slog.Error("err", zap.NamedError("err", err), zap.String("kubernetes_caller", file[idx+1:]+":"+strconv.Itoa(line)))
 	}
 	k8sruntime.ErrorHandlers = []func(error){logErrorUnlessAccessRelated}
 
@@ -281,7 +325,7 @@ func main() {
 
 	if *gitReadonly {
 		if *syncState == fluxsync.GitTagStateMode {
-			logger.Log("warning", fmt.Sprintf("--git-readonly prevents use of --sync-state=%s. Forcing to --sync-state=%s", fluxsync.GitTagStateMode, fluxsync.NativeStateMode))
+			logger.Warn(fmt.Sprintf("--git-readonly prevents use of --sync-state=%s. Forcing to --sync-state=%s", fluxsync.GitTagStateMode, fluxsync.NativeStateMode))
 			*syncState = fluxsync.NativeStateMode
 		}
 
@@ -300,7 +344,7 @@ func main() {
 			}
 		}
 		if len(changedGitRelatedFlags) > 0 {
-			logger.Log("warning", fmt.Sprintf("configuring any of {%s} has no effect when --git-readonly is set", strings.Join(changedGitRelatedFlags, ", ")))
+			logger.Warn(fmt.Sprintf("configuring any of {%s} has no effect when --git-readonly is set", strings.Join(changedGitRelatedFlags, ", ")))
 		}
 	}
 
@@ -319,7 +363,7 @@ func main() {
 		gitVerifySignaturesMode = fluxsync.VerifySignaturesModeAll
 	} else {
 		if gitVerifySignaturesMode, err = fluxsync.ToVerifySignaturesMode(*gitVerifySignaturesModeStr); err != nil {
-			logger.Log("error", err.Error())
+			logger.Error("error", zap.NamedError("err", err))
 			os.Exit(1)
 		}
 	}
@@ -332,7 +376,7 @@ func main() {
 		*gitNotesRef = *gitLabel
 		for _, f := range []string{"git-sync-tag", "git-notes-ref"} {
 			if fs.Changed(f) {
-				logger.Log("overridden", f, "value", *gitLabel)
+				logger.Info("flag overridden", zap.String("flag", f), zap.String("value", *gitLabel))
 			}
 		}
 	}
@@ -343,7 +387,7 @@ func main() {
 
 	for _, path := range *gitPath {
 		if len(path) > 0 && path[0] == '/' {
-			logger.Log("err", "subdirectory given as --git-path should not have leading forward slash")
+			logger.Error("subdirectory given as --git-path should not have leading forward slash")
 			os.Exit(1)
 		}
 	}
@@ -355,7 +399,7 @@ func main() {
 	}
 
 	if *sshKeygenDir == "" && !httpGitURL {
-		logger.Log("info", fmt.Sprintf("SSH keygen dir (--ssh-keygen-dir) not provided, so using the deploy key volume (--k8s-secret-volume-mount-path=%s); this may cause problems if the deploy key volume is mounted read-only", *k8sSecretVolumeMountPath))
+		logger.Info(fmt.Sprintf("SSH keygen dir (--ssh-keygen-dir) not provided, so using the deploy key volume (--k8s-secret-volume-mount-path=%s); this may cause problems if the deploy key volume is mounted read-only", *k8sSecretVolumeMountPath))
 		*sshKeygenDir = *k8sSecretVolumeMountPath
 	}
 
@@ -363,28 +407,28 @@ func main() {
 	for _, p := range *gitImportGPG {
 		keyfiles, err := gpg.ImportKeys(p, gitVerifySignaturesMode != fluxsync.VerifySignaturesModeNone)
 		if err != nil {
-			logger.Log("error", fmt.Sprintf("failed to import GPG key(s) from %s", p), "err", err.Error())
+			logger.Error(fmt.Sprintf("failed to import GPG key(s) from %s", p), zap.NamedError("err", err))
 		}
 		if keyfiles != nil {
-			logger.Log("info", fmt.Sprintf("imported GPG key(s) from %s", p), "files", fmt.Sprintf("%v", keyfiles))
+			logger.Info(fmt.Sprintf("imported GPG key(s) from %s", p), zap.Strings("files", keyfiles))
 		}
 	}
 
 	possiblyRequired := stringset(RequireValues)
 	for _, r := range *registryRequire {
 		if !possiblyRequired.has(r) {
-			logger.Log("err", fmt.Sprintf("--registry-require value %q is not in possible values {%s}", r, strings.Join(RequireValues, ",")))
+			logger.Error(fmt.Sprintf("--registry-require value %q is not in possible values {%s}", r, strings.Join(RequireValues, ",")))
 			os.Exit(1)
 		}
 	}
 	mandatoryRegistry := stringset(*registryRequire)
 
 	if *gitSecret && len(*gitImportGPG) == 0 {
-		logger.Log("warning", fmt.Sprintf("--git-secret is enabled but there is no GPG key(s) provided using --git-gpg-key-import, we assume you mounted the keyring directly and continue"))
+		logger.Warn(fmt.Sprintf("--git-secret is enabled but there is no GPG key(s) provided using --git-gpg-key-import, we assume you mounted the keyring directly and continue"))
 	}
 
 	if *sopsEnabled && len(*gitImportGPG) == 0 {
-		logger.Log("warning", fmt.Sprintf("--sops is enabled but there is no GPG key(s) provided using --git-gpg-key-import, we assume that the means of decryption has been provided in another way"))
+		logger.Warn(fmt.Sprintf("--sops is enabled but there is no GPG key(s) provided using --git-gpg-key-import, we assume that the means of decryption has been provided in another way"))
 	}
 
 	// Mechanical components.
@@ -409,7 +453,7 @@ func main() {
 	{
 		var err error
 		if *kubeConfig != "" {
-			logger.Log("msg", fmt.Sprintf("using kube config: %q to connect to the cluster", *kubeConfig))
+			logger.Info(fmt.Sprintf("using kube config: %q to connect to the cluster", *kubeConfig))
 			restClientConfig, err = clientcmd.BuildConfigFromFlags("", *kubeConfig)
 		} else {
 			restClientConfig, err = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
@@ -418,7 +462,7 @@ func main() {
 			).ClientConfig()
 		}
 		if err != nil {
-			logger.Log("err", err)
+			logger.Error("kubeconfig error", zap.NamedError("err", err))
 			os.Exit(1)
 		}
 		restClientConfig.QPS = 50.0
@@ -433,31 +477,31 @@ func main() {
 	{
 		clientset, err := k8sclient.NewForConfig(restClientConfig)
 		if err != nil {
-			logger.Log("err", err)
+			logger.Error("error building k8s clientset", zap.NamedError("err", err))
 			os.Exit(1)
 		}
 		dynamicClientset, err := k8sclientdynamic.NewForConfig(restClientConfig)
 		if err != nil {
-			logger.Log("err", err)
+			logger.Error("error building k8s dynamic clientset", zap.NamedError("err", err))
 			os.Exit(1)
 		}
 
 		hrClientset, err := helmopclient.NewForConfig(restClientConfig)
 		if err != nil {
-			logger.Log("error", fmt.Sprintf("Error building helm operator clientset: %v", err))
+			logger.Error("error building helm operator clientset", zap.NamedError("err", err))
 			os.Exit(1)
 		}
 
 		crdClient, err := crd.NewForConfig(restClientConfig)
 		if err != nil {
-			logger.Log("error", fmt.Sprintf("Error building API extensions (CRD) clientset: %v", err))
+			logger.Error("error building API extensions (CRD) clientset", zap.NamedError("err", err))
 			os.Exit(1)
 		}
 		discoClientset := kubernetes.MakeCachedDiscovery(clientset.Discovery(), crdClient, shutdown)
 
 		serverVersion, err := clientset.ServerVersion()
 		if err != nil {
-			logger.Log("err", err)
+			logger.Error("k8s server version error", zap.NamedError("err", err))
 			os.Exit(1)
 		}
 		clusterVersion = "kubernetes-" + serverVersion.GitVersion
@@ -467,7 +511,7 @@ func main() {
 		if isInCluster && !httpGitURL {
 			namespace, err := ioutil.ReadFile(filepath.Join(k8sInClusterSecretsBaseDir, "serviceaccount/namespace"))
 			if err != nil {
-				logger.Log("err", err)
+				logger.Error("error reading namespace from file", zap.String("path", filepath.Join(k8sInClusterSecretsBaseDir, "serviceaccount/namespace")), zap.NamedError("err", err))
 				os.Exit(1)
 			}
 
@@ -482,20 +526,24 @@ func main() {
 				KeyGenDir:             *sshKeygenDir,
 			})
 			if err != nil {
-				logger.Log("err", err)
+				logger.Error("error adding ssh key to keyring", zap.NamedError("err", err))
 				os.Exit(1)
 			}
 
 			publicKey, privateKeyPath := sshKeyRing.KeyPair()
 
-			logger := log.With(logger, "component", "cluster")
-			logger.Log("identity", privateKeyPath)
-			logger.Log("identity.pub", strings.TrimSpace(publicKey.Key))
+			logger := logger.With(zap.String("component", "cluster"))
+			logger.Info("identity", zap.String("path", privateKeyPath))
+			logger.Info("identity.pub", zap.String("key", strings.TrimSpace(publicKey.Key)))
 		} else {
 			sshKeyRing = ssh.NewNopSSHKeyRing()
 		}
 
-		logger.Log("host", restClientConfig.Host, "version", clusterVersion)
+		logger.Info(
+			"server info",
+			zap.String("host", restClientConfig.Host),
+			zap.String("version", clusterVersion),
+		)
 
 		kubectl := *kubernetesKubectl
 		if kubectl == "" {
@@ -504,10 +552,13 @@ func main() {
 			_, err = os.Stat(kubectl)
 		}
 		if err != nil {
-			logger.Log("err", err)
+			logger.Error("could not find kubectl", zap.NamedError("err", err))
 			os.Exit(1)
 		}
-		logger.Log("kubectl", kubectl)
+		logger.Info(
+			"kubeclt",
+			zap.String("path", kubectl),
+		)
 
 		client := kubernetes.MakeClusterClientset(clientset, dynamicClientset, hrClientset, discoClientset)
 		kubectlApplier := kubernetes.NewKubectl(kubectl, restClientConfig)
@@ -522,9 +573,16 @@ func main() {
 		k8sInst.DryGC = *dryGC
 
 		if err := k8sInst.Ping(); err != nil {
-			logger.Log("ping", err)
+			logger.Error(
+				"api server unavailable",
+				zap.Bool("ping", false),
+				zap.NamedError("err", err),
+			)
 		} else {
-			logger.Log("ping", true)
+			logger.Info(
+				"api server available",
+				zap.Bool("ping", true),
+			)
 		}
 
 		k8s = k8sInst
@@ -533,7 +591,7 @@ func main() {
 		// files as manifests, and that's as Kubernetes yamels.
 		namespacer, err := kubernetes.NewNamespacer(discoClientset, *k8sDefaultNamespace)
 		if err != nil {
-			logger.Log("err", err)
+			logger.Error("error creating k8s namespacer", zap.NamedError("err", err))
 			os.Exit(1)
 		}
 		if *sopsEnabled {
@@ -551,10 +609,10 @@ func main() {
 			BlockIDs:   *registryAWSBlockAccountIDs,
 		}
 
-		awsPreflight, credsWithAWSAuth := registry.ImageCredsWithAWSAuth(imageCreds, log.With(logger, "component", "aws"), awsConf)
+		awsPreflight, credsWithAWSAuth := registry.ImageCredsWithAWSAuth(imageCreds, logger.With(zap.String("component", "aws")), awsConf)
 		if mandatoryRegistry.has(RequireECR) {
 			if err := awsPreflight(); err != nil {
-				logger.Log("error", "AWS API required (due to --registry-require=ecr), but not available", "err", err)
+				logger.Error("AWS API required (due to --registry-require=ecr), but not available", zap.NamedError("err", err))
 				os.Exit(1)
 			}
 		}
@@ -563,7 +621,7 @@ func main() {
 		if *dockerConfig != "" {
 			credsWithDefaults, err := registry.ImageCredsWithDefaults(imageCreds, *dockerConfig)
 			if err != nil {
-				logger.Log("warning", "--docker-config not used; pre-flight check failed", "err", err)
+				logger.Warn("--docker-config not used; pre-flight check failed", zap.NamedError("err", err))
 			} else {
 				imageCreds = credsWithDefaults
 			}
@@ -582,7 +640,7 @@ func main() {
 			Service:        *memcachedService,
 			Timeout:        *memcachedTimeout,
 			UpdateInterval: 1 * time.Minute,
-			Logger:         log.With(logger, "component", "memcached"),
+			Logger:         logger.With(zap.String("component", "memcached")),
 			MaxIdleConns:   *registryBurst,
 		}
 
@@ -606,11 +664,11 @@ func main() {
 		imageRegistry = registry.NewInstrumentedRegistry(imageRegistry)
 
 		// Remote client, for warmer to refresh entries
-		registryLogger := log.With(logger, "component", "registry")
+		registryLogger := logger.With(zap.String("component", "registry"))
 		registryLimits := &registryMiddleware.RateLimiters{
 			RPS:    *registryRPS,
 			Burst:  *registryBurst,
-			Logger: log.With(logger, "component", "ratelimiter"),
+			Logger: logger.With(zap.String("component", "ratelimiter")),
 		}
 		remoteFactory := &registry.RemoteClientFactory{
 			Logger:        registryLogger,
@@ -623,7 +681,7 @@ func main() {
 		var err error
 		cacheWarmer, err = cache.NewWarmer(remoteFactory, cacheClient, *registryBurst)
 		if err != nil {
-			logger.Log("err", err)
+			logger.Error("error creating cache warmer", zap.NamedError("err", err))
 			os.Exit(1)
 		}
 	}
@@ -633,7 +691,7 @@ func main() {
 	// is that it will have been set up already, and we don't want to
 	// report anything before seeing if it works. So, don't start
 	// until we have failed or succeeded.
-	updateCheckLogger := log.With(logger, "component", "checkpoint")
+	updateCheckLogger := logger.With(zap.String("component", "checkpoint"))
 	checkpointFlags := map[string]string{
 		"cluster-version": clusterVersion,
 		"git-configured":  strconv.FormatBool(*gitURL != ""),
@@ -663,20 +721,21 @@ func main() {
 		}()
 	}
 
-	logger.Log(
-		"url", gitRemote.SafeURL(),
-		"user", *gitUser,
-		"email", *gitEmail,
-		"signing-key", *gitSigningKey,
-		"verify-signatures-mode", gitVerifySignaturesMode,
-		"sync-tag", *gitSyncTag,
-		"state", *syncState,
-		"readonly", *gitReadonly,
-		"registry-disable-scanning", *registryDisableScanning,
-		"notes-ref", *gitNotesRef,
-		"set-author", *gitSetAuthor,
-		"git-secret", *gitSecret,
-		"sops", *sopsEnabled,
+	logger.Info(
+		"git info",
+		zap.String("url", gitRemote.SafeURL()),
+		zap.String("user", *gitUser),
+		zap.String("email", *gitEmail),
+		zap.String("signing-key", *gitSigningKey),
+		zap.String("verify-signatures-mode", string(gitVerifySignaturesMode)),
+		zap.String("sync-tag", *gitSyncTag),
+		zap.String("state", *syncState),
+		zap.Bool("readonly", *gitReadonly),
+		zap.Bool("registry-disable-scanning", *registryDisableScanning),
+		zap.String("notes-ref", *gitNotesRef),
+		zap.Bool("set-author", *gitSetAuthor),
+		zap.Bool("git-secret", *gitSecret),
+		zap.Bool("sops", *sopsEnabled),
 	)
 
 	var jobs *job.Queue
@@ -689,7 +748,7 @@ func main() {
 	case fluxsync.NativeStateMode:
 		namespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 		if err != nil {
-			logger.Log("err", err)
+			logger.Error("error reading namespace file", zap.NamedError("err", err))
 			os.Exit(1)
 		}
 
@@ -698,7 +757,7 @@ func main() {
 			*k8sSecretName,
 		)
 		if err != nil {
-			logger.Log("err", err)
+			logger.Error("error creating native sync provider", zap.NamedError("err", err))
 			os.Exit(1)
 		}
 
@@ -711,12 +770,12 @@ func main() {
 			gitConfig,
 		)
 		if err != nil {
-			logger.Log("err", err)
+			logger.Error("error creating git sync provider", zap.NamedError("err", err))
 			os.Exit(1)
 		}
 
 	default:
-		logger.Log("error", "unknown sync state mode", "mode", *syncState)
+		logger.Error("unknown sync state mode", zap.String("mode", *syncState))
 		os.Exit(1)
 	}
 
@@ -730,7 +789,7 @@ func main() {
 		GitConfig:                 gitConfig,
 		Jobs:                      jobs,
 		JobStatusCache:            &job.StatusCache{Size: 100},
-		Logger:                    log.With(logger, "component", "daemon"),
+		Logger:                    logger.With(zap.String("component", "daemon")),
 		ManifestGenerationEnabled: *manifestGeneration,
 		GitSecretEnabled:          *gitSecret,
 		LoopVars: &daemon.LoopVars{
@@ -747,8 +806,11 @@ func main() {
 	{
 		// Connect to fluxsvc if given an upstream address
 		if *upstreamURL != "" {
-			upstreamLogger := log.With(logger, "component", "upstream")
-			upstreamLogger.Log("URL", *upstreamURL)
+			upstreamLogger := logger.With(zap.String("component", "upstream"))
+			upstreamLogger.Info(
+				"upstream",
+				zap.String("URL", *upstreamURL),
+			)
 			upstream, err := daemonhttp.NewUpstream(
 				&http.Client{Timeout: 10 * time.Second},
 				fmt.Sprintf("fluxd/%v", version),
@@ -760,7 +822,7 @@ func main() {
 				upstreamLogger,
 			)
 			if err != nil {
-				logger.Log("err", err)
+				logger.Error("error connecting to upstream", zap.NamedError("err", err))
 				os.Exit(1)
 			}
 			daemon.EventWriter = upstream
@@ -769,19 +831,19 @@ func main() {
 				upstream.Close()
 			}()
 		} else {
-			logger.Log("upstream", "no upstream URL given")
+			logger.Info("no upstream URL given")
 		}
 	}
 
 	shutdownWg.Add(1)
-	go daemon.Loop(shutdown, shutdownWg, log.With(logger, "component", "sync-loop"))
+	go daemon.Loop(shutdown, shutdownWg, logger.With(zap.String("component", "sync-loop")))
 
 	if !*registryDisableScanning {
 		cacheWarmer.Notify = daemon.AskForAutomatedWorkloadImageUpdates
 		cacheWarmer.Priority = daemon.ImageRefresh
 		cacheWarmer.Trace = *registryTrace
 		shutdownWg.Add(1)
-		go cacheWarmer.Loop(log.With(logger, "component", "warmer"), shutdown, shutdownWg, imageCreds)
+		go cacheWarmer.Loop(logger.With(zap.String("component", "warmer")), shutdown, shutdownWg, imageCreds)
 	}
 
 	go func() {
@@ -792,7 +854,7 @@ func main() {
 		}
 		handler := daemonhttp.NewHandler(daemon, daemonhttp.NewRouter())
 		mux.Handle("/api/flux/", http.StripPrefix("/api/flux", handler))
-		logger.Log("addr", *listenAddr)
+		logger.Info("api server listening", zap.String("addr", *listenAddr))
 		errc <- http.ListenAndServe(*listenAddr, mux)
 	}()
 
@@ -800,13 +862,17 @@ func main() {
 		go func() {
 			mux := http.NewServeMux()
 			mux.Handle("/metrics", promhttp.Handler())
-			logger.Log("metrics-addr", *listenMetricsAddr)
+			logger.Info("metrics listening", zap.String("addr", *listenMetricsAddr))
 			errc <- http.ListenAndServe(*listenMetricsAddr, mux)
 		}()
 	}
 
 	// wait here until stopping.
-	logger.Log("exiting", <-errc)
+	if err := <-errc; err != nil {
+		logger.Error("exiting", zap.NamedError("err", err))
+	} else {
+		logger.Info("exiting")
+	}
 	close(shutdown)
 	shutdownWg.Wait()
 }

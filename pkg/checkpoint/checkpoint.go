@@ -3,25 +3,25 @@ package checkpoint
 import (
 	"time"
 
-	"github.com/go-kit/kit/log"
 	"github.com/weaveworks/go-checkpoint"
+	"go.uber.org/zap"
 )
 
 const (
 	versionCheckPeriod = 6 * time.Hour
 )
 
-func CheckForUpdates(product, version string, extra map[string]string, logger log.Logger) *checkpoint.Checker {
+func CheckForUpdates(product, version string, extra map[string]string, logger *zap.Logger) *checkpoint.Checker {
 	handleResponse := func(r *checkpoint.CheckResponse, err error) {
 		if err != nil {
-			logger.Log("err", err)
+			logger.Error("error checking for updates", zap.NamedError("err", err))
 			return
 		}
 		if r.Outdated {
-			logger.Log("msg", "update available", "latest", r.CurrentVersion, "URL", r.CurrentDownloadURL)
+			logger.Warn("update available", zap.String("latest", r.CurrentVersion), zap.String("URL", r.CurrentDownloadURL))
 			return
 		}
-		logger.Log("msg", "up to date", "latest", r.CurrentVersion)
+		logger.Info("up to date", zap.String("latest", r.CurrentVersion))
 	}
 
 	flags := map[string]string{

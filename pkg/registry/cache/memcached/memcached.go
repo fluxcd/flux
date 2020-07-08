@@ -20,8 +20,7 @@ import (
 	"time"
 
 	"github.com/bradfitz/gomemcache/memcache"
-	"github.com/go-kit/kit/log"
-	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"github.com/fluxcd/flux/pkg/registry/cache"
 )
@@ -38,7 +37,7 @@ type MemcacheClient struct {
 	serverList *memcache.ServerList
 	hostname   string
 	service    string
-	logger     log.Logger
+	logger     *zap.Logger
 
 	quit chan struct{}
 	wait sync.WaitGroup
@@ -50,7 +49,7 @@ type MemcacheConfig struct {
 	Service        string
 	Timeout        time.Duration
 	UpdateInterval time.Duration
-	Logger         log.Logger
+	Logger         *zap.Logger
 	MaxIdleConns   int
 }
 
@@ -71,7 +70,11 @@ func NewMemcacheClient(config MemcacheConfig) *MemcacheClient {
 
 	err := newClient.updateFromSRVRecords()
 	if err != nil {
-		config.Logger.Log("err", errors.Wrapf(err, "Error setting memcache servers to '%v'", config.Host))
+		config.Logger.Error(
+			"error setting memcache servers",
+			zap.String("host", config.Host),
+			zap.NamedError("err", err),
+		)
 	}
 
 	newClient.wait.Add(1)
@@ -109,7 +112,10 @@ func (c *MemcacheClient) GetKey(k cache.Keyer) ([]byte, time.Time, error) {
 			// Don't log on cache miss
 			return []byte{}, time.Time{}, cache.ErrNotCached
 		} else {
-			c.logger.Log("err", errors.Wrap(err, "Fetching tag from memcache"))
+			c.logger.Error(
+				"error fetching tag from memcache",
+				zap.NamedError("err", err),
+			)
 			return []byte{}, time.Time{}, err
 		}
 	}
@@ -133,7 +139,10 @@ func (c *MemcacheClient) SetKey(k cache.Keyer, refreshDeadline time.Time, v []by
 		Value:      append(deadlineBytes, v...),
 		Expiration: int32(expiry.Seconds()),
 	}); err != nil {
-		c.logger.Log("err", errors.Wrap(err, "storing in memcache"))
+		c.logger.Error(
+			"error storing in memcache",
+			zap.NamedError("err", err),
+		)
 		return err
 	}
 	return nil
@@ -153,7 +162,10 @@ func (c *MemcacheClient) updateLoop(updateInterval time.Duration, update func() 
 		select {
 		case <-ticker.C:
 			if err := update(); err != nil {
-				c.logger.Log("err", errors.Wrap(err, "error updating memcache servers"))
+				c.logger.Error(
+					"error updating memcache servers",
+					zap.NamedError("err", err),
+				)
 			}
 		case <-c.quit:
 			return

@@ -12,14 +12,14 @@ import (
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/go-kit/kit/log"
+	"go.uber.org/zap"
 
 	"github.com/fluxcd/flux/pkg/image"
 	"github.com/fluxcd/flux/pkg/registry/middleware"
 )
 
 type RemoteClientFactory struct {
-	Logger   log.Logger
+	Logger   *zap.Logger
 	Limiters *middleware.RateLimiters
 	Trace    bool
 
@@ -32,16 +32,16 @@ type RemoteClientFactory struct {
 }
 
 type logging struct {
-	logger    log.Logger
+	logger    *zap.Logger
 	transport http.RoundTripper
 }
 
 func (t *logging) RoundTrip(req *http.Request) (*http.Response, error) {
 	res, err := t.transport.RoundTrip(req)
 	if err == nil {
-		t.logger.Log("url", req.URL.String(), "status", res.Status)
+		t.logger.Info("request success", zap.String("url", req.URL.String()), zap.String("status", res.Status))
 	} else {
-		t.logger.Log("url", req.URL.String(), "err", err.Error())
+		t.logger.Error("request failure", zap.String("url", req.URL.String()), zap.NamedError("err", err))
 	}
 	return res, err
 }
@@ -143,7 +143,12 @@ insecureCheckLoop:
 
 	cred := creds.credsFor(repo.Domain)
 	if f.Trace {
-		f.Logger.Log("repo", repo.String(), "auth", cred.String(), "api", registryURL.String())
+		f.Logger.Debug(
+			"registry info",
+			zap.String("repo", repo.String()),
+			zap.String("auth", cred.String()),
+			zap.String("api", registryURL.String()),
+		)
 	}
 
 	authHandlers := []auth.AuthenticationHandler{

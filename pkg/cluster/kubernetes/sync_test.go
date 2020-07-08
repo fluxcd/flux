@@ -2,14 +2,14 @@ package kubernetes
 
 import (
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"testing"
 
 	"github.com/ghodss/yaml"
-	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	corev1 "k8s.io/api/core/v1"
 	crdfake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -29,6 +29,7 @@ import (
 	"github.com/fluxcd/flux/pkg/resource"
 	"github.com/fluxcd/flux/pkg/sync"
 	helmopfake "github.com/fluxcd/helm-operator/pkg/client/clientset/versioned/fake"
+	zapLogfmt "github.com/sykesm/zap-logfmt"
 )
 
 const (
@@ -111,7 +112,7 @@ func groupVersionResource(res *unstructured.Unstructured) schema.GroupVersionRes
 	return schema.GroupVersionResource{Group: gvk.Group, Version: gvk.Version, Resource: strings.ToLower(gvk.Kind) + "s"}
 }
 
-func (a fakeApplier) apply(_ log.Logger, cs changeSet, errored map[resource.ID]error) cluster.SyncError {
+func (a fakeApplier) apply(_ *zap.Logger, cs changeSet, errored map[resource.ID]error) cluster.SyncError {
 	var errs []cluster.ResourceError
 
 	operate := func(obj applyObject, cmd string) {
@@ -235,12 +236,19 @@ func findAPIResource(gvr schema.GroupVersionResource, disco discovery.DiscoveryI
 // ---
 
 func setup(t *testing.T) (*Cluster, *fakeApplier, func()) {
+	zap.RegisterEncoder("logfmt", func(config zapcore.EncoderConfig) (zapcore.Encoder, error) {
+		enc := zapLogfmt.NewEncoder(config)
+		return enc, nil
+	})
+	logCfg := zap.NewDevelopmentConfig()
+	logCfg.Encoding = "logfmt"
+	logger, _ := logCfg.Build()
 	clients, cancel := fakeClients()
 	applier := &fakeApplier{dynamicClient: clients.dynamicClient, coreClient: clients.coreClient, defaultNS: defaultTestNamespace}
 	kube := &Cluster{
 		applier:             applier,
 		client:              clients,
-		logger:              log.NewLogfmtLogger(os.Stdout),
+		logger:              logger,
 		resourceExcludeList: []string{"*metrics.k8s.io/*", "webhook.certmanager.k8s.io/v1beta1/*"},
 	}
 	return kube, applier, cancel
@@ -313,6 +321,13 @@ func TestSyncTolerateMetricsErrors(t *testing.T) {
 }
 
 func TestSync(t *testing.T) {
+	zap.RegisterEncoder("logfmt", func(config zapcore.EncoderConfig) (zapcore.Encoder, error) {
+		enc := zapLogfmt.NewEncoder(config)
+		return enc, nil
+	})
+	logCfg := zap.NewDevelopmentConfig()
+	logCfg.Encoding = "logfmt"
+	logger, _ := logCfg.Build()
 	const ns1 = `---
 apiVersion: v1
 kind: Namespace
@@ -374,7 +389,7 @@ metadata:
 		if err != nil {
 			t.Fatal(err)
 		}
-		manifests := NewManifests(namespacer, log.NewLogfmtLogger(os.Stdout))
+		manifests := NewManifests(namespacer, logger)
 
 		resources0, err := kresource.ParseMultidoc([]byte(defs), "before")
 		if err != nil {

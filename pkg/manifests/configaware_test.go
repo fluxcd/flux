@@ -7,14 +7,16 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/fluxcd/flux/pkg/cluster/kubernetes"
 	"github.com/fluxcd/flux/pkg/cluster/kubernetes/testfiles"
 	"github.com/fluxcd/flux/pkg/image"
 	"github.com/fluxcd/flux/pkg/policy"
 	"github.com/fluxcd/flux/pkg/resource"
+	zapLogfmt "github.com/sykesm/zap-logfmt"
 )
 
 // represents, for the purpose of setting a test up, either a
@@ -30,7 +32,14 @@ type config struct {
 // and the config locations don't necessarily have to line up. You can
 // pass `nil` for the paths, to indicate "just use the base path".
 func setup(t *testing.T, paths []string, configs ...config) (*configAware, string, func()) {
-	manifests := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
+	zap.RegisterEncoder("logfmt", func(config zapcore.EncoderConfig) (zapcore.Encoder, error) {
+		enc := zapLogfmt.NewEncoder(config)
+		return enc, nil
+	})
+	logCfg := zap.NewDevelopmentConfig()
+	logCfg.Encoding = "logfmt"
+	logger, _ := logCfg.Build()
+	manifests := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), logger)
 	baseDir, cleanup := testfiles.TempDir(t)
 
 	// te constructor NewConfigAware expects at least one absolute path.

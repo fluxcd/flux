@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/go-kit/kit/log"
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v2"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -35,12 +35,12 @@ type namespacer interface {
 // manifests that would be given a default namespace when applied.
 type manifests struct {
 	namespacer       namespacer
-	logger           log.Logger
+	logger           *zap.Logger
 	resourceWarnings map[string]struct{}
 	sopsEnabled      bool
 }
 
-func NewManifests(ns namespacer, logger log.Logger) *manifests {
+func NewManifests(ns namespacer, logger *zap.Logger) *manifests {
 	return &manifests{
 		namespacer:       ns,
 		logger:           logger,
@@ -49,7 +49,7 @@ func NewManifests(ns namespacer, logger log.Logger) *manifests {
 	}
 }
 
-func NewSopsManifests(ns namespacer, logger log.Logger) *manifests {
+func NewSopsManifests(ns namespacer, logger *zap.Logger) *manifests {
 	return &manifests{
 		namespacer:       ns,
 		logger:           logger,
@@ -98,9 +98,10 @@ func (m *manifests) setEffectiveNamespaces(manifests map[string]kresource.KubeMa
 				if _, warningLogged := m.resourceWarnings[resIDStr]; !warningLogged {
 					_, kind, name := resID.Components()
 					partialResIDStr := kind + "/" + name
-					m.logger.Log(
-						"warn", fmt.Sprintf("cannot find scope of resource %s: %s", partialResIDStr, err),
-						"impact", fmt.Sprintf("resource %s will be excluded until its scope is available", partialResIDStr))
+					m.logger.Warn(
+						fmt.Sprintf("cannot find scope of resource %s: %s", partialResIDStr, err),
+						zap.String("impact", fmt.Sprintf("resource %s will be excluded until its scope is available", partialResIDStr)),
+					)
 					m.resourceWarnings[resIDStr] = struct{}{}
 				}
 				continue
@@ -110,7 +111,7 @@ func (m *manifests) setEffectiveNamespaces(manifests map[string]kresource.KubeMa
 		km.SetNamespace(ns)
 		if _, warningLogged := m.resourceWarnings[resIDStr]; warningLogged {
 			// indicate that we found the resource's scope and allow logging a warning again
-			m.logger.Log("info", fmt.Sprintf("found scope of resource %s, back in business!", km.ResourceID().String()))
+			m.logger.Info(fmt.Sprintf("found scope of resource %s, back in business!", km.ResourceID().String()))
 			delete(m.resourceWarnings, resIDStr)
 		}
 		result[km.ResourceID().String()] = km

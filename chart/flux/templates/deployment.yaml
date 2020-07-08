@@ -196,6 +196,12 @@ spec:
           {{- if .Values.logFormat }}
           - --log-format={{ .Values.logFormat }}
           {{end}}
+          {{- if .Values.logLevel }}
+          - --log-level={{ .Values.logLevel }}
+          {{end}}
+          {{- if .Values.logDevel }}
+          - --log-devel
+          {{end}}
           - --ssh-keygen-dir=/var/fluxd/keygen
           - --ssh-keygen-format={{ .Values.ssh.keygen.format }}
           - --k8s-secret-name={{ .Values.git.secretName | default (printf "%s-git-deploy" (include "flux.fullname" .)) }}

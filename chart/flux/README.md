@@ -233,6 +233,8 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `image.pullPolicy`                                | `IfNotPresent`                                       | Image pull policy
 | `image.pullSecret`                                | `None`                                               | Image pull secret
 | `logFormat`                                       | `fmt`                                                | Log format (fmt or json)
+| `logLevel`                                        | `info`                                               | Log level (debug, info, warning, error, critical)
+| `logDevel`                                        | `false`                                              | Enable development logging (trace level)
 | `resources.requests.cpu`                          | `50m`                                                | CPU resource requests for the Flux deployment
 | `resources.requests.memory`                       | `64Mi`                                               | Memory resource requests for the Flux deployment
 | `resources.limits`                                | `None`                                               | CPU/memory resource limits for the Flux deployment

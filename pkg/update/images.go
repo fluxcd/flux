@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	fluxerr "github.com/fluxcd/flux/pkg/errors"
 	"github.com/fluxcd/flux/pkg/image"
@@ -138,13 +138,13 @@ func (cs workloadContainers) Containers(i int) []resource.Container {
 
 // fetchUpdatableImageRepos is a convenient shim to
 // `FetchImageRepos`.
-func fetchUpdatableImageRepos(registry registry.Registry, updateable []*WorkloadUpdate, logger log.Logger) (ImageRepos, error) {
+func fetchUpdatableImageRepos(registry registry.Registry, updateable []*WorkloadUpdate, logger *zap.Logger) (ImageRepos, error) {
 	return FetchImageRepos(registry, workloadContainers(updateable), logger)
 }
 
 // FetchImageRepos finds all the known image metadata for
 // containers in the controllers given.
-func FetchImageRepos(reg registry.Registry, cs containers, logger log.Logger) (ImageRepos, error) {
+func FetchImageRepos(reg registry.Registry, cs containers, logger *zap.Logger) (ImageRepos, error) {
 	imageRepos := imageReposMap{}
 	for i := 0; i < cs.Len(); i++ {
 		for _, container := range cs.Containers(i) {
@@ -156,7 +156,11 @@ func FetchImageRepos(reg registry.Registry, cs containers, logger log.Logger) (I
 		if err != nil {
 			// Not an error if missing. Use empty images.
 			if !fluxerr.IsMissing(err) {
-				logger.Log("err", errors.Wrapf(err, "fetching image metadata for %s", repo))
+				logger.Error(
+					"error fetching image metadata",
+					zap.String("repo", repo.String()),
+					zap.NamedError("err", err),
+				)
 				continue
 			}
 		}

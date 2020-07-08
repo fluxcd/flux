@@ -3,14 +3,14 @@ package job
 import (
 	"sync"
 
-	"github.com/go-kit/kit/log"
+	"go.uber.org/zap"
 
 	"github.com/fluxcd/flux/pkg/update"
 )
 
 type ID string
 
-type JobFunc func(log.Logger) error
+type JobFunc func(*zap.Logger) error
 
 type Job struct {
 	ID ID

@@ -1,25 +1,33 @@
 package kubernetes
 
 import (
-	"bytes"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fluxcd/flux/pkg/cluster/kubernetes/testfiles"
+	zapLogfmt "github.com/sykesm/zap-logfmt"
 )
 
 func TestLocalCRDScope(t *testing.T) {
+	zap.RegisterEncoder("logfmt", func(config zapcore.EncoderConfig) (zapcore.Encoder, error) {
+		enc := zapLogfmt.NewEncoder(config)
+		return enc, nil
+	})
+	logCfg := zap.NewDevelopmentConfig()
+	logCfg.Encoding = "logfmt"
+	logger, _ := logCfg.Build()
 	coreClient := makeFakeClient()
 
 	nser, err := NewNamespacer(coreClient.Discovery(), "")
 	assert.NoError(t, err)
-	manifests := NewManifests(nser, log.NewLogfmtLogger(os.Stdout))
+	manifests := NewManifests(nser, logger)
 
 	dir, cleanup := testfiles.TempDir(t)
 	defer cleanup()
@@ -62,12 +70,24 @@ metadata:
 }
 
 func TestUnKnownCRDScope(t *testing.T) {
+	logFile, err := ioutil.TempFile("./", "TestUnKnownCRDScope.log")
+	if err != nil {
+		panic("failed to create temporary file")
+	}
+	defer os.Remove("./TestUnKnownCRDScope.log")
+	zap.RegisterEncoder("logfmt", func(config zapcore.EncoderConfig) (zapcore.Encoder, error) {
+		enc := zapLogfmt.NewEncoder(config)
+		return enc, nil
+	})
+	logCfg := zap.NewDevelopmentConfig()
+	logCfg.Encoding = "logfmt"
+	logCfg.OutputPaths = []string{"./TestUnKnownCRDScope.log"}
+	logger, _ := logCfg.Build()
 	coreClient := makeFakeClient()
 
 	nser, err := NewNamespacer(coreClient.Discovery(), "")
 	assert.NoError(t, err)
-	logBuffer := bytes.NewBuffer(nil)
-	manifests := NewManifests(nser, log.NewLogfmtLogger(logBuffer))
+	manifests := NewManifests(nser, logger)
 
 	dir, cleanup := testfiles.TempDir(t)
 	defer cleanup()
@@ -96,14 +116,21 @@ metadata:
 	// however, it should contain the namespace
 	assert.Contains(t, resources, "<cluster>:namespace/mynamespace")
 
-	savedLog := logBuffer.String()
+	savedLog, err := ioutil.ReadFile("./TestUnKnownCRDScope.log")
+	if err != nil {
+		t.Error(err)
+	}
 	// and we should had logged a warning about it
-	assert.Contains(t, savedLog, "cannot find scope of resource foo/fooinstance")
+	assert.Contains(t, string(savedLog), "cannot find scope of resource foo/fooinstance")
 
 	// loading again shouldn't result in more warnings
 	resources, err = manifests.LoadManifests(dir, []string{dir})
 	assert.NoError(t, err)
-	assert.Equal(t, logBuffer.String(), savedLog)
+	savedLogCopy, err := ioutil.ReadFile("./TestUnKnownCRDScope.log")
+	if err != nil {
+		t.Error(err)
+	}
+	assert.Equal(t, string(savedLogCopy), string(savedLog))
 
 	// But getting the scope of the CRD should result in a log saying we found the scope
 	apiResourcesWithoutFoo := coreClient.Resources
@@ -115,16 +142,24 @@ metadata:
 	}
 	coreClient.Resources = append(coreClient.Resources, apiResource)
 
-	logBuffer.Reset()
+	logFile.Truncate(0)
 	resources, err = manifests.LoadManifests(dir, []string{dir})
 	assert.NoError(t, err)
 	assert.Len(t, resources, 2)
-	assert.Contains(t, logBuffer.String(), "found scope of resource bar:foo/fooinstance")
+	savedLog, err = ioutil.ReadFile("./TestUnKnownCRDScope.log")
+	if err != nil {
+		t.Error(err)
+	}
+	assert.Contains(t, string(savedLog), "found scope of resource bar:foo/fooinstance")
 
 	// and missing the scope information again should result in another warning
 	coreClient.Resources = apiResourcesWithoutFoo
-	logBuffer.Reset()
+	logFile.Truncate(0)
 	resources, err = manifests.LoadManifests(dir, []string{dir})
 	assert.NoError(t, err)
-	assert.Contains(t, savedLog, "cannot find scope of resource foo/fooinstance")
+	savedLog, err = ioutil.ReadFile("./TestUnKnownCRDScope.log")
+	if err != nil {
+		t.Error(err)
+	}
+	assert.Contains(t, string(savedLog), "cannot find scope of resource foo/fooinstance")
 }

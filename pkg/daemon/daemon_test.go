@@ -11,14 +11,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kit/kit/log"
+	"go.uber.org/zap"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/fluxcd/flux/pkg/api/v10"
-	"github.com/fluxcd/flux/pkg/api/v11"
-	"github.com/fluxcd/flux/pkg/api/v6"
-	"github.com/fluxcd/flux/pkg/api/v9"
+	v10 "github.com/fluxcd/flux/pkg/api/v10"
+	v11 "github.com/fluxcd/flux/pkg/api/v11"
+	v6 "github.com/fluxcd/flux/pkg/api/v6"
+	v9 "github.com/fluxcd/flux/pkg/api/v9"
 	"github.com/fluxcd/flux/pkg/cluster"
 	"github.com/fluxcd/flux/pkg/cluster/kubernetes"
 	"github.com/fluxcd/flux/pkg/cluster/kubernetes/testfiles"
@@ -637,7 +637,7 @@ func mustParseImageRef(ref string) image.Ref {
 }
 
 func mockDaemon(t *testing.T) (*Daemon, func(), func(), *mock.Mock, *mockEventWriter, func(func())) {
-	logger := log.NewNopLogger()
+	logger := zap.NewNop()
 
 	singleService := cluster.Workload{
 		ID: resource.MustParseID(wl),
@@ -726,7 +726,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *mock.Mock, *mockEventWr
 	// Jobs queue (starts itself)
 	jobs := job.NewQueue(jshutdown, jwg)
 
-	manifests := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
+	manifests := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), logger)
 
 	gitSync, _ := fluxsync.NewGitTagSyncProvider(repo, syncTag, "", fluxsync.VerifySignaturesModeNone, params)
 

@@ -5,15 +5,16 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"testing"
 	"time"
 
-	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/fluxcd/flux/pkg/image"
 	"github.com/fluxcd/flux/pkg/registry"
+	zapLogfmt "github.com/sykesm/zap-logfmt"
 )
 
 func Test_ClientTimeouts(t *testing.T) {
@@ -25,9 +26,15 @@ func Test_ClientTimeouts(t *testing.T) {
 	defer server.Close()
 	url, err := url.Parse(server.URL)
 	assert.NoError(t, err)
-	logger := log.NewLogfmtLogger(os.Stdout)
+	zap.RegisterEncoder("logfmt", func(config zapcore.EncoderConfig) (zapcore.Encoder, error) {
+		enc := zapLogfmt.NewEncoder(config)
+		return enc, nil
+	})
+	logCfg := zap.NewDevelopmentConfig()
+	logCfg.Encoding = "logfmt"
+	logger, _ := logCfg.Build()
 	cf := &registry.RemoteClientFactory{
-		Logger:        log.NewLogfmtLogger(os.Stdout),
+		Logger:        logger,
 		Limiters:      nil,
 		Trace:         false,
 		InsecureHosts: []string{url.Host},

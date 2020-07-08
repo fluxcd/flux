@@ -2,11 +2,11 @@ package kubernetes
 
 import (
 	"encoding/base64"
-	"fmt"
 	"testing"
 
 	"github.com/ryanuber/go-glob"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -14,10 +14,7 @@ import (
 	"github.com/fluxcd/flux/pkg/registry"
 )
 
-func noopLog(e ...interface{}) error {
-	fmt.Println(e...)
-	return nil
-}
+var noopLog = zap.NewNop()
 
 func makeImagePullSecret(ns, name, host string) *apiv1.Secret {
 	imagePullSecret := apiv1.Secret{Type: apiv1.SecretTypeDockerConfigJson}

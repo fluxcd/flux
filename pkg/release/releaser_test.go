@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"reflect"
 	"testing"
 	"time"
 
-	"github.com/go-kit/kit/log"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/stretchr/testify/assert"
 
@@ -23,6 +23,7 @@ import (
 	registryMock "github.com/fluxcd/flux/pkg/registry/mock"
 	"github.com/fluxcd/flux/pkg/resource"
 	"github.com/fluxcd/flux/pkg/update"
+	zapLogfmt "github.com/sykesm/zap-logfmt"
 )
 
 var (
@@ -139,7 +140,17 @@ var (
 			},
 		},
 	}
-	mockManifests = kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
+	testLogger = func() *zap.Logger {
+		zap.RegisterEncoder("logfmt", func(config zapcore.EncoderConfig) (zapcore.Encoder, error) {
+			enc := zapLogfmt.NewEncoder(config)
+			return enc, nil
+		})
+		logCfg := zap.NewDevelopmentConfig()
+		logCfg.Encoding = "logfmt"
+		logger, _ := logCfg.Build()
+		return logger
+	}()
+	mockManifests = kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), testLogger)
 )
 
 func mockCluster(running ...cluster.Workload) *mock.Mock {
@@ -754,7 +765,7 @@ func Test_UpdateMultidoc(t *testing.T) {
 		ImageSpec:    update.ImageSpecLatest,
 		Kind:         update.ReleaseKindExecute,
 	}
-	results, err := Release(context.Background(), rc, spec, log.NewNopLogger())
+	results, err := Release(context.Background(), rc, spec, zap.NewNop())
 	if err != nil {
 		t.Error(err)
 	}
@@ -801,7 +812,7 @@ func Test_UpdateList(t *testing.T) {
 		ImageSpec:    update.ImageSpecLatest,
 		Kind:         update.ReleaseKindExecute,
 	}
-	results, err := Release(context.Background(), rc, spec, log.NewNopLogger())
+	results, err := Release(context.Background(), rc, spec, zap.NewNop())
 	if err != nil {
 		t.Error(err)
 	}
@@ -1030,7 +1041,7 @@ func Test_UpdateContainers(t *testing.T) {
 				specs.SkipMismatches = ignoreMismatches
 				specs.Force = tst.Force
 
-				results, err := Release(ctx, rc, specs, log.NewNopLogger())
+				results, err := Release(ctx, rc, specs, zap.NewNop())
 
 				assert.Equal(t, expected.Err, err)
 				if expected.Err == nil {
@@ -1043,7 +1054,7 @@ func Test_UpdateContainers(t *testing.T) {
 }
 
 func testRelease(t *testing.T, rc *ReleaseContext, spec update.ReleaseImageSpec, expected update.Result) {
-	results, err := Release(context.Background(), rc, spec, log.NewNopLogger())
+	results, err := Release(context.Background(), rc, spec, zap.NewNop())
 	assert.NoError(t, err)
 	assert.Equal(t, expected, results)
 }
@@ -1060,6 +1071,13 @@ func (m *badManifests) SetWorkloadContainerImage(def []byte, id resource.ID, con
 }
 
 func Test_BadRelease(t *testing.T) {
+	zap.RegisterEncoder("logfmt", func(config zapcore.EncoderConfig) (zapcore.Encoder, error) {
+		enc := zapLogfmt.NewEncoder(config)
+		return enc, nil
+	})
+	logCfg := zap.NewDevelopmentConfig()
+	logCfg.Encoding = "logfmt"
+	logger, _ := logCfg.Build()
 	mCluster := mockCluster(hwSvc)
 	spec := update.ReleaseImageSpec{
 		ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
@@ -1070,14 +1088,14 @@ func Test_BadRelease(t *testing.T) {
 	checkout1, cleanup1 := setup(t)
 	defer cleanup1()
 
-	manifests := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
+	manifests := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), logger)
 	ctx := context.Background()
 	rc := &ReleaseContext{
 		cluster:       mCluster,
 		resourceStore: NewManifestStoreOrFail(t, manifests, checkout1),
 		registry:      mockRegistry,
 	}
-	_, err := Release(ctx, rc, spec, log.NewNopLogger())
+	_, err := Release(ctx, rc, spec, zap.NewNop())
 	if err != nil {
 		t.Fatal("release with 'good' manifests should succeed, but errored:", err)
 	}
@@ -1090,7 +1108,7 @@ func Test_BadRelease(t *testing.T) {
 		resourceStore: NewManifestStoreOrFail(t, &badManifests{manifests}, checkout2),
 		registry:      mockRegistry,
 	}
-	_, err = Release(ctx, rc, spec, log.NewNopLogger())
+	_, err = Release(ctx, rc, spec, zap.NewNop())
 	if err == nil {
 		t.Fatal("did not return an error, but was expected to fail verification")
 	}

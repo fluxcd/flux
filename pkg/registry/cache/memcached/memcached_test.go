@@ -4,11 +4,13 @@ package memcached
 
 import (
 	"flag"
-	"github.com/go-kit/kit/log"
-	"os"
 	"strings"
 	"testing"
 	"time"
+
+	zapLogfmt "github.com/sykesm/zap-logfmt"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 var (
@@ -26,11 +28,18 @@ func (t testKey) Key() string {
 }
 
 func TestMemcache_ExpiryReadWrite(t *testing.T) {
+	zap.RegisterEncoder("logfmt", func(config zapcore.EncoderConfig) (zapcore.Encoder, error) {
+		enc := zapLogfmt.NewEncoder(config)
+		return enc, nil
+	})
+	logCfg := zap.NewDevelopmentConfig()
+	logCfg.Encoding = "logfmt"
+	logger, _ := logCfg.Build()
 	// Memcache client
 	mc := NewFixedServerMemcacheClient(MemcacheConfig{
 		Timeout:        time.Second,
 		UpdateInterval: 1 * time.Minute,
-		Logger:         log.With(log.NewLogfmtLogger(os.Stderr), "component", "memcached"),
+		Logger:         logger.With(zap.String("component", "memcached")),
 	}, strings.Fields(*memcachedIPs)...)
 
 	// Set some dummy data

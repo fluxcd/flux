@@ -4,8 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/go-kit/kit/log"
-	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"github.com/fluxcd/flux/pkg/cluster"
 	"github.com/fluxcd/flux/pkg/policy"
@@ -13,30 +12,39 @@ import (
 	"github.com/fluxcd/flux/pkg/update"
 )
 
-func (d *Daemon) pollForNewAutomatedWorkloadImages(logger log.Logger) {
-	logger.Log("msg", "polling for new images for automated workloads")
+func (d *Daemon) pollForNewAutomatedWorkloadImages(logger *zap.Logger) {
+	logger.Info("polling for new images for automated workloads")
 
 	ctx := context.Background()
 
 	candidateWorkloads, err := d.getAllowedAutomatedResources(ctx)
 	if err != nil {
-		logger.Log("error", errors.Wrap(err, "getting unlocked automated resources"))
+		logger.Error(
+			"error getting unlocked automated resources",
+			zap.NamedError("err", err),
+		)
 		return
 	}
 	if len(candidateWorkloads) == 0 {
-		logger.Log("msg", "no automated workloads")
+		logger.Info("no automated workloads")
 		return
 	}
 	// Find images to check
 	workloads, err := d.Cluster.SomeWorkloads(ctx, candidateWorkloads.IDs())
 	if err != nil {
-		logger.Log("error", errors.Wrap(err, "checking workloads for new images"))
+		logger.Error(
+			"error checking workloads for new images",
+			zap.NamedError("err", err),
+		)
 		return
 	}
 	// Check the latest available image(s) for each workload
 	imageRepos, err := update.FetchImageRepos(d.Registry, clusterContainers(workloads), logger)
 	if err != nil {
-		logger.Log("error", errors.Wrap(err, "fetching image updates"))
+		logger.Error(
+			"error fetching image updates",
+			zap.NamedError("err", err),
+		)
 		return
 	}
 
@@ -75,7 +83,7 @@ func (d *Daemon) getAllowedAutomatedResources(ctx context.Context) (resources, e
 	return result, nil
 }
 
-func calculateChanges(logger log.Logger, candidateWorkloads resources, workloads []cluster.Workload, imageRepos update.ImageRepos) *update.Automated {
+func calculateChanges(logger *zap.Logger, candidateWorkloads resources, workloads []cluster.Workload, imageRepos update.ImageRepos) *update.Automated {
 	changes := &update.Automated{}
 
 	for _, workload := range workloads {
@@ -88,27 +96,42 @@ func calculateChanges(logger log.Logger, candidateWorkloads resources, workloads
 			currentImageID := container.Image
 			pattern := policy.GetTagPattern(p, container.Name)
 			repo := currentImageID.Name
-			logger := log.With(logger, "workload", workload.ID, "container", container.Name, "repo", repo, "pattern", pattern, "current", currentImageID)
+			logger := logger.With(
+				zap.Any("workload", workload.ID),
+				zap.String("container", container.Name),
+				zap.Any("repo", repo),
+				zap.Any("pattern", pattern),
+				zap.Any("current", currentImageID),
+			)
 			repoMetadata := imageRepos.GetRepositoryMetadata(repo)
 			images, err := update.FilterAndSortRepositoryMetadata(repoMetadata, pattern)
 			if err != nil {
-				logger.Log("warning", fmt.Sprintf("inconsistent repository metadata: %s", err), "action", "skip container")
+				logger.Warn(fmt.Sprintf("inconsistent repository metadata: %s", err), zap.String("action", "skip container"))
 				continue containers
 			}
 
 			if latest, ok := images.Latest(); ok && latest.ID != currentImageID {
 				if latest.ID.Tag == "" {
-					logger.Log("warning", "untagged image in available images", "action", "skip container")
+					logger.Warn("untagged image in available images", zap.String("action", "skip container"))
 					continue containers
 				}
 				current := repoMetadata.FindImageWithRef(currentImageID)
 				if pattern.RequiresTimestamp() && (current.CreatedAt.IsZero() || latest.CreatedAt.IsZero()) {
-					logger.Log("warning", "image with zero created timestamp", "current", fmt.Sprintf("%s (%s)", current.ID, current.CreatedAt), "latest", fmt.Sprintf("%s (%s)", latest.ID, latest.CreatedAt), "action", "skip container")
+					logger.Warn(
+						"image with zero created timestamp",
+						zap.String("current", fmt.Sprintf("%s (%s)", current.ID, current.CreatedAt)),
+						zap.String("latest", fmt.Sprintf("%s (%s)", latest.ID, latest.CreatedAt)),
+						zap.String("action", "skip container"),
+					)
 					continue containers
 				}
 				newImage := currentImageID.WithNewTag(latest.ID.Tag)
 				changes.Add(workload.ID, container, newImage)
-				logger.Log("info", "added update to automation run", "new", newImage, "reason", fmt.Sprintf("latest %s (%s) > current %s (%s)", latest.ID.Tag, latest.CreatedAt, currentImageID.Tag, current.CreatedAt))
+				logger.Info(
+					"added update to automation run",
+					zap.Any("new", newImage),
+					zap.String("reason", fmt.Sprintf("latest %s (%s) > current %s (%s)", latest.ID.Tag, latest.CreatedAt, currentImageID.Tag, current.CreatedAt)),
+				)
 			}
 		}
 	}

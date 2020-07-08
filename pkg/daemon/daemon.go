@@ -8,14 +8,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"github.com/fluxcd/flux/pkg/api"
-	"github.com/fluxcd/flux/pkg/api/v10"
-	"github.com/fluxcd/flux/pkg/api/v11"
-	"github.com/fluxcd/flux/pkg/api/v6"
-	"github.com/fluxcd/flux/pkg/api/v9"
+	v10 "github.com/fluxcd/flux/pkg/api/v10"
+	v11 "github.com/fluxcd/flux/pkg/api/v11"
+	v6 "github.com/fluxcd/flux/pkg/api/v6"
+	v9 "github.com/fluxcd/flux/pkg/api/v9"
 	"github.com/fluxcd/flux/pkg/cluster"
 	"github.com/fluxcd/flux/pkg/event"
 	"github.com/fluxcd/flux/pkg/git"
@@ -44,7 +44,7 @@ type Daemon struct {
 	Jobs                      *job.Queue
 	JobStatusCache            *job.StatusCache
 	EventWriter               event.EventWriter
-	Logger                    log.Logger
+	Logger                    *zap.Logger
 	ManifestGenerationEnabled bool
 	GitSecretEnabled          bool
 	// bookkeeping
@@ -237,15 +237,15 @@ func (d *Daemon) ListImagesWithOptions(ctx context.Context, opts v10.ListImagesO
 }
 
 // jobFunc is a type for procedures that the daemon will execute in a job
-type jobFunc func(ctx context.Context, jobID job.ID, logger log.Logger) (job.Result, error)
+type jobFunc func(ctx context.Context, jobID job.ID, logger *zap.Logger) (job.Result, error)
 
 // updateFunc is a type for procedures that operate on a git checkout, to be run in a job
-type updateFunc func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (job.Result, error)
+type updateFunc func(ctx context.Context, jobID job.ID, working *git.Checkout, logger *zap.Logger) (job.Result, error)
 
 // makeJobFromUpdate turns an updateFunc into a jobFunc that will run
 // the update with a fresh clone, and log the result as an event.
 func (d *Daemon) makeJobFromUpdate(update updateFunc) jobFunc {
-	return func(ctx context.Context, jobID job.ID, logger log.Logger) (job.Result, error) {
+	return func(ctx context.Context, jobID job.ID, logger *zap.Logger) (job.Result, error) {
 		var result job.Result
 		err := d.WithWorkingClone(ctx, func(working *git.Checkout) error {
 			var err error
@@ -267,7 +267,7 @@ func (d *Daemon) makeJobFromUpdate(update updateFunc) jobFunc {
 
 // executeJob runs a job func and keeps track of its status, so the
 // daemon can report it when asked.
-func (d *Daemon) executeJob(id job.ID, do jobFunc, logger log.Logger) (job.Result, error) {
+func (d *Daemon) executeJob(id job.ID, do jobFunc, logger *zap.Logger) (job.Result, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), d.SyncTimeout)
 	defer cancel()
 	d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusRunning})
@@ -283,13 +283,21 @@ func (d *Daemon) executeJob(id job.ID, do jobFunc, logger log.Logger) (job.Resul
 // makeLoggingFunc takes a jobFunc and returns a jobFunc that will log
 // a commit event with the result.
 func (d *Daemon) makeLoggingJobFunc(f jobFunc) jobFunc {
-	return func(ctx context.Context, id job.ID, logger log.Logger) (job.Result, error) {
+	return func(ctx context.Context, id job.ID, logger *zap.Logger) (job.Result, error) {
 		started := time.Now().UTC()
 		result, err := f(ctx, id, logger)
 		if err != nil {
+			logger.Info(
+				"commit failure",
+				zap.NamedError("err", err),
+				zap.String("revision", result.Revision),
+			)
 			return result, err
 		}
-		logger.Log("revision", result.Revision)
+		logger.Info(
+			"commit success",
+			zap.String("revision", result.Revision),
+		)
 		if result.Revision != "" {
 			var workloadIDs []resource.ID
 			for id, result := range result.Result {
@@ -323,7 +331,7 @@ func (d *Daemon) queueJob(do jobFunc) job.ID {
 	enqueuedAt := time.Now()
 	d.Jobs.Enqueue(&job.Job{
 		ID: id,
-		Do: func(logger log.Logger) error {
+		Do: func(logger *zap.Logger) error {
 			queueDuration.Observe(time.Since(enqueuedAt).Seconds())
 			_, err := d.executeJob(id, do, logger)
 			if err != nil {
@@ -361,7 +369,7 @@ func (d *Daemon) UpdateManifests(ctx context.Context, spec update.Spec) (job.ID,
 }
 
 func (d *Daemon) sync() jobFunc {
-	return func(ctx context.Context, jobID job.ID, logger log.Logger) (job.Result, error) {
+	return func(ctx context.Context, jobID job.ID, logger *zap.Logger) (job.Result, error) {
 		var result job.Result
 		ctx, cancel := context.WithTimeout(ctx, d.SyncTimeout)
 		defer cancel()
@@ -392,7 +400,7 @@ func (d *Daemon) sync() jobFunc {
 }
 
 func (d *Daemon) updatePolicies(spec update.Spec, updates resource.PolicyUpdates) updateFunc {
-	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (job.Result, error) {
+	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger *zap.Logger) (job.Result, error) {
 		// For each update
 		var workloadIDs []resource.ID
 		result := job.Result{
@@ -478,7 +486,7 @@ func (d *Daemon) updatePolicies(spec update.Spec, updates resource.PolicyUpdates
 }
 
 func (d *Daemon) release(spec update.Spec, c release.Changes) updateFunc {
-	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (job.Result, error) {
+	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger *zap.Logger) (job.Result, error) {
 		var zero job.Result
 		rs, err := d.getManifestStore(working)
 		if err != nil {
@@ -537,9 +545,10 @@ func (d *Daemon) NotifyChange(ctx context.Context, change v9.Change) error {
 		if d.Repo.Origin().Equivalent(gitUpdate.URL) && gitUpdate.Branch != d.GitConfig.Branch {
 			// It isn't strictly an _error_ to be notified about a repo/branch pair
 			// that isn't ours, but it's worth logging anyway for debugging.
-			d.Logger.Log("msg", "notified about unrelated change",
-				"url", gitUpdate.URL,
-				"branch", gitUpdate.Branch)
+			d.Logger.Info("notified about unrelated change",
+				zap.String("url", gitUpdate.URL),
+				zap.String("branch", gitUpdate.Branch),
+			)
 			break
 		}
 		d.Repo.Notify()
@@ -660,7 +669,7 @@ func (d *Daemon) WithWorkingClone(ctx context.Context, fn func(*git.Checkout) er
 	}
 	defer func() {
 		if err := co.Clean(); err != nil {
-			d.Logger.Log("error", fmt.Sprintf("cannot clean working clone: %s", err))
+			d.Logger.Error("cannot clean working clone", zap.NamedError("err", err))
 		}
 	}()
 	if d.GitSecretEnabled {
@@ -685,7 +694,7 @@ func (d *Daemon) WithReadonlyClone(ctx context.Context, fn func(*git.Export) err
 	}
 	defer func() {
 		if err := co.Clean(); err != nil {
-			d.Logger.Log("error", fmt.Sprintf("cannot read-only clone: %s", err))
+			d.Logger.Error("cannot read-only clone", zap.NamedError("err", err))
 		}
 	}()
 	if d.GitSecretEnabled {
@@ -698,10 +707,18 @@ func (d *Daemon) WithReadonlyClone(ctx context.Context, fn func(*git.Export) err
 
 func (d *Daemon) LogEvent(ev event.Event) error {
 	if d.EventWriter == nil {
-		d.Logger.Log("event", ev, "logupstream", "false")
+		d.Logger.Info(
+			"event",
+			zap.String("name", ev.String()),
+			zap.Bool("logupstream", false),
+		)
 		return nil
 	}
-	d.Logger.Log("event", ev, "logupstream", "true")
+	d.Logger.Info(
+		"event",
+		zap.String("name", ev.String()),
+		zap.Bool("logupstream", true),
+	)
 	return d.EventWriter.LogEvent(ev)
 }
 

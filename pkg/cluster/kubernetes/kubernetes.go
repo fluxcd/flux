@@ -8,8 +8,8 @@ import (
 	"sync"
 
 	hrclient "github.com/fluxcd/helm-operator/pkg/client/clientset/versioned"
-	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v2"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -94,7 +94,7 @@ type Cluster struct {
 	applier Applier
 
 	version    string // string response for the version command.
-	logger     log.Logger
+	logger     *zap.Logger
 	sshKeyRing ssh.KeyRing
 
 	// syncErrors keeps a record of all per-resource errors during
@@ -112,7 +112,7 @@ type Cluster struct {
 }
 
 // NewCluster returns a usable cluster.
-func NewCluster(client ExtendedClient, applier Applier, sshKeyRing ssh.KeyRing, logger log.Logger, allowedNamespaces map[string]struct{}, imageIncluder cluster.Includer, resourceExcludeList []string) *Cluster {
+func NewCluster(client ExtendedClient, applier Applier, sshKeyRing ssh.KeyRing, logger *zap.Logger, allowedNamespaces map[string]struct{}, imageIncluder cluster.Includer, resourceExcludeList []string) *Cluster {
 	if imageIncluder == nil {
 		imageIncluder = cluster.AlwaysInclude
 	}
@@ -146,7 +146,7 @@ func (c *Cluster) SomeWorkloads(ctx context.Context, ids []resource.ID) (res []c
 
 		resourceKind, ok := resourceKinds[kind]
 		if !ok {
-			c.logger.Log("warning", "automation of this resource kind is not supported", "resource", id)
+			c.logger.Warn("automation of this resource kind is not supported", zap.Any("resource", id))
 			continue
 		}
 
@@ -199,7 +199,7 @@ func (c *Cluster) AllWorkloads(ctx context.Context, restrictToNamespace string) 
 					continue
 				case apierrors.IsForbidden(err):
 					// K8s can return forbidden instead of not found for non super admins
-					c.logger.Log("warning", "not allowed to list resources", "err", err)
+					c.logger.Warn("not allowed to list resources", zap.NamedError("err", err))
 					continue
 				default:
 					return nil, err
@@ -271,7 +271,7 @@ func (c *Cluster) Export(ctx context.Context) ([]byte, error) {
 					continue
 				case apierrors.IsForbidden(err):
 					// K8s can return forbidden instead of not found for non super admins
-					c.logger.Log("warning", "not allowed to list resources", "err", err)
+					c.logger.Warn("not allowed to list resources", zap.NamedError("err", err))
 					continue
 				default:
 					return nil, err
@@ -317,10 +317,10 @@ func (c *Cluster) getAllowedAndExistingNamespaces(ctx context.Context) ([]string
 				c.updateLoggedAllowedNS(name, false) // reset, so if the namespace goes away we'll log it again
 				nsList = append(nsList, ns.Name)
 			case apierrors.IsUnauthorized(err) || apierrors.IsForbidden(err) || apierrors.IsNotFound(err):
-				if !c.getLoggedAllowedNS(name) {
-					c.logger.Log("warning", "cannot access allowed namespace",
-						"namespace", name, "err", err)
-					c.updateLoggedAllowedNS(name, true)
+				if !c.loggedAllowedNS[name] {
+					c.logger.Warn("cannot access allowed namespace",
+						zap.String("namespace", name), zap.NamedError("err", err))
+					c.loggedAllowedNS[name] = true
 				}
 			default:
 				return nil, err

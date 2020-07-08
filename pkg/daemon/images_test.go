@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kit/kit/log"
+	"go.uber.org/zap"
 
 	"github.com/fluxcd/flux/pkg/cluster"
 	"github.com/fluxcd/flux/pkg/image"
@@ -53,7 +53,7 @@ func (candidate) Bytes() []byte {
 }
 
 func TestCalculateChanges_Automated(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := zap.NewNop()
 	resourceID := resource.MakeID(ns, "deployment", "application")
 	candidateWorkloads := resources{
 		resourceID: candidate{
@@ -101,7 +101,7 @@ func TestCalculateChanges_Automated(t *testing.T) {
 	}
 }
 func TestCalculateChanges_UntaggedImage(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := zap.NewNop()
 	resourceID := resource.MakeID(ns, "deployment", "application")
 	candidateWorkloads := resources{
 		resourceID: candidate{
@@ -158,7 +158,7 @@ func TestCalculateChanges_UntaggedImage(t *testing.T) {
 }
 
 func TestCalculateChanges_ZeroTimestamp(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := zap.NewNop()
 	resourceID := resource.MakeID(ns, "deployment", "application")
 	candidateWorkloads := resources{
 		resourceID: candidate{
