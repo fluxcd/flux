@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -141,7 +142,16 @@ func secretUnseal(ctx context.Context, workingDir string) error {
 }
 
 func commit(ctx context.Context, workingDir string, commitAction CommitAction) error {
-	args := []string{"commit", "--no-verify", "-a", "-m", commitAction.Message}
+	message, err := ioutil.TempFile("", "flux-commit-*.txt")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(message.Name())
+	if _, err := message.WriteString(commitAction.Message); err != nil {
+		return err
+	}
+
+	args := []string{"commit", "--no-verify", "-a", "--file", message.Name()}
 	var env []string
 	if commitAction.Author != "" {
 		args = append(args, "--author", commitAction.Author)
@@ -205,7 +215,17 @@ func addNote(ctx context.Context, workingDir, rev, notesRef string, note interfa
 	if err != nil {
 		return err
 	}
-	args := []string{"notes", "--ref", notesRef, "add", "-m", string(b), rev}
+
+	message, err := ioutil.TempFile("", "flux-note-*.json")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(message.Name())
+	if _, err := message.Write(b); err != nil {
+		return err
+	}
+
+	args := []string{"notes", "--ref", notesRef, "add", "--file", message.Name(), rev}
 	return execGitCmd(ctx, args, gitCmdConfig{dir: workingDir})
 }
 
