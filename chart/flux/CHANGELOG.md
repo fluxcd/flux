@@ -1,3 +1,20 @@
+## 1.4.0 (2020-07-09)
+
+### Improvements
+
+ - Updated Flux to `1.20.0`
+   [fluxcd/flux#3177](https://github.com/fluxcd/flux/pull/3177)
+ - Add Grafana dashboard
+   [fluxcd/flux#3169](https://github.com/fluxcd/flux/pull/3169)
+ - Support git clone over ssh behind http proxy
+   [fluxcd/flux#3152](https://github.com/fluxcd/flux/pull/3152)
+ - Roll deployment on update known_hosts
+   [fluxcd/flux#3096](https://github.com/fluxcd/flux/pull/3096)
+ - Preserve namespace when running helm template
+   [fluxcd/flux#3076](https://github.com/fluxcd/flux/pull/3076)
+ - Support annotations in chart SSH secret 
+   [fluxcd/flux#3053](https://github.com/fluxcd/flux/pull/3053)
+
 ## 1.3.0 (2020-04-03)
 
 ### Improvements
