@@ -54,6 +54,7 @@ container images and config changes are propagated to the cluster.
 |[Canva](https://www.canva.com/)|[Chattigo](https://chattigo.com)|[Cloudlets](https://cloudlets.io)|
 |[Cloudogu GmbH](https://cloudogu.com)|[CLVR Cloud Ltd](https://clvr.cloud)|[College of William & Mary](https://www.wm.edu)|
 |[Control Plane](https://control-plane.io)|[Consorcio Chile](https://www.consorcio.cl)|[CrowdRiff](https://crowdriff.com)|
+|[Duedil](https://www.duedil.com/)
 |[Cybrary](https://cybrary.it)|[FELFEL](https://felfel.ch/)|[FireHydrant](https://firehydrant.io)|
 |[Frame.io](https://frame.io)|[gastromatic](https://www.gastromatic.de/)|[Gini](https://gini.net)|
 |[Greenpass](https://www.greenpass.com.br/)|[happn](https://www.happn.com)|[HMCTS](https://www.gov.uk/government/organisations/hm-courts-and-tribunals-service)|
