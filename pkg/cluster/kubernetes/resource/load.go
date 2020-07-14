@@ -28,13 +28,17 @@ func Load(base string, paths []string, sopsEnabled bool) (map[string]KubeManifes
 		return nil, errors.Wrapf(err, "walking %q for chartdirs", base)
 	}
 	for _, root := range paths {
+		// In the walk, we ignore errors (indicating a failure to read
+		// a file) if it's not a file of interest. However, we _are_
+		// interested in the error if an explicitly-mentioned path
+		// does not exist.
+		if _, err := os.Stat(root); err != nil {
+			return nil, errors.Wrapf(err, "unable to read root path %q", root)
+		}
 		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-			if info.IsDir() {
+			if err == nil && info.IsDir() {
 				if charts.isDirChart(path) {
 					return filepath.SkipDir
-				}
-				if err != nil {
-					return errors.Wrapf(err, "walking dir %q for yaml files", path)
 				}
 				return nil
 			}
