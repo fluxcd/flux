@@ -1,6 +1,16 @@
 # Flux
 
-> **Announcement** [Flux has joined CNCF as a sandbox project](https://www.weave.works/blog/flux-joins-the-cncf-sandbox)
+> **On Flux v2** In an announcement in August 2019, the expectation
+> was set that the Flux project would integrate the GitOps Engine,
+> then being factored out of ArgoCD. Since the result would be
+> backward-incompatible, it would require a major version bump: Flux
+> v2.
+>
+> After experimentation and considerable thought, we (the maintainers)
+> have found a path to Flux v2 that we think better serves our vision
+> of GitOps: the [GitOps Toolkit](https://toolkit.fluxcd.io/). In
+> consequence, we do not now plan to integrate GitOps Engine into
+> Flux.
 
 We believe in GitOps:
 
