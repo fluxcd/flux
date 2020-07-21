@@ -242,6 +242,9 @@ ssh:
 
 
 kube:
+  # Disable KUBECONFIG env var and passing the default config into the Container
+  # This means you need to provide both on your own, by using extraVars and ExtraVolume(Mounts)
+  externalConfig: false
   # Override for kubectl default config
   config: |
     apiVersion: v1
