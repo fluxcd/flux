@@ -99,7 +99,7 @@ spec:
           defaultMode: 0400
       {{- end }}
       {{- if .Values.extraVolumes }}
-{{ toYaml .Values.extraVolumes | indent 6 }}
+{{ include "flux.tplValue" ( dict "value"  .Values.extraVolumes "context" $) | indent 6 }}
       {{- end }}
 {{- if .Values.initContainers }}
       initContainers:
@@ -203,12 +203,12 @@ spec:
           {{- if .Values.memcached.createClusterIP }}
           - --memcached-service=
           {{- end }}
-          - --git-url={{ .Values.git.url }}
-          - --git-branch={{ .Values.git.branch }}
-          - --git-path={{ .Values.git.path }}
-          - --git-readonly={{ .Values.git.readonly }}
-          - --git-user={{ .Values.git.user }}
-          - --git-email={{ .Values.git.email }}
+          - --git-url={{ include "flux.tplValue" ( dict "value" .Values.git.url "context" $) }}
+          - --git-branch={{ include "flux.tplValue" ( dict "value" .Values.git.branch "context" $) }}
+          - --git-path={{ include "flux.tplValue" ( dict "value" .Values.git.path "context" $) }}
+          - --git-readonly={{ include "flux.tplValue" ( dict "value" .Values.git.readonly "context" $) }}
+          - --git-user={{ include "flux.tplValue" ( dict "value" .Values.git.user "context" $) }}
+          - --git-email={{ include "flux.tplValue" ( dict "value" .Values.git.email "context" $) }}
           {{- if (and .Values.gpgKeys.secretName .Values.gpgKeys.configMapName) }}
           - --git-gpg-key-import=/root/gpg-import/private,/root/gpg-import/public
           {{- else if .Values.gpgKeys.secretName }}
