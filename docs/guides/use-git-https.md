@@ -15,6 +15,14 @@ as a plain value in your workload.
     to pass the values to the Flux container, e.g. `$(GIT_AUTHKEY)`.
     [Read more about this Kubernetes feature](https://kubernetes.io/docs/tasks/inject-data-application/define-environment-variable-container/#using-environment-variables-inside-of-your-config).
 
+!!!note
+    Each of the username and password must be percent-encoded, otherwise
+    the git URL may end up being invalid once they have been interpolated
+    in. You can encode a string with Perl (assuming your token is in the
+    environment variable `TOKEN`):
+    
+        echo "$TOKEN" | perl -MURI::Escape -ne 'chomp;print uri_escape($_),"\n"'
+
 1. Create a personal access token to be used as the `GIT_AUTHKEY`:
 
     - [GitHub](https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line)
