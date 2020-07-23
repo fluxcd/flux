@@ -44,9 +44,11 @@ spec:
         - name: {{ .Values.image.pullSecret }}
       {{- end }}
       volumes:
+      {{- if not .Values.kube.externalConfig }}
       - name: kubedir
         configMap:
           name: {{ template "flux.fullname" . }}-kube-config
+      {{- end }}
       {{- if .Values.ssh.known_hosts }}
       - name: sshdir
         configMap:
@@ -129,8 +131,10 @@ spec:
             initialDelaySeconds: 5
             timeoutSeconds: 5
           volumeMounts:
+          {{- if not .Values.kube.externalConfig }}
           - name: kubedir
             mountPath: /root/.kubectl
+          {{- end }}
           {{- if .Values.ssh.known_hosts }}
           - name: sshdir
             mountPath: /root/.ssh

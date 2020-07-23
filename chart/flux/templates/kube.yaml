@@ -1,3 +1,4 @@
+{{- if not .Values.kube.externalConfig }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -27,3 +28,4 @@ data:
     {{ .Values.kube.config }}
       {{- end }}
     {{- end }}
+{{- end }}
