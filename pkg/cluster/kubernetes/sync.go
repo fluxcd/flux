@@ -600,7 +600,7 @@ func (c *Kubectl) doCommand(logger log.Logger, r io.Reader, args ...string) erro
 	begin := time.Now()
 	err := cmd.Run()
 	if err != nil {
-		err = errors.Wrap(errors.New(strings.TrimSpace(stderr.String())), "running kubectl")
+		err = fmt.Errorf("running kubectl: %w, stderr: %s", err, strings.TrimSpace(stderr.String()))
 	}
 
 	logger.Log("cmd", "kubectl "+strings.Join(args, " "), "took", time.Since(begin), "err", err, "output", strings.TrimSpace(stdout.String()))
