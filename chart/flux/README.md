@@ -301,3 +301,30 @@ Update Flux version with:
 helm upgrade --reuse-values flux fluxcd/flux \
 --set image.tag=1.17.1
 ```
+
+### Use as a subchart
+
+This chart allows certain variables to be centrally declared in the umbrella chart and then resused in the [subchart](https://helm.sh/docs/chart_template_guide/subcharts_and_globals/).
+
+example:
+```yaml
+global:
+   git:
+      url: "your_git_host.example.com"
+
+umbrellachart:
+   git-url: "{{ .Values.global.git.url }}"
+
+flux:
+   git:
+      url: "{{ .Values.global.git.url }}"
+```
+
+This is currently possible for this variables:
+* extraVolumes
+* git.url
+* git.branch
+* git.path
+* git.readonly
+* git.user
+* git.email
