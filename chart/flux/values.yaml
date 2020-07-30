@@ -125,12 +125,24 @@ git:
   timeout: "20s"
   # The secret name can be used to supply your own SSH key, instead of
   # relying on Flux to generate one for you:
-  # 1. Generate a SSH key named identity: ssh-keygen -q -N "" -f ./identity
-  # 2. Create a Kubernetes secret: kubectl -n flux create secret generic flux-ssh --from-file=./identity
-  # 3. Delete the private key: rm ./identity
+  # 1. Generate a SSH key named identity:
+  #      ssh-keygen -q -N "" -f ./identity
+  # 2. Create a Kubernetes secret:
+  #      kubectl -n flux create secret generic flux-ssh --from-file=./identity
+  #   2a. The SSH key will be stored in a data key matching the file name.
+  #       Set the `git.secretDataKey` value below to change the data key if
+  #       you want to use a different source file.
+  # 3. Don't check these key files into your Git repository! Once you've created
+  #    the Kubernetes secret, Delete the private key:
+  #      rm ./identity
   # 4. Add ./identity.pub as a deployment key with write access in your Git repo
   # 5. Set the secret name (flux-ssh) below
   secretName: ""
+  # The default secret data key for storing the Git repository deploy key
+  # is "identity" which must match the filename in the steps for supplying
+  # your own SSH deploy key (see secretName above).  Use this field if you
+  # want to use your own filename and override the key above.
+  secretDataKey: "identity"
   # Enables `git-secret` support, as this makes use of known GPG keys
   # you will need to have imported the paired secret-key with one of
   # the public-keys which were used in the encryption using
