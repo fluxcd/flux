@@ -45,19 +45,29 @@ type changeSet struct {
 
 // Sync starts the synchronization of the cluster with git.
 func (d *Daemon) Sync(ctx context.Context, started time.Time, newRevision string, rat ratchet) (rerr error) {
+	var changeSet *changeSet = nil
 
 	defer func() {
 		if rerr != nil {
-			d.LogEvent(event.Event{
+			ev := event.Event{
 				Type:      event.EventSync,
 				StartedAt: started,
 				EndedAt:   time.Now().UTC(),
 				LogLevel:  event.LogLevelError,
 				Message:   rerr.Error(),
-			})
+			}
 
+			if changeSet != nil {
+				ev.Metadata = &event.SyncEventMetadata{
+					Commits:     makeEventCommits(*changeSet),
+					InitialSync: changeSet.initialSync,
+				}
+			}
+
+			d.LogEvent(ev)
 		}
 	}()
+
 	// Load last-synced resources for comparison
 	lastResources, err := d.getLastResources(ctx, rat)
 	if err != nil {
@@ -66,11 +76,12 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, newRevision string
 	}
 
 	// Retrieve change set of commits we need to sync
-	changeSet, err := d.getChangeSet(ctx, rat, newRevision)
+	cs, err := d.getChangeSet(ctx, rat, newRevision)
 	if err != nil {
 		rerr = err
 		return
 	}
+	changeSet = &cs
 
 	d.Logger.Log("info", "trying to sync git changes to the cluster", "old", changeSet.oldTagRev, "new", changeSet.newTagRev)
 
@@ -101,14 +112,14 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, newRevision string
 		rerr = err
 		return
 	}
-	noteEvents, includesEvents, err := d.collectNoteEvents(ctx, changeSet, notes, d.GitTimeout, started, d.Logger)
+	noteEvents, includesEvents, err := d.collectNoteEvents(ctx, *changeSet, notes, d.GitTimeout, started, d.Logger)
 	if err != nil {
 		rerr = err
 		return
 	}
 
 	// Report all synced commits
-	if err := logCommitEvent(d, changeSet, updatedIDs, started, includesEvents, resourceErrors, d.Logger); err != nil {
+	if err := logCommitEvent(d, *changeSet, updatedIDs, started, includesEvents, resourceErrors, d.Logger); err != nil {
 		rerr = err
 		return
 	}
@@ -434,11 +445,6 @@ func logCommitEvent(el eventLogger, c changeSet, serviceIDs resource.IDSet, star
 	if len(c.commits) == 0 {
 		return nil
 	}
-	cs := make([]event.Commit, len(c.commits))
-	for i, ci := range c.commits {
-		cs[i].Revision = ci.Revision
-		cs[i].Message = ci.Message
-	}
 	if err := el.LogEvent(event.Event{
 		ServiceIDs: serviceIDs.ToSlice(),
 		Type:       event.EventSync,
@@ -446,7 +452,7 @@ func logCommitEvent(el eventLogger, c changeSet, serviceIDs resource.IDSet, star
 		EndedAt:    started,
 		LogLevel:   event.LogLevelInfo,
 		Metadata: &event.SyncEventMetadata{
-			Commits:     cs,
+			Commits:     makeEventCommits(c),
 			InitialSync: c.initialSync,
 			Includes:    includesEvents,
 			Errors:      resourceErrors,
@@ -456,6 +462,15 @@ func logCommitEvent(el eventLogger, c changeSet, serviceIDs resource.IDSet, star
 		return err
 	}
 	return nil
+}
+
+func makeEventCommits(changeSet changeSet) []event.Commit {
+	cs := make([]event.Commit, len(changeSet.commits))
+	for i, ci := range changeSet.commits {
+		cs[i].Revision = ci.Revision
+		cs[i].Message = ci.Message
+	}
+	return cs
 }
 
 // refresh refreshes the repository, notifying the daemon we have a new
