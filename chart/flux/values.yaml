@@ -142,7 +142,7 @@ git:
   # is "identity" which must match the filename in the steps for supplying
   # your own SSH deploy key (see secretName above).  Use this field if you
   # want to use your own filename and override the key above.
-  secretDataKey: "identity"
+  secretDataKey: ""
   # Enables `git-secret` support, as this makes use of known GPG keys
   # you will need to have imported the paired secret-key with one of
   # the public-keys which were used in the encryption using
