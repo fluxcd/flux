@@ -69,18 +69,9 @@ func (a *Automated) CommitMessage(result Result) string {
 		fmt.Fprintf(buf, "Auto-release %s", images[0])
 
 	default:
-		limit := 10
-
 		fmt.Fprintf(buf, "Auto-release multiple (%d) images\n\n", total)
-		if total > limit {
-			// Take first 10 images to keep commit message size in bounds
-			images = images[:limit]
-		}
 		for _, im := range images {
 			fmt.Fprintf(buf, " - %s\n", im)
-		}
-		if total > limit {
-			fmt.Fprintln(buf, "   ...")
 		}
 	}
 	return buf.String()

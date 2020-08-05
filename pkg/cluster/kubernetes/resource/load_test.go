@@ -362,3 +362,15 @@ func TestLoadSomeWithSopsAllEncrypted(t *testing.T) {
 		assert.NotNil(t, objs[expected.String()], "expected to find %s in manifest map after decryption", expected)
 	}
 }
+
+func TestNoPanic(t *testing.T) {
+	dir, cleanup := testfiles.TempDir(t)
+	defer cleanup()
+	if err := testfiles.WriteTestFiles(dir, testfiles.Files); err != nil {
+		t.Fatal(err)
+	}
+	_, err := Load(dir, []string{filepath.Join(dir, "doesnotexist")}, true)
+	if err == nil {
+		t.Error("expected error (but not panic) when loading from directory that doesn't exist")
+	}
+}

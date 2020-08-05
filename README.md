@@ -1,6 +1,16 @@
 # Flux
 
-> **Announcement** [Flux has joined CNCF as a sandbox project](https://www.weave.works/blog/flux-joins-the-cncf-sandbox)
+> **On Flux v2** In an announcement in August 2019, the expectation
+> was set that the Flux project would integrate the GitOps Engine,
+> then being factored out of ArgoCD. Since the result would be
+> backward-incompatible, it would require a major version bump: Flux
+> v2.
+>
+> After experimentation and considerable thought, we (the maintainers)
+> have found a path to Flux v2 that we think better serves our vision
+> of GitOps: the [GitOps Toolkit](https://toolkit.fluxcd.io/). In
+> consequence, we do not now plan to integrate GitOps Engine into
+> Flux.
 
 We believe in GitOps:
 
@@ -64,12 +74,12 @@ container images and config changes are propagated to the cluster.
 |[Okteto Cloud](https://okteto.com/)|[Omise](https://www.omise.co)|[Payout](https://payout.one)|
 |[Plex Systems](https://www.plex.com/)|[Qordoba](https://qordoba.com)|[Rakuten](https://rakuten.com)|
 |[RentPath](https://rentpath.com)|[Replicated](https://replicated.com)|[Resulta](https://resulta.com)|
-|[Rungway](https://rungway.com)|[Sage AI Labs](https://www.sage.com)|[Starbucks](https://www.starbucks.com/)|
-|[SupplyStack](https://www.supplystack.com/)|[Talend](https://www.talend.com)|[Troii](https://troii.com/)|
-|[UK Hydrographic Office](https://www.gov.uk/government/organisations/uk-hydrographic-office)|[Under Armour](https://www.underarmour.com)|[VSHN](https://vshn.ch)|
-|[Walmart Chile](https://www.walmartchile.cl)|[Weave Cloud](https://cloud.weave.works)|[Workable](https://www.workable.com)|
-|[Workarea](https://www.workarea.com)|[Working Group Two](https://wgtwo.com)|[Yad2](https://yad2.co.il)|
-|[Yusofleet](https://yusofleet.com)|[Zaaksysteem](https://zaaksysteem.nl)||
+|[Rungway](https://rungway.com)|[Sage AI Labs](https://www.sage.com)|[Sngular](https://www.sngular.com)|
+[Starbucks](https://www.starbucks.com/)|[SupplyStack](https://www.supplystack.com/)|[Talend](https://www.talend.com)|
+|[Troii](https://troii.com/)|[UK Hydrographic Office](https://www.gov.uk/government/organisations/uk-hydrographic-office)|[Under Armour](https://www.underarmour.com)|
+|[VSHN](https://vshn.ch)|[Walmart Chile](https://www.walmartchile.cl)|[Weave Cloud](https://cloud.weave.works)|
+|[Workable](https://www.workable.com)|[Workarea](https://www.workarea.com)|[Working Group Two](https://wgtwo.com)|
+|[Yad2](https://yad2.co.il)|[Yusofleet](https://yusofleet.com)|[Zaaksysteem](https://zaaksysteem.nl)|
 
 If you too are using Flux in production; please submit a PR to add your organization to the list!
 
