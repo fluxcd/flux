@@ -1,3 +1,13 @@
+> Note on the future of Flux and Helm Operator: We are working on a
+> next generation Flux assembled from components as part of a bigger
+> [GitOps Toolkit](https://toolkit.fluxcd.io/) project. The roadmap
+> for the GitOps Toolkit can be found
+> [here](https://toolkit.fluxcd.io/roadmap/).
+>
+> We are eager to hear [feedback, suggestions, and/or feature
+> requests](https://github.com/fluxcd/toolkit/discussions) for Flux v2
+> and Toolkit components.
+
 ## 1.20.1 (2020-08-05)
 
 This patch release has some fixes for faults in improvements in
