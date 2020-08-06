@@ -1,3 +1,50 @@
+> Note on the future of Flux and Helm Operator: We are working on a
+> next generation Flux assembled from components as part of a bigger
+> [GitOps Toolkit](https://toolkit.fluxcd.io/) project. The roadmap
+> for the GitOps Toolkit can be found
+> [here](https://toolkit.fluxcd.io/roadmap/).
+>
+> We are eager to hear [feedback, suggestions, and/or feature
+> requests](https://github.com/fluxcd/toolkit/discussions) for Flux v2
+> and Toolkit components.
+
+## 1.20.1 (2020-08-05)
+
+This patch release has some fixes for faults in improvements in
+1.20.0.
+
+### Fixes
+
+- Do not return error when failed to load last-synced resources
+  [fluxcd/flux#3223][]
+- Dockerfile: Include /sbin dir in PATH [fluxcd/flux#3211][]
+- Put notice re gitops-engine at top of README [fluxcd/flux#3197][]
+- Avoid panic when directory does not exist [fluxcd/flux#3193][]
+- Put git messages into tmp files [fluxcd/flux#3179][]
+
+### Maintenance and documentation
+
+- Give advice on percent-encoding creds using in URL [fluxcd/flux#3204][]
+- Get shellcheck from new URL [fluxcd/flux#3224][]
+- Add Sngular as Flux user [fluxcd/flux#3212][]
+- Add rebase GitHub action [fluxcd/flux#3190][]
+
+### Thanks
+
+Thanks to @alex-shpak, @mmorejon, @ordovicia, @ricardo-larosa,
+@squaremo and @stefanprodan for their contributions to this release.
+
+[fluxcd/flux#3224]: https://github.com/fluxcd/flux/pull/3224
+[fluxcd/flux#3223]: https://github.com/fluxcd/flux/pull/3223
+[fluxcd/flux#3212]: https://github.com/fluxcd/flux/pull/3212
+[fluxcd/flux#3211]: https://github.com/fluxcd/flux/pull/3211
+[fluxcd/flux#3204]: https://github.com/fluxcd/flux/pull/3204
+[fluxcd/flux#3197]: https://github.com/fluxcd/flux/pull/3197
+[fluxcd/flux#3193]: https://github.com/fluxcd/flux/pull/3193
+[fluxcd/flux#3190]: https://github.com/fluxcd/flux/pull/3190
+[fluxcd/flux#3179]: https://github.com/fluxcd/flux/pull/3179
+[fluxcd/flux#3178]: https://github.com/fluxcd/flux/pull/3178
+
 ## 1.20.0 (2020-07-08)
 
 This minor version release updates dependencies, and includes some
