@@ -25,13 +25,13 @@ date.
 To install it, simply run:
 
 ```sh
-sudo snap install fluxctl
+sudo snap install fluxctl --classic
 ```
 
 If you would prefer to track builds from master, run
 
 ```sh
-sudo snap install fluxctl --edge
+sudo snap install fluxctl --edge --classic
 ```
 
 instead.
