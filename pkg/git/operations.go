@@ -33,7 +33,7 @@ var allowedEnvVars = []string{
 	"http_proxy", "https_proxy", "no_proxy", "HTTPS_PROXY", "NO_PROXY", "GIT_PROXY_COMMAND",
 	// these are needed for GPG to find its files
 	"HOME", "GNUPGHOME",
-	// these for the git-secrets helper
+	// these for the git-secrets/git-crypt helper
 	"SECRETS_DIR", "SECRETS_EXTENSION",
 	// these are for Google Cloud SDK to find its files (which will
 	// have to be mounted, if running in a container)
@@ -137,6 +137,14 @@ func secretUnseal(ctx context.Context, workingDir string) error {
 	args := []string{"secret", "reveal", "-f"}
 	if err := execGitCmd(ctx, args, gitCmdConfig{dir: workingDir}); err != nil {
 		return errors.Wrap(err, "git secret reveal -f")
+	}
+	return nil
+}
+
+func cryptUnseal(ctx context.Context, workingDir string) error {
+	args := []string{"crypt", "unlock"}
+	if err := execGitCmd(ctx, args, gitCmdConfig{dir: workingDir}); err != nil {
+		return errors.Wrap(err, "git crypt unlock")
 	}
 	return nil
 }

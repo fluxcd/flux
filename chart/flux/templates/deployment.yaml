@@ -226,7 +226,10 @@ spec:
           - --git-verify-signatures={{ .Values.git.verifySignatures }}
           - --git-set-author={{ .Values.git.setAuthor }}
           {{- if .Values.git.secret.enabled }}
+          {{- if and .Values.git.secret.enabled (not .Values.git.crypt.enabled) }}
           - --git-secret
+          {{- else if and .Values.git.crypt.enabled (not .Values.git.secret.enabled) }}
+          - --git-crypt
           {{- end }}
           - --git-poll-interval={{ .Values.git.pollInterval }}
           - --git-timeout={{ .Values.git.timeout }}

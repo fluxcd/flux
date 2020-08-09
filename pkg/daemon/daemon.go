@@ -47,6 +47,7 @@ type Daemon struct {
 	Logger                    log.Logger
 	ManifestGenerationEnabled bool
 	GitSecretEnabled          bool
+	GitCryptEnabled           bool
 	// bookkeeping
 	*LoopVars
 }
@@ -667,6 +668,10 @@ func (d *Daemon) WithWorkingClone(ctx context.Context, fn func(*git.Checkout) er
 		if err := co.SecretUnseal(ctx); err != nil {
 			return err
 		}
+	} else if d.GitCryptEnabled {
+		if err := co.CryptUnseal(ctx); err != nil {
+			return err
+		}
 	}
 	return fn(co)
 }
@@ -690,6 +695,10 @@ func (d *Daemon) WithReadonlyClone(ctx context.Context, fn func(*git.Export) err
 	}()
 	if d.GitSecretEnabled {
 		if err := co.SecretUnseal(ctx); err != nil {
+			return err
+		}
+	} else if d.GitCryptEnabled {
+		if err := co.CryptUnseal(ctx); err != nil {
 			return err
 		}
 	}

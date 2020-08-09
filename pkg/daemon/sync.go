@@ -173,6 +173,12 @@ func (d *Daemon) cloneRepo(ctx context.Context, revision string) (clone *git.Exp
 		if err := clone.SecretUnseal(ctxGitOp); err != nil {
 			return nil, nil, err
 		}
+	} else if d.GitCryptEnabled {
+		ctxGitOp, cancel := context.WithTimeout(ctx, d.GitTimeout)
+		defer cancel()
+		if err := clone.CryptUnseal(ctxGitOp); err != nil {
+			return nil, nil, err
+		}
 	}
 
 	cleanup = func() {
