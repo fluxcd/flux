@@ -104,6 +104,7 @@ container images and config changes are propagated to the cluster.
  - [karriere tutor GmbH](https://www.karrieretutor.de)
  - [Limejump](https://limejump.com)
  - [loveholidays](https://www.loveholidays.com/)
+ - [Luma Health](https://lumahealth.io/)
  - [LUNAR](https://www.lunarway.com/)
  - [MediaMarktSaturn](https://www.mediamarktsaturn.com)
  - [Mettle](https://mettle.co.uk)
@@ -114,10 +115,10 @@ container images and config changes are propagated to the cluster.
  - [Payout](https://payout.one)
  - [Plex Systems](https://www.plex.com/)
  - [Qordoba](https://qordoba.com)
- - [Quivr](https://quivr.be)
 
 </td><td>
 
+ - [Quivr](https://quivr.be)
  - [Rakuten](https://rakuten.com)
  - [RentPath](https://rentpath.com)
  - [Replicated](https://replicated.com)
