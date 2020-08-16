@@ -832,5 +832,4 @@ func TestDoSync_LogErrorEvent(t *testing.T) {
 		e.StartedAt.Before(e.EndedAt)) {
 		t.Errorf("Incorrect event")
 	}
-
 }

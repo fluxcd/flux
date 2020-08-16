@@ -164,13 +164,13 @@ func (d *Daemon) getLastResources(ctx context.Context, rat ratchet) (map[string]
 	}
 
 	// Fist sync -- load resources from clone of currentRevision
-	lastResourcestore, cleanup, err := d.getManifestStoreByRevision(ctx, currentRevision)
+	lastResourceStore, cleanup, err := d.getManifestStoreByRevision(ctx, currentRevision)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading the repository checkout")
 	}
 	defer cleanup()
 
-	lastResources, err = lastResourcestore.GetAllResourcesByID(ctx)
+	lastResources, err = lastResourceStore.GetAllResourcesByID(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "loading resources from repo")
 	}
