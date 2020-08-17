@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
-	sops "go.mozilla.org/sops/v3"
+	"go.mozilla.org/sops/v3"
 	"go.mozilla.org/sops/v3/decrypt"
 	"gopkg.in/yaml.v2"
 )
@@ -203,14 +203,14 @@ func ParseMultidoc(multidoc []byte, source string) (map[string]KubeManifest, err
 // loadFile attempts to load a file from the path supplied. If sopsEnabled is set,
 // it will try to decrypt it before returning the data
 func loadFile(path string, sopsEnabled bool) ([]byte, error) {
-	bytes, err := ioutil.ReadFile(path)
+	fileBytes, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	if sopsEnabled {
-		return softDecrypt(bytes)
+	if sopsEnabled && bytes.Contains(fileBytes, []byte("sops:")) {
+		return softDecrypt(fileBytes)
 	}
-	return bytes, nil
+	return fileBytes, nil
 }
 
 // softDecrypt takes data from a file and tries to decrypt it with sops,
