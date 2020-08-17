@@ -137,6 +137,12 @@ git:
   # `gpgKeys.secretName`.
   secret:
     enabled: false
+  # Enables `git-crypt` support, as this makes use of known GPG keys
+  # you will need to have imported the paired secret-key with one of
+  # the public-keys which were used in the encryption using
+  # `gpgKeys.secretName`.
+  crypt:
+    enabled: false
   # Global Git configuration See https://git-scm.com/docs/git-config for more details.
   config:
     enabled: false
@@ -211,8 +217,8 @@ memcached:
     #  cpu: 100m
     #  memory: 628Mi
     requests:
-     cpu: 50m
-     memory: 64Mi
+      cpu: 50m
+      memory: 64Mi
   priorityClassName: ""
 
 ssh:

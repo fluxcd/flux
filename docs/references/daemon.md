@@ -19,7 +19,7 @@ Version controlling of cluster manifests provides reproducibility and a historic
    Kubernetes cluster.
 
 #### Deployment approaches
-        
+
 1. Automate vs Deautomate
 
     Deployment happens automatically when a new image tag is
@@ -42,29 +42,30 @@ Version controlling of cluster manifests provides reproducibility and a historic
 | --kubernetes-kubectl                             |                                    | optional, explicit path to kubectl tool
 | --version                                        | false                              | output the version number and exit
 | **Git repo & key etc.**
-| --git-url                                        |                          | URL of git repo with Kubernetes manifests; e.g., `git@github.com:fluxcd/flux-get-started`
-| --git-branch                                     | `master`                 | branch of git repo to use for Kubernetes manifests
-| --git-ci-skip                                    | false                    | when set, fluxd will append `\n\n[ci skip]` to its commit messages
-| --git-ci-skip-message                            | `""`                     | if provided, fluxd will append this to commit messages (overrides --git-ci-skip`)
-| --git-path                                       |                          | path within git repo to locate Kubernetes manifests (relative path)
-| --git-user                                       | `Weave Flux`             | username to use as git committer
-| --git-email                                      | `support@weave.works`    | email to use as git committer
-| --git-set-author                                 | false                    | if set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer
-| --git-gpg-key-import                             |                          | if set, fluxd will attempt to import the gpg key(s) found on the given path
-| --git-signing-key                                |                          | if set, commits made by fluxd to the user git repo will be signed with the provided GPG key.
-| --git-secret                                     |                          | if set and a `.gitsecret` directory exist in the root of the git repository, Flux will execute a `git secret reveal -f` in the working clone before performing any operations
-| --git-label                                      |                          | label to keep track of sync progress; overrides both --git-sync-tag and --git-notes-ref
-| --git-sync-tag                                   | `flux-sync`              | tag to use to mark sync progress for this cluster (old config, still used if --git-label is not supplied)
-| --git-notes-ref                                  | `flux`                   | ref to use for keeping commit annotations in git notes
-| --git-poll-interval                              | `5m`                     | period at which to fetch any new commits from the git repo
-| --git-timeout                                    | `20s`                    | duration after which git operations time out
-| --git-readonly                                   | `false`                  | If `true`, the git repo will be considered read-only, and Flux will not attempt to write to it. Implies --sync-state=secret
+| --git-url                                        |                                    | URL of git repo with Kubernetes manifests; e.g., `git@github.com:fluxcd/flux-get-started`
+| --git-branch                                     | `master`                           | branch of git repo to use for Kubernetes manifests
+| --git-ci-skip                                    | false                              | when set, fluxd will append `\n\n[ci skip]` to its commit messages
+| --git-ci-skip-message                            | `""`                               | if provided, fluxd will append this to commit messages (overrides --git-ci-skip`)
+| --git-path                                       |                                    | path within git repo to locate Kubernetes manifests (relative path)
+| --git-user                                       | `Weave Flux`                       | username to use as git committer
+| --git-email                                      | `support@weave.works`              | email to use as git committer
+| --git-set-author                                 | false                              | if set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer
+| --git-gpg-key-import                             |                                    | if set, fluxd will attempt to import the gpg key(s) found on the given path
+| --git-signing-key                                |                                    | if set, commits made by fluxd to the user git repo will be signed with the provided GPG key.
+| --git-secret                                     | false                              | if set and a `.gitsecret` directory exist in the root of the git repository, Flux will execute a `git secret reveal -f` in the working clone before performing any operations
+| --git-crypt                                      | false                              | if set and a `.git-crypt` directory exist in the root of the git repository, Flux will execute a `git crypt unlock` in the working clone before performing any operations
+| --git-label                                      |                                    | label to keep track of sync progress; overrides both --git-sync-tag and --git-notes-ref
+| --git-sync-tag                                   | `flux-sync`                        | tag to use to mark sync progress for this cluster (old config, still used if --git-label is not supplied)
+| --git-notes-ref                                  | `flux`                             | ref to use for keeping commit annotations in git notes
+| --git-poll-interval                              | `5m`                               | period at which to fetch any new commits from the git repo
+| --git-timeout                                    | `20s`                              | duration after which git operations time out
+| --git-readonly                                   | `false`                            | If `true`, the git repo will be considered read-only, and Flux will not attempt to write to it. Implies --sync-state=secret
 | **syncing:** control over how config is applied to the cluster
-| --sync-interval                                  | `5m`                     | apply the git config to the cluster at least this often. New commits may provoke more frequent syncs
-| --sync-timeout                                   | `1m`                     | duration after which sync operations time out
-| --sync-garbage-collection                        | `false`                  | when set, fluxd will delete resources that it created, but are no longer present in git
-| --sync-garbage-collection-dry                    | `false`                  | only log what would be garbage collected, rather than deleting. Implies --sync-garbage-collection
-| --sync-state                                     | `git`                    | Where to keep sync state; either a tag in the upstream repo (`git`), or as an annotation on the SSH secret (`secret`)
+| --sync-interval                                  | `5m`                               | apply the git config to the cluster at least this often. New commits may provoke more frequent syncs
+| --sync-timeout                                   | `1m`                               | duration after which sync operations time out
+| --sync-garbage-collection                        | `false`                            | when set, fluxd will delete resources that it created, but are no longer present in git
+| --sync-garbage-collection-dry                    | `false`                            | only log what would be garbage collected, rather than deleting. Implies --sync-garbage-collection
+| --sync-state                                     | `git`                              | Where to keep sync state; either a tag in the upstream repo (`git`), or as an annotation on the SSH secret (`secret`)
 | **registry cache:** (none of these need overriding, usually)
 | --memcached-hostname                             | `memcached`                        | hostname for memcached service to use for caching image metadata
 | --memcached-timeout                              | `1s`                               | maximum time to wait before giving up on memcached requests

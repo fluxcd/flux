@@ -29,7 +29,7 @@ func TestExportAtRevision(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	export, err := repo.Export(ctx, headMinusOne)
+	export, err := repo.Export(ctx, headMinusOne, Config{})
 	if err != nil {
 		t.Fatal(err)
 	}

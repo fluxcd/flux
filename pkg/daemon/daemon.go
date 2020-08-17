@@ -12,10 +12,10 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/fluxcd/flux/pkg/api"
-	"github.com/fluxcd/flux/pkg/api/v10"
-	"github.com/fluxcd/flux/pkg/api/v11"
-	"github.com/fluxcd/flux/pkg/api/v6"
-	"github.com/fluxcd/flux/pkg/api/v9"
+	v10 "github.com/fluxcd/flux/pkg/api/v10"
+	v11 "github.com/fluxcd/flux/pkg/api/v11"
+	v6 "github.com/fluxcd/flux/pkg/api/v6"
+	v9 "github.com/fluxcd/flux/pkg/api/v9"
 	"github.com/fluxcd/flux/pkg/cluster"
 	"github.com/fluxcd/flux/pkg/event"
 	"github.com/fluxcd/flux/pkg/git"
@@ -46,7 +46,6 @@ type Daemon struct {
 	EventWriter               event.EventWriter
 	Logger                    log.Logger
 	ManifestGenerationEnabled bool
-	GitSecretEnabled          bool
 	// bookkeeping
 	*LoopVars
 }
@@ -663,11 +662,11 @@ func (d *Daemon) WithWorkingClone(ctx context.Context, fn func(*git.Checkout) er
 			d.Logger.Log("error", fmt.Sprintf("cannot clean working clone: %s", err))
 		}
 	}()
-	if d.GitSecretEnabled {
-		if err := co.SecretUnseal(ctx); err != nil {
-			return err
-		}
+
+	if err := co.SecretUnseal(ctx, d.GitTimeout); err != nil {
+		return err
 	}
+
 	return fn(co)
 }
 
@@ -679,7 +678,7 @@ func (d *Daemon) WithReadonlyClone(ctx context.Context, fn func(*git.Export) err
 	if err != nil {
 		return err
 	}
-	co, err := d.Repo.Export(ctx, head)
+	co, err := d.Repo.Export(ctx, head, d.GitConfig)
 	if err != nil {
 		return err
 	}
@@ -688,11 +687,11 @@ func (d *Daemon) WithReadonlyClone(ctx context.Context, fn func(*git.Export) err
 			d.Logger.Log("error", fmt.Sprintf("cannot read-only clone: %s", err))
 		}
 	}()
-	if d.GitSecretEnabled {
-		if err := co.SecretUnseal(ctx); err != nil {
-			return err
-		}
+
+	if err := co.SecretUnseal(ctx, d.GitTimeout); err != nil {
+		return err
 	}
+
 	return fn(co)
 }
 

@@ -11,6 +11,14 @@ var (
 	ErrReadOnly = errors.New("cannot make a working clone of a read-only git repo")
 )
 
+type GitSecretType int
+
+const (
+	Uncrypted GitSecretType = iota
+	GitSecret
+	GitCrypt
+)
+
 // Config holds some values we use when working in the working clone of
 // a repo.
 type Config struct {
@@ -22,6 +30,7 @@ type Config struct {
 	SigningKey  string
 	SetAuthor   bool
 	SkipMessage string
+	SecretType  GitSecretType
 }
 
 // Checkout is a local working clone of the remote repo. It is

@@ -4,10 +4,12 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 type Export struct {
-	dir string
+	dir  string
+	conf Config
 }
 
 func (e *Export) Dir() string {
@@ -22,7 +24,7 @@ func (e *Export) Clean() error {
 }
 
 // Export creates a minimal clone of the repo, at the ref given.
-func (r *Repo) Export(ctx context.Context, ref string) (*Export, error) {
+func (r *Repo) Export(ctx context.Context, ref string, conf Config) (*Export, error) {
 	dir, err := r.workingClone(ctx, "")
 	if err != nil {
 		return nil, err
@@ -30,12 +32,22 @@ func (r *Repo) Export(ctx context.Context, ref string) (*Export, error) {
 	if err = checkout(ctx, dir, ref); err != nil {
 		return nil, err
 	}
-	return &Export{dir}, nil
+	return &Export{dir: dir, conf: conf}, nil
 }
 
-// SecretUnseal unseals git secrets in the clone.
-func (e *Export) SecretUnseal(ctx context.Context) error {
-	return secretUnseal(ctx, e.Dir())
+// SecretUnseal unseals git secrets in the clone, if the repository contains encrypted secrets
+func (e *Export) SecretUnseal(ctx context.Context, gitTimeout time.Duration) error {
+	ctxGitOp, cancel := context.WithTimeout(ctx, gitTimeout)
+	defer cancel()
+
+	switch e.conf.SecretType {
+	case GitSecret:
+		return secretUnseal(ctxGitOp, e.Dir())
+	case GitCrypt:
+		return cryptUnlock(ctxGitOp, e.Dir())
+	default:
+		return nil
+	}
 }
 
 // ChangedFiles does a git diff listing changed files

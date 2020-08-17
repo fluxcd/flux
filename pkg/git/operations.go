@@ -141,6 +141,14 @@ func secretUnseal(ctx context.Context, workingDir string) error {
 	return nil
 }
 
+func cryptUnlock(ctx context.Context, workingDir string) error {
+	args := []string{"crypt", "unlock"}
+	if err := execGitCmd(ctx, args, gitCmdConfig{dir: workingDir}); err != nil {
+		return errors.Wrap(err, "git crypt unlock")
+	}
+	return nil
+}
+
 func commit(ctx context.Context, workingDir string, commitAction CommitAction) error {
 	message, err := ioutil.TempFile("", "flux-commit-*.txt")
 	if err != nil {

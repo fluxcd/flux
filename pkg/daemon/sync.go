@@ -161,18 +161,14 @@ func (d *Daemon) getManifestStoreByRevision(ctx context.Context, revision string
 func (d *Daemon) cloneRepo(ctx context.Context, revision string) (clone *git.Export, cleanup func(), err error) {
 	ctxGitOp, cancel := context.WithTimeout(ctx, d.GitTimeout)
 	defer cancel()
-	clone, err = d.Repo.Export(ctxGitOp, revision)
+	clone, err = d.Repo.Export(ctxGitOp, revision, d.GitConfig)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	// Unseal any secrets if enabled
-	if d.GitSecretEnabled {
-		ctxGitOp, cancel := context.WithTimeout(ctx, d.GitTimeout)
-		defer cancel()
-		if err := clone.SecretUnseal(ctxGitOp); err != nil {
-			return nil, nil, err
-		}
+	if err := clone.SecretUnseal(ctx, d.GitTimeout); err != nil {
+		return nil, nil, err
 	}
 
 	cleanup = func() {

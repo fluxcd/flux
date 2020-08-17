@@ -122,6 +122,7 @@ func main() {
 		gitSetAuthor = fs.Bool("git-set-author", false, "if set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.")
 		gitLabel     = fs.String("git-label", "", "label to keep track of sync progress; overrides both --git-sync-tag and --git-notes-ref")
 		gitSecret    = fs.Bool("git-secret", false, `if set, git-secret will be run on every git checkout. A gpg key must be imported using  --git-gpg-key-import or by mounting a keyring containing it directly`)
+		gitCrypt     = fs.Bool("git-crypt", false, `if set, git-crypt will be run on every git checkout. A gpg key must be imported using  --git-gpg-key-import or by mounting a keyring containing it directly`)
 		sopsEnabled  = fs.Bool("sops", false, `if set, decrypt SOPS-encrypted manifest files with before syncing them. Provide decryption keys in the same way you would provide them for the sops binary. Be aware that manifests generated with .flux.yaml are not automatically decrypted`)
 		// Old git config; still used if --git-label is not supplied, but --git-label is preferred.
 		gitSyncTag     = fs.String("git-sync-tag", defaultGitSyncTag, fmt.Sprintf("tag to use to mark sync progress for this cluster (only relevant when --sync-state=%s)", fluxsync.GitTagStateMode))
@@ -378,9 +379,15 @@ func main() {
 		}
 	}
 	mandatoryRegistry := stringset(*registryRequire)
-
+	if *gitSecret && *gitCrypt {
+		logger.Log("error", fmt.Sprintf("both --git-secret and --git-crypt are enabled, but these are mutually exclusive."), "err", err.Error())
+	}
 	if *gitSecret && len(*gitImportGPG) == 0 {
 		logger.Log("warning", fmt.Sprintf("--git-secret is enabled but there is no GPG key(s) provided using --git-gpg-key-import, we assume you mounted the keyring directly and continue"))
+	}
+
+	if *gitCrypt && len(*gitImportGPG) == 0 {
+		logger.Log("warning", fmt.Sprintf("--git-crypt is enabled but there is no GPG key(s) provided using --git-gpg-key-import, we assume you mounted the keyring directly and continue"))
 	}
 
 	if *sopsEnabled && len(*gitImportGPG) == 0 {
@@ -640,6 +647,12 @@ func main() {
 	}
 	checkpoint.CheckForUpdates(product, version, checkpointFlags, updateCheckLogger)
 
+	secretType := git.Uncrypted
+	if *gitSecret {
+		secretType = git.GitSecret
+	} else if *gitCrypt {
+		secretType = git.GitCrypt
+	}
 	gitRemote := git.Remote{URL: *gitURL}
 	gitConfig := git.Config{
 		Paths:       *gitPath,
@@ -650,6 +663,7 @@ func main() {
 		SigningKey:  *gitSigningKey,
 		SetAuthor:   *gitSetAuthor,
 		SkipMessage: *gitSkipMessage,
+		SecretType:  secretType,
 	}
 
 	repo := git.NewRepo(gitRemote, git.PollInterval(*gitPollInterval), git.Timeout(*gitTimeout), git.Branch(*gitBranch), git.IsReadOnly(*gitReadonly))
@@ -676,6 +690,7 @@ func main() {
 		"notes-ref", *gitNotesRef,
 		"set-author", *gitSetAuthor,
 		"git-secret", *gitSecret,
+		"git-crypt", *gitCrypt,
 		"sops", *sopsEnabled,
 	)
 
@@ -732,7 +747,6 @@ func main() {
 		JobStatusCache:            &job.StatusCache{Size: 100},
 		Logger:                    log.With(logger, "component", "daemon"),
 		ManifestGenerationEnabled: *manifestGeneration,
-		GitSecretEnabled:          *gitSecret,
 		LoopVars: &daemon.LoopVars{
 			SyncInterval:            *syncInterval,
 			SyncTimeout:             *syncTimeout,
