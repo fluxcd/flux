@@ -1,8 +1,0 @@
-{
-    "ignorePatterns": [
-        { "pattern": "^https://github.com/\\S+/\\S+/(issues|pull)/[0-9]+" },
-        { "pattern": "^mailto:" },
-        { "pattern": "^https://www.(blablacar|canva|underarmour).com" },
-        { "pattern": "https://rakuten.com" }
-    ]
-}
