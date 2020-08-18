@@ -279,7 +279,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `syncGarbageCollection.dry`                       | `false`                                              | If enabled, fluxd won't delete any resources, but log the garbage collection output (see [garbage collection](../../docs/references/garbagecollection.md))
 | `manifestGeneration`                              | `false`                                              | If enabled, fluxd will look for `.flux.yaml` and run Kustomize or other manifest generators
 | `hostAliases`                                     | `{}`                                                 | Additional hostAliases to add to the Flux pod(s). See <https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/>
-| `dashboard.enabled`                               | `false`                                              | If enabled, flux will create a configmap with a dashboard in json that's going to be picked up by grafana (see [sidecar.dashboards.enabled](https://github.com/helm/charts/tree/master/stable/grafana#configuration))
+| `dashboards.enabled`                              | `false`                                              | If enabled, flux will create a configmap with a dashboard in json that's going to be picked up by grafana (see [sidecar.dashboards.enabled](https://github.com/helm/charts/tree/master/stable/grafana#configuration)). Also remember to set `prometheus.enabled=true` to expose the metrics.
 
 [memcached-ref]: https://github.com/fluxcd/flux/blob/master/chart/flux/values.yaml#L201-L204
 [kubeconfig-ref]: https://github.com/fluxcd/flux/blob/master/chart/flux/values.yaml#L232-L244
