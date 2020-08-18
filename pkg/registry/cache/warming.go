@@ -92,12 +92,9 @@ func (w *Warmer) Loop(logger log.Logger, stop <-chan struct{}, wg *sync.WaitGrou
 	// image has to have been running the last time we
 	// requested the credentials.
 	priorityWarm := func(name image.Name) {
-		logger.Log("priority", name.String())
-		if creds, ok := imageCreds[name]; ok {
-			w.warm(ctx, time.Now(), logger, name, creds)
-		} else {
-			logger.Log("priority", name.String(), "err", "no creds available")
-		}
+		logger.Log("warming", name.String())
+		creds, _ := imageCreds[name]
+		w.warm(ctx, time.Now(), logger, name, creds)
 	}
 
 	// This loop acts keeps a kind of priority queue, whereby image

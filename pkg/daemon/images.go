@@ -40,6 +40,14 @@ func (d *Daemon) pollForNewAutomatedWorkloadImages(logger log.Logger) {
 		return
 	}
 
+	// Queue an image refresh job for each container, this results of which
+	// will most likely only be available during the next polling job
+	for _, containers := range clusterContainers(workloads) {
+		for _, container := range containers.ContainersOrNil() {
+			d.ImageRefresh <- container.Image.Name
+		}
+	}
+
 	changes := calculateChanges(logger, candidateWorkloads, workloads, imageRepos)
 
 	if len(changes.Changes) > 0 {
@@ -109,6 +117,8 @@ func calculateChanges(logger log.Logger, candidateWorkloads resources, workloads
 				newImage := currentImageID.WithNewTag(latest.ID.Tag)
 				changes.Add(workload.ID, container, newImage)
 				logger.Log("info", "added update to automation run", "new", newImage, "reason", fmt.Sprintf("latest %s (%s) > current %s (%s)", latest.ID.Tag, latest.CreatedAt, currentImageID.Tag, current.CreatedAt))
+			} else {
+				logger.Log("debug", "image no updates found", "latest", latest.ID, "createdAt", latest.CreatedAt)
 			}
 		}
 	}
