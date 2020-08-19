@@ -99,7 +99,7 @@ type fetchImagesResult struct {
 	imagesToUpdateMissingCount int                   // number of imagesToUpdate which need updating due to being missing
 }
 
-// fetchImages attemps to fetch the images with the provided tags from the cache.
+// fetchImages attempts to fetch the images with the provided tags from the cache.
 // It returns the images found, those which require updating and details about
 // why they need to be updated.
 func (c *repoCacheManager) fetchImages(tags []string) (fetchImagesResult, error) {
