@@ -1,6 +1,6 @@
 module github.com/fluxcd/flux
 
-go 1.13
+go 1.14
 
 // remove when https://github.com/docker/distribution/pull/2905 is released.
 replace github.com/docker/distribution => github.com/fluxcd/distribution v0.0.0-20190419185413-6c9727e5e5de
@@ -16,13 +16,13 @@ replace (
 	github.com/fluxcd/helm-operator/pkg/install => github.com/fluxcd/helm-operator/pkg/install v0.0.0-20200213151218-f7e487142b46
 )
 
-// Pin kubernetes dependencies to 1.17.4
+// Pin kubernetes dependencies to 1.17.11
 replace (
-	k8s.io/api => k8s.io/api v0.17.4
-	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.17.4
-	k8s.io/apimachinery => k8s.io/apimachinery v0.17.4
-	k8s.io/client-go => k8s.io/client-go v0.17.4
-	k8s.io/code-generator => k8s.io/code-generator v0.17.4
+	k8s.io/api => k8s.io/api v0.17.11
+	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.17.11
+	k8s.io/apimachinery => k8s.io/apimachinery v0.17.11
+	k8s.io/client-go => k8s.io/client-go v0.17.11
+	k8s.io/code-generator => k8s.io/code-generator v0.17.11
 )
 
 // github.com/fluxcd/flux/pkg/install lives in this very repository, so use that
@@ -60,14 +60,14 @@ require (
 	github.com/weaveworks/go-checkpoint v0.0.0-20170503165305-ebbb8b0518ab
 	github.com/whilp/git-urls v0.0.0-20160530060445-31bac0d230fa
 	github.com/xeipuuv/gojsonschema v1.1.0
-	go.mozilla.org/sops/v3 v3.5.0
+	go.mozilla.org/sops/v3 v3.6.0
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
 	golang.org/x/sys v0.0.0-20191028164358-195ce5e7f934
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
 	gopkg.in/yaml.v2 v2.2.8
-	k8s.io/api v0.17.4
+	k8s.io/api v0.17.11
 	k8s.io/apiextensions-apiserver v0.17.4
-	k8s.io/apimachinery v0.17.4
+	k8s.io/apimachinery v0.17.11
 	k8s.io/client-go v11.0.0+incompatible
 	k8s.io/klog v1.0.0
 )

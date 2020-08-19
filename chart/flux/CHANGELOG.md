@@ -1,3 +1,12 @@
+## 1.4.1 (2020-08-06)
+
+### Improvements
+
+ - Updated Flux to `1.20.1`
+   [fluxcd/flux#3230](https://github.com/fluxcd/flux/pull/3230)
+ - Add kube.externalConfig option
+   [fluxcd/flux#3208](https://github.com/fluxcd/flux/pull/3208)
+
 ## 1.4.0 (2020-07-09)
 
 ### Improvements
