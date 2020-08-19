@@ -18,7 +18,7 @@ experiencing sync timeouts with CRDs.
 - retain the error when appending the stderr output
   [fluxcd/flux#3219][]
 - Fix some typos [fluxcd/flux#3257][]
-- Avoid spamming KMS when using SOPS decryption [fluxcd/flux#3248][]
+- Update SOPS to v3.6.0 and filter files before decryption [fluxcd/flux#3248][]
 - Update kubectl to v1.17.11 [fluxcd/flux#3246][]
 - Bump Go to 1.14.7 to fix CVE-2020-14040 [fluxcd/flux#3235][]
 
