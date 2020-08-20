@@ -1,12 +1,14 @@
 {{- if .Values.dashboards.enabled -}}
+{{- $nameprefix := .Values.dashboards.nameprefix }}
+{{- $namespace := .Values.dashboards.namespace | default $.Release.Namespace }}
 {{- $files := .Files }}
 {{- range $path, $_ :=  .Files.Glob  "dashboards/*.json" }}
 {{- $filename := trimSuffix (ext $path) (base $path) }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: flux-dashboards-{{ $filename }}
-  namespace: {{ $.Release.Namespace }}
+  name: {{ $nameprefix }}-{{ $filename }}
+  namespace: {{ $namespace }}
   labels:
     grafana_dashboard: "1"
     app: {{ template "flux.name" $ }}
