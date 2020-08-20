@@ -199,6 +199,9 @@ spec:
           - --ssh-keygen-dir=/var/fluxd/keygen
           - --ssh-keygen-format={{ .Values.ssh.keygen.format }}
           - --k8s-secret-name={{ .Values.git.secretName | default (printf "%s-git-deploy" (include "flux.fullname" .)) }}
+          {{- if .Values.git.secretDataKey }}
+          - --k8s-secret-data-key={{ .Values.git.secretDataKey }}
+          {{- end }}
           - --memcached-hostname={{ .Values.memcached.hostnameOverride | default (printf "%s-memcached" (include "flux.fullname" .)) }}
           - --sync-state={{ .Values.sync.state }}
           {{- if .Values.sync.timeout }}
