@@ -17,3 +17,4 @@ jobs:
           owner: fluxcd
           repository: charts
           branch: gh-pages
+          linting: off
