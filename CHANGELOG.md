@@ -8,6 +8,40 @@
 > requests](https://github.com/fluxcd/toolkit/discussions) for Flux v2
 > and Toolkit components.
 
+## 1.20.2 (2020-08-19)
+
+This patch release includes a bump to kubectl, which may help users
+experiencing sync timeouts with CRDs.
+
+### Fixes
+
+- retain the error when appending the stderr output
+  [fluxcd/flux#3219][]
+- Fix some typos [fluxcd/flux#3257][]
+- Update SOPS to v3.6.0 and filter files before decryption [fluxcd/flux#3248][]
+- Update kubectl to v1.17.11 [fluxcd/flux#3246][]
+- Bump Go to 1.14.7 to fix CVE-2020-14040 [fluxcd/flux#3235][]
+
+### Documentation
+
+- fluxctl snap requires the --classic option [fluxcd/flux#3238][]
+- Add Enliven Systems (#3182) and Duedil (#3194) [fluxcd/flux#3234][]
+
+### Thanks
+
+Thanks to @dholbach, @dvulpe, @idvoretskyi, @jjmengze, @nebril,
+@squaremo and @stefanprodan for their contributions to this release.
+
+[fluxcd/flux#3257]: https://github.com/fluxcd/flux/pull/3257
+[fluxcd/flux#3248]: https://github.com/fluxcd/flux/pull/3248
+[fluxcd/flux#3246]: https://github.com/fluxcd/flux/pull/3246
+[fluxcd/flux#3238]: https://github.com/fluxcd/flux/pull/3238
+[fluxcd/flux#3235]: https://github.com/fluxcd/flux/pull/3235
+[fluxcd/flux#3234]: https://github.com/fluxcd/flux/pull/3234
+[fluxcd/flux#3231]: https://github.com/fluxcd/flux/pull/3231
+[fluxcd/flux#3219]: https://github.com/fluxcd/flux/pull/3219
+
+
 ## 1.20.1 (2020-08-05)
 
 This patch release has some fixes for faults in improvements in

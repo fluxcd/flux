@@ -9,7 +9,7 @@ logFormat: fmt
 
 image:
   repository: docker.io/fluxcd/flux
-  tag: 1.20.1
+  tag: 1.20.2
   pullPolicy: IfNotPresent
   pullSecret:
 
@@ -125,12 +125,24 @@ git:
   timeout: "20s"
   # The secret name can be used to supply your own SSH key, instead of
   # relying on Flux to generate one for you:
-  # 1. Generate a SSH key named identity: ssh-keygen -q -N "" -f ./identity
-  # 2. Create a Kubernetes secret: kubectl -n flux create secret generic flux-ssh --from-file=./identity
-  # 3. Delete the private key: rm ./identity
+  # 1. Generate a SSH key named identity:
+  #      ssh-keygen -q -N "" -f ./identity
+  # 2. Create a Kubernetes secret:
+  #      kubectl -n flux create secret generic flux-ssh --from-file=./identity
+  #   2a. The SSH key will be stored in a data key matching the file name.
+  #       Set the `git.secretDataKey` value below to change the data key if
+  #       you want to use a different source file.
+  # 3. Don't check these key files into your Git repository! Once you've created
+  #    the Kubernetes secret, Delete the private key:
+  #      rm ./identity
   # 4. Add ./identity.pub as a deployment key with write access in your Git repo
   # 5. Set the secret name (flux-ssh) below
   secretName: ""
+  # The default secret data key for storing the Git repository deploy key
+  # is "identity" which must match the filename in the steps for supplying
+  # your own SSH deploy key (see secretName above).  Use this field if you
+  # want to use your own filename and override the key above.
+  secretDataKey: ""
   # Enables `git-secret` support, as this makes use of known GPG keys
   # you will need to have imported the paired secret-key with one of
   # the public-keys which were used in the encryption using
@@ -326,3 +338,7 @@ dashboards:
   # If enabled, flux will create a configmap with a dashboard in json that's going to be picked up by grafana
   # See https://github.com/helm/charts/tree/master/stable/grafana#configuration - `sidecar.dashboards.enabled`
   enabled: false
+  # The namespace where the dashboard is deployed, defaults to the installation namespace
+  namespace:
+  # The prefix of the generated configmaps
+  nameprefix: dashboard

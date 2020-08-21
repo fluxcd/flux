@@ -1,3 +1,15 @@
+## 1.5.0 (2020-08-20)
+
+### Improvements
+
+ - Updated Flux to `1.20.2`
+   [fluxcd/flux#3258](https://github.com/fluxcd/flux/pull/3258)
+ - Support configuring a `git.secretDataKey` used as the
+   `--k8s-secret-data-key` argument
+   [fluxcd/flux##3227](https://github.com/fluxcd/flux/pull/3227)
+ - Extend Grafana dashboard options
+   [fluxcd/flux#3183](https://github.com/fluxcd/flux/pull/3183)
+
 ## 1.4.1 (2020-08-06)
 
 ### Improvements

@@ -382,7 +382,7 @@ func (e *Event) UnmarshalJSON(in []byte) error {
 // of Event is always a pointer, so that consumers can cast without being
 // concerned about encountering a value type instead. It works by virtue of the
 // fact that the method is only defined for pointer receivers; the actual
-// method chosen is entirely arbitary.
+// method chosen is entirely arbitrary.
 type EventMetadata interface {
 	Type() string
 }

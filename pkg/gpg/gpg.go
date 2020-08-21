@@ -14,7 +14,7 @@ import (
 // the current user's keyring. A path to a directory or a file may be
 // provided. If the path is a directory, regular files in the
 // directory will be imported, but not subdirectories (i.e., no
-// recursion). It returns the basenames of the succesfully imported
+// recursion). It returns the basenames of the successfully imported
 // keys.
 func ImportKeys(src string, trustImportedKeys bool) ([]string, error) {
 	info, err := os.Stat(src)
