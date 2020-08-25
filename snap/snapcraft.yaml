@@ -14,7 +14,7 @@ parts:
       snapcraftctl pull
       FLUX_TAG="$(curl -s 'https://api.github.com/repos/fluxcd/flux/releases/latest' | jq -r .tag_name)"
       set +e
-      git describe --exact-match --tags $(git log -n1 --pretty='%h')
+      git describe --exact-match --tags $(git log -n1 --pretty='%h') --exclude 'chart-*'
       retVal=$?
       set -e
       if [ $retVal -eq 0 ]; then
