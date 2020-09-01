@@ -116,6 +116,9 @@ This will prevent Flux from trying to write to your repository. You
 should also provide a readonly SSH key; e.g., on GitHub, leave the
 `Allow write access` box unchecked when you add the deploy key.
 
+!!!note
+    To ensure that the cluster state is consistent with your repository, setting --git-readonly implies --registry-disable-scanning. This will disable automated deployment of new container images.
+
 ### Does Flux automatically sync changes back to git?
 
 No. It applies changes to git only when a Flux command or API call makes them.
