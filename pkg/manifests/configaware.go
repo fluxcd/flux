@@ -75,7 +75,7 @@ func splitConfigFilesAndRawManifestPaths(baseDir string, paths []string) ([]*Con
 				rawManifestPaths = append(rawManifestPaths, path)
 				continue
 			}
-			return nil, nil, fmt.Errorf("error finding a config file starting at path %q: %s", relPath, err)
+			return nil, nil, fmt.Errorf("cannot use path %q: %s", relPath, err)
 		}
 		cf, err := NewConfigFile(relPath, configFilePath, workingDirPath)
 		if err != nil {
