@@ -28,6 +28,7 @@ func (r *Repo) Export(ctx context.Context, ref string) (*Export, error) {
 		return nil, err
 	}
 	if err = checkout(ctx, dir, ref); err != nil {
+		os.RemoveAll(dir)
 		return nil, err
 	}
 	return &Export{dir}, nil
