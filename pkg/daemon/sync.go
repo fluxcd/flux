@@ -157,7 +157,11 @@ func (d *Daemon) getManifestStoreByRevision(ctx context.Context, revision string
 	}
 
 	store, err = d.getManifestStore(clone)
-	return store, cleanupClone, err
+	if err != nil {
+		cleanupClone()
+		return nil, nil, err
+	}
+	return store, cleanupClone, nil
 }
 
 // cloneRepo makes a read-only clone of the given revision
@@ -169,18 +173,19 @@ func (d *Daemon) cloneRepo(ctx context.Context, revision string) (clone *git.Exp
 		return nil, nil, err
 	}
 
+	cleanup = func() {
+		if err := clone.Clean(); err != nil {
+			d.Logger.Log("error", fmt.Sprintf("cannot clean clone: %s", err))
+		}
+	}
+
 	// Unseal any secrets if enabled
 	if d.GitSecretEnabled {
 		ctxGitOp, cancel := context.WithTimeout(ctx, d.GitTimeout)
 		defer cancel()
 		if err := clone.SecretUnseal(ctxGitOp); err != nil {
+			cleanup()
 			return nil, nil, err
-		}
-	}
-
-	cleanup = func() {
-		if err := clone.Clean(); err != nil {
-			d.Logger.Log("error", fmt.Sprintf("cannot clean clone: %s", err))
 		}
 	}
 
