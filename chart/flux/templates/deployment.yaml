@@ -273,10 +273,10 @@ spec:
           - --registry-ecr-region={{ .Values.registry.ecr.region }}
           {{- end }}
           {{- if .Values.registry.ecr.includeId }}
-          - --registry-ecr-include-id={{ .Values.registry.ecr.includeId }}
+          - --registry-ecr-include-id={{ .Values.registry.ecr.includeId | quote }}
           {{- end }}
           {{- if .Values.registry.ecr.excludeId }}
-          - --registry-ecr-exclude-id={{ .Values.registry.ecr.excludeId }}
+          - --registry-ecr-exclude-id={{ .Values.registry.ecr.excludeId | quote }}
           {{- end }}
           {{- if .Values.registry.dockercfg.enabled }}
           - --docker-config={{ .Values.registry.dockercfg.configFileName }}
