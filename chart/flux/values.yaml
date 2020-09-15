@@ -226,6 +226,7 @@ memcached:
      cpu: 50m
      memory: 64Mi
   priorityClassName: ""
+  podLabels: {}
 
 ssh:
   # Overrides for git over SSH. If you use your own git server, you

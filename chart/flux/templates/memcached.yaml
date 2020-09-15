@@ -26,6 +26,11 @@ spec:
       labels:
         app: {{ template "flux.name" . }}-memcached
         release: {{ .Release.Name }}
+      {{- if .Values.memcached.podLabels }}
+      {{- range $key, $value := .Values.memcached.podLabels }}
+        {{ $key }}: {{ $value | quote }}
+      {{- end }}
+      {{- end }}
     spec:
       {{- if .Values.memcached.priorityClassName }}
       priorityClassName: {{ .Values.memcached.priorityClassName }}
