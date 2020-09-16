@@ -23,7 +23,7 @@ import (
 // built into Kubernetes so that there are no garbage-collection
 // implications. The value is expected to be a serialised
 // `resource.ID`.
-const AntecedentAnnotation = "flux.weave.works/antecedent"
+const AntecedentAnnotation = "helm.fluxcd.io/antecedent"
 
 /////////////////////////////////////////////////////////////////////////////
 // Kind registry
