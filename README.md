@@ -81,7 +81,7 @@ container images and config changes are propagated to the cluster.
 [Under Armour](https://www.underarmour.com)|[VSHN](https://vshn.ch)|[Walmart Chile](https://www.walmartchile.cl)
 [Weave Cloud](https://cloud.weave.works)|[Workable](https://www.workable.com)|[Workarea](https://www.workarea.com)
 [Working Group Two](https://wgtwo.com)|[Yad2](https://yad2.co.il)|[Yusofleet](https://yusofleet.com)
-[Zaaksysteem](https://zaaksysteem.nl)||
+[Zaaksysteem](https://zaaksysteem.nl)|[Zwift](https://zwift.com)|
 
 If you too are using Flux in production; please submit a PR to add your organization to the list!
 
