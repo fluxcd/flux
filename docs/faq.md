@@ -304,7 +304,7 @@ Yes. The easiest way to do that is to use the following annotation in the manife
 the change to git:
 
 ```yaml
-    fluxcd.io/ignore: true
+    fluxcd.io/ignore: "true"
 ```
 
 To stop ignoring these annotated resources, you simply remove the annotation from the manifests in git.
