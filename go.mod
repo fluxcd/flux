@@ -16,13 +16,13 @@ replace (
 	github.com/fluxcd/helm-operator/pkg/install => github.com/fluxcd/helm-operator/pkg/install v0.0.0-20200213151218-f7e487142b46
 )
 
-// Pin kubernetes dependencies to 1.17.11
+// Pin kubernetes dependencies to 1.17.12
 replace (
-	k8s.io/api => k8s.io/api v0.17.11
-	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.17.11
-	k8s.io/apimachinery => k8s.io/apimachinery v0.17.11
-	k8s.io/client-go => k8s.io/client-go v0.17.11
-	k8s.io/code-generator => k8s.io/code-generator v0.17.11
+	k8s.io/api => k8s.io/api v0.17.12
+	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.17.12
+	k8s.io/apimachinery => k8s.io/apimachinery v0.17.12
+	k8s.io/client-go => k8s.io/client-go v0.17.12
+	k8s.io/code-generator => k8s.io/code-generator v0.17.12
 )
 
 // github.com/fluxcd/flux/pkg/install lives in this very repository, so use that
@@ -65,9 +65,9 @@ require (
 	golang.org/x/sys v0.0.0-20191028164358-195ce5e7f934
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
 	gopkg.in/yaml.v2 v2.2.8
-	k8s.io/api v0.17.11
+	k8s.io/api v0.17.12
 	k8s.io/apiextensions-apiserver v0.17.4
-	k8s.io/apimachinery v0.17.11
+	k8s.io/apimachinery v0.17.12
 	k8s.io/client-go v11.0.0+incompatible
 	k8s.io/klog v1.0.0
 )
