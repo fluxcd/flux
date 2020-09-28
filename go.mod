@@ -1,6 +1,6 @@
 module github.com/fluxcd/flux
 
-go 1.14
+go 1.15
 
 // remove when https://github.com/docker/distribution/pull/2905 is released.
 replace github.com/docker/distribution => github.com/fluxcd/distribution v0.0.0-20190419185413-6c9727e5e5de
