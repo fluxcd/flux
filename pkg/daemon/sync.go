@@ -47,7 +47,7 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, newRevision string
 	// Load last-synced resources for comparison
 	lastResources, err := d.getLastResources(ctx, rat)
 	if err != nil {
-		d.Logger.Log("warning", "failed to load last-synced resources. sync event may be inaccurate", "err", err)
+		d.Logger.Warn("failed to load last-synced resources. sync event may be inaccurate", zap.NamedError("err", err))
 		lastResources = map[string]resource.Resource{}
 	}
 
