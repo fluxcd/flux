@@ -24,7 +24,7 @@ jobs:
         with:
           go-version: 1.14.x
       - name: Run tests
-        run: make test TEST_FLAGS="-race -tags integration -timeout 7m"
+        run: make test TEST_FLAGS="-race -tags integration -timeout 5m"
       - name: Check codegen
         run: make check-generated
       - name: Build binaries
