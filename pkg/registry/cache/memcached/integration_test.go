@@ -71,7 +71,7 @@ func TestWarming_WarmerWriteCacheRead(t *testing.T) {
 		}
 	})
 
-	timeout := time.NewTicker(10 * time.Second)    // Shouldn't take longer than 10s
+	timeout := time.NewTicker(15 * time.Second)    // Shouldn't take longer than 15s
 	tick := time.NewTicker(100 * time.Millisecond) // Check every 100ms
 
 Loop:
