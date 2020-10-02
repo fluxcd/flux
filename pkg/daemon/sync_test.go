@@ -620,7 +620,7 @@ func TestDoSync_WithMultidoc(t *testing.T) {
 		t.Errorf("Sync was called with a nil syncDef")
 	}
 
-    // A sync event is emitted and it only has updated workload ids
+	// A sync event is emitted and it only has updated workload ids
 	es, err := events.AllEvents(time.Time{}, -1, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -768,4 +768,68 @@ func TestDoSync_WithErrors(t *testing.T) {
 
 	// Check 2 sync error in stats
 	checkSyncManifestsMetrics(t, len(expectedResourceIDs)-2, 2)
+}
+
+func TestDoSync_LogErrorEvent(t *testing.T) {
+	d, cleanup := daemon(t, testfiles.Files)
+	defer cleanup()
+
+	k8s.SyncFunc = func(def cluster.SyncSet) error {
+		return nil
+	}
+	ctx := context.Background()
+
+	// Add wrong manifest
+	err := d.WithWorkingClone(ctx, func(checkout *git.Checkout) error {
+		ctx, cancel := context.WithTimeout(ctx, 5000*time.Second)
+		defer cancel()
+
+		absolutePath := path.Join(checkout.Dir(), "error_manifest.yaml")
+		if err := ioutil.WriteFile(absolutePath, []byte("Manifest that must produce errors"), 0600); err != nil {
+			return err
+		}
+		commitAction := git.CommitAction{Author: "", Message: "test error commit"}
+		err := checkout.CommitAndPush(ctx, commitAction, nil, true)
+		if err != nil {
+			return err
+		}
+		return err
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = d.Repo.Refresh(ctx)
+	if err != nil {
+		t.Error(err)
+	}
+
+	syncTag := "sync"
+	gitSync, _ := fluxsync.NewGitTagSyncProvider(d.Repo, syncTag, "", fluxsync.VerifySignaturesModeNone, d.GitConfig)
+	syncState := &lastKnownSyncState{logger: d.Logger, state: gitSync}
+
+	err = d.Sync(ctx, time.Now().UTC(), "HEAD", syncState)
+	if err == nil {
+		t.Error("Sync error should not be null")
+	}
+
+	es, err := events.AllEvents(time.Time{}, -1, time.Time{})
+
+	if len(es) > 1 {
+		t.Errorf("Returned more than 1 message. Actual: %d", len(es))
+	}
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	e := es[0]
+
+	if !(e.Type == "sync" &&
+		e.LogLevel == "error" &&
+		len(e.Message) > 0 &&
+		e.StartedAt.Before(e.EndedAt)) {
+		t.Errorf("Incorrect event")
+	}
 }
