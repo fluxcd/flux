@@ -7,6 +7,13 @@ assignees: ''
 
 ---
 
+<!--
+Please note that Flux v1 is in maintenance mode: https://github.com/fluxcd/flux/issues/3320
+
+This means that new features will only be added after very careful consideration, if at all. Refer to the issue above for more detail.
+-->
+
+
 **Describe the bug**
 
 A clear and concise description of what the bug is.
