@@ -12,7 +12,7 @@
 > consequence, we do not now plan to integrate GitOps Engine into
 > Flux.
 >
-> This also means that **[Flux v1 is in maintenance mode](https://github.com/fluxcd/flux/issues/3320)**.
+> :warning: This also means that **[Flux v1 is in maintenance mode](https://github.com/fluxcd/flux/issues/3320)**.
 
 We believe in GitOps:
 
@@ -151,4 +151,3 @@ If you have any questions about Flux and continuous delivery:
 - [File an issue.](https://github.com/fluxcd/flux/issues/new/choose)
 
 Your feedback is always welcome!
-
