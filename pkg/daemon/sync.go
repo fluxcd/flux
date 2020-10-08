@@ -55,6 +55,7 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, newRevision string
 				EndedAt:   time.Now().UTC(),
 				LogLevel:  event.LogLevelError,
 				Message:   rerr.Error(),
+				Metadata:  &event.SyncEventMetadata{},
 			}
 
 			if changeSet != nil {
