@@ -141,7 +141,12 @@ be interested in the following:
 
 ## <a name="help"></a>Getting Help
 
-If you have any questions about Flux and continuous delivery:
+Reminder that Flux v1 is in maintenance mode. If you have any questions about Flux v2 and future migrations, these are the best ways to stay informed:
+- Join the [flux-dev mailing list](https://lists.cncf.io/g/cncf-flux-dev).
+- Join the next talk and Q&A about Flux v2 on [Oct 19, 10:00 am PT / 18:00 GMT](https://www.meetup.com/GitOps-Community/events/273640196/)
+- Join the Flux v2 / GitOps Toolkit [community meetings](https://github.com/fluxcd/toolkit/discussions)
+
+If you have further questions about Flux or continuous delivery:
 
 - Read [the Flux docs](https://docs.fluxcd.io).
 - Invite yourself to the <a href="https://slack.cncf.io" target="_blank">CNCF community</a>
