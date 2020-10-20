@@ -43,7 +43,11 @@ func (d *Daemon) pollForNewAutomatedWorkloadImages(logger log.Logger) {
 	changes := calculateChanges(logger, candidateWorkloads, workloads, imageRepos)
 
 	if len(changes.Changes) > 0 {
-		d.UpdateManifests(ctx, update.Spec{Type: update.Auto, Spec: changes})
+		_, err := d.UpdateManifests(ctx, update.Spec{Type: update.Auto, Spec: changes})
+		if err != nil {
+			logger.Log("error", errors.Wrap(err, "updating manifests"))
+			return
+		}
 	}
 }
 
