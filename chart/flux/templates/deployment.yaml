@@ -184,8 +184,11 @@ spec:
           {{- if .Values.extraEnvs }}
 {{ toYaml .Values.extraEnvs | indent 10 }}
           {{- end }}
-          {{- if .Values.env.secretName }}
           envFrom:
+          {{- if .Values.extraEnvsFrom }}
+{{ toYaml .Values.extraEnvsFrom | indent 10 }}
+          {{- end }}
+          {{- if .Values.env.secretName }}
           - secretRef:
               name: {{ .Values.env.secretName }}
           {{- end }}
