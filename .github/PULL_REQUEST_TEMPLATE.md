@@ -1,4 +1,11 @@
 <!--
+# Notice
+Flux is in maintenance mode, and it will take a bit
+longer until we get around to issues and PRs.
+
+For more information, and details about Flux's future,
+see: https://github.com/fluxcd/flux/issues/3320
+
 # General contribution criteria
 
 Please have a look at our contribution guidelines: https://github.com/fluxcd/flux/blob/master/CONTRIBUTING.md
