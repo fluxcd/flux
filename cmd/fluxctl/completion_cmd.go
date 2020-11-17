@@ -49,13 +49,13 @@ func newCompletionCommand() *cobra.Command {
 }
 
 func runCompletionBash(out io.Writer, fluxctl *cobra.Command) error {
-	return fluxctl.GenBashCompletion(out)
+	return fluxctl.Root().GenBashCompletion(out)
 }
 
 func runCompletionZsh(out io.Writer, fluxctl *cobra.Command) error {
-	return fluxctl.GenZshCompletion(out)
+	return fluxctl.Root().GenZshCompletion(out)
 }
 
 func runCompletionFish(out io.Writer, fluxctl *cobra.Command) error {
-	return fluxctl.GenFishCompletion(out, true)
+	return fluxctl.Root().GenFishCompletion(out, true)
 }
