@@ -79,12 +79,12 @@ container images and config changes are propagated to the cluster.
 [Quivr](https://quivr.be)|[Rakuten](https://rakuten.com)|[RentPath](https://rentpath.com)
 [Replicated](https://replicated.com)|[Resulta](https://resulta.com)|[Rungway](https://rungway.com)
 [Sage AI Labs](https://www.sage.com)|[Sngular](https://www.sngular.com)|[Starbucks](https://www.starbucks.com/)
-[SupplyStack](https://www.supplystack.com/)|[Talend](https://www.talend.com)|[Troii](https://troii.com/)
-[UK Hydrographic Office](https://www.gov.uk/government/organisations/uk-hydrographic-office)|[Under Armour](https://www.underarmour.com)|[VSHN](https://vshn.ch)
-[Walmart Chile](https://www.walmartchile.cl)|[Weave Cloud](https://cloud.weave.works)|[Wildlife Studios](https://wildlifestudios.com)
-[Workable](https://www.workable.com)|[Workarea](https://www.workarea.com)|[Working Group Two](https://wgtwo.com)
-[Yad2](https://yad2.co.il)|[Yusofleet](https://yusofleet.com)|[Zaaksysteem](https://zaaksysteem.nl)
-[Zwift](https://zwift.com)||
+[SupplyStack](https://www.supplystack.com/)|[Swoop](https://www.swoopfunding.com)|[Talend](https://www.talend.com)
+[Troii](https://troii.com/)|[UK Hydrographic Office](https://www.gov.uk/government/organisations/uk-hydrographic-office)|[Under Armour](https://www.underarmour.com)
+[VSHN](https://vshn.ch)|[Walmart Chile](https://www.walmartchile.cl)|[Weave Cloud](https://cloud.weave.works)
+[Wildlife Studios](https://wildlifestudios.com)|[Workable](https://www.workable.com)|[Workarea](https://www.workarea.com)
+[Working Group Two](https://wgtwo.com)|[Yad2](https://yad2.co.il)|[Yusofleet](https://yusofleet.com)
+[Zaaksysteem](https://zaaksysteem.nl)|[Zwift](https://zwift.com)||
 
 If you too are using Flux in production; please submit a PR to add your organization to the list!
 
