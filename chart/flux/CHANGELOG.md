@@ -1,3 +1,17 @@
+## 1.6.0 (2020-11-20)
+
+### Improvements
+
+ - Updated Flux to `1.21.0`
+   [fluxcd/flux#3314](https://github.com/fluxcd/flux/pull/3314)
+ - Allow envFrom entries in values.yaml
+   [fluxcd/flux#3109](https://github.com/fluxcd/flux/pull/3109)
+
+### Fixes
+
+ - Fix order of hostAliases vs extraContainers
+   [fluxcd/flux#3367](https://github.com/fluxcd/flux/pull/3367)
+
 ## 1.5.0 (2020-08-20)
 
 ### Improvements
