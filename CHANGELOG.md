@@ -8,6 +8,47 @@
 > requests](https://github.com/fluxcd/toolkit/discussions) for Flux v2
 > and Toolkit components.
 
+## 1.21.0 (2020-10-01)
+
+This minor version release updates the versions of `kubectl` and
+`kustomize`.
+
+> **NB**: the updated version of Kustomize includes a _breaking
+> change_ (despite being a patch release), in which [prefix
+> transformers no longer apply to
+> namespaces](https://github.com/kubernetes-sigs/kustomize/issues/235).
+
+### Fixes
+
+- Update go, kubectl and kustomize [fluxcd/flux#3309][]
+
+### Maintenance and documentation
+
+- Correct FAQ typo: fluxcd.io/ignore value must be string [fluxcd/flux#3303][]
+- Clarify misleading FAQ entry. [fluxcd/flux#3281][]
+- Update Fluxcloud URL [fluxcd/flux#3307][]
+- Add production users to list [fluxcd/flux#3249][],
+  [fluxcd/flux#3300][], [fluxcd/flux#3274][]
+- FOSSA scan enabled [fluxcd/flux#3294][]
+- Exclude chart releases from Snap [fluxcd/flux#3266][]
+
+### Thanks
+
+Thanks to @Frederik-Baetens, @austinpray, @bricef, @dewe, @dholbach,
+@idvoretskyi, @lloydchang, @lucioveloso and @stefanprodan for their
+contributions to this release.
+
+[fluxcd/flux#3309]: https://github.com/fluxcd/flux/pull/3309
+[fluxcd/flux#3307]: https://github.com/fluxcd/flux/pull/3307
+[fluxcd/flux#3303]: https://github.com/fluxcd/flux/pull/3303
+[fluxcd/flux#3300]: https://github.com/fluxcd/flux/pull/3300
+[fluxcd/flux#3294]: https://github.com/fluxcd/flux/pull/3294
+[fluxcd/flux#3281]: https://github.com/fluxcd/flux/pull/3281
+[fluxcd/flux#3274]: https://github.com/fluxcd/flux/pull/3274
+[fluxcd/flux#3266]: https://github.com/fluxcd/flux/pull/3266
+[fluxcd/flux#3263]: https://github.com/fluxcd/flux/pull/3263
+[fluxcd/flux#3249]: https://github.com/fluxcd/flux/pull/3249
+
 ## 1.20.2 (2020-08-19)
 
 This patch release includes a bump to kubectl, which may help users
