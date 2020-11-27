@@ -23,7 +23,7 @@ import (
 // built into Kubernetes so that there are no garbage-collection
 // implications. The value is expected to be a serialised
 // `resource.ID`.
-const AntecedentAnnotation = "helm.fluxcd.io/antecedent"
+const AntecedentAnnotation = hr_v1.AntecedentAnnotation
 
 /////////////////////////////////////////////////////////////////////////////
 // Kind registry
@@ -437,7 +437,7 @@ func (hr *helmReleaseKind) getWorkloads(ctx context.Context, c *Cluster, namespa
 }
 
 func makeHelmReleaseStableWorkload(helmRelease *hr_v1.HelmRelease) workload {
-	containers := createK8sHRContainers(helmRelease.ObjectMeta.Annotations, helmRelease.Spec.Values)
+	containers := createK8sHRContainers(helmRelease.ObjectMeta.Annotations, helmRelease.Spec.Values.Data)
 
 	podTemplate := apiv1.PodTemplateSpec{
 		ObjectMeta: helmRelease.ObjectMeta,
