@@ -5,7 +5,7 @@ description: |
   functionality to an easy to use command line interface.
 confinement: classic
 adopt-info: fluxctl
-base: core18
+base: core20
 
 parts:
   fluxctl:
@@ -33,6 +33,7 @@ parts:
       - GO111MODULE: 'on'
       - CGO_ENABLED: '0'
     build-packages:
+      - curl
       - gcc
       - git
       - jq
