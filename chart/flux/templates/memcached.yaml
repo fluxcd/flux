@@ -75,6 +75,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ template "flux.fullname" . }}-memcached
+  namespace: {{ .Release.Namespace }}
   labels:
     app: {{ template "flux.name" . }}-memcached
     chart: {{ template "flux.chart" . }}
