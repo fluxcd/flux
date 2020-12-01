@@ -14,6 +14,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 	jsonschema "github.com/xeipuuv/gojsonschema"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/fluxcd/flux/pkg/image"
 	"github.com/fluxcd/flux/pkg/resource"
@@ -21,7 +22,6 @@ import (
 
 const (
 	ConfigFilename = ".flux.yaml"
-	CommandTimeout = time.Minute
 )
 
 // This is easier to read as YAML, trust me.
@@ -29,8 +29,12 @@ const configSchemaYAML = `
 "$schema": http://json-schema.org/draft-07/schema#
 definitions:
   command:
-    type: object
     required: ['command']
+    type: object
+    properties:
+      command: { type: string }
+      timeout: { type: string }
+    additionalProperties: false
   version: { const: 1 }
 type: object
 oneOf:
@@ -110,39 +114,29 @@ type ConfigFile struct {
 // CommandUpdated represents a config in which updates are done by
 // execing commands as given.
 type CommandUpdated struct {
-	Generators []Generator `json:"generators"`
-	Updaters   []Updater   `json:"updaters,omitempty"`
+	Generators []Command `json:"generators"`
+	Updaters   []Updater `json:"updaters,omitempty"`
 }
 
-// Generator is an individual command for generating manifests.
-type Generator struct {
-	Command string `json:"command,omitempty"`
+// Command is an individual command and timeout for generating manifests.
+type Command struct {
+	Command string           `json:"command,omitempty"`
+	Timeout *metav1.Duration `json:"timeout,omitempty"`
 }
 
 // Updater gives a means for updating image refs and a means for
 // updating policy in a manifest.
 type Updater struct {
-	ContainerImage ContainerImageUpdater `json:"containerImage,omitempty"`
-	Policy         PolicyUpdater         `json:"policy,omitempty"`
-}
-
-// ContainerImageUpdater is a command for updating the image used by a
-// container, in a manifest.
-type ContainerImageUpdater struct {
-	Command string `json:"command,omitempty"`
-}
-
-// PolicyUpdater is a command for updating a policy for a manifest.
-type PolicyUpdater struct {
-	Command string `json:"command,omitempty"`
+	ContainerImage Command `json:"containerImage,omitempty"`
+	Policy         Command `json:"policy,omitempty"`
 }
 
 // PatchUpdated represents a config in which updates are done by
 // maintaining a patch, which is calculating from, and applied to, the
 // generated manifests.
 type PatchUpdated struct {
-	Generators            []Generator `json:"generators"`
-	PatchFile             string      `json:"patchFile,omitempty"`
+	Generators            []Command `json:"generators"`
+	PatchFile             string    `json:"patchFile,omitempty"`
 	generatorsResultCache []byte
 }
 
@@ -229,23 +223,23 @@ func (cf *ConfigFile) ConfigRelativeToWorkingDir() string {
 
 // GenerateManifests returns the manifests generated (and patched, if
 // necessary) according to the config file.
-func (cf *ConfigFile) GenerateManifests(ctx context.Context, manifests Manifests) ([]byte, error) {
+func (cf *ConfigFile) GenerateManifests(ctx context.Context, manifests Manifests, defaultTimeout time.Duration) ([]byte, error) {
 	if cf.PatchUpdated != nil {
-		_, finalBytes, _, err := cf.getGeneratedAndPatchedManifests(ctx, manifests)
+		_, finalBytes, _, err := cf.getGeneratedAndPatchedManifests(ctx, manifests, defaultTimeout)
 		return finalBytes, err
 	}
-	return cf.getGeneratedManifests(ctx, manifests, cf.CommandUpdated.Generators)
+	return cf.getGeneratedManifests(ctx, manifests, cf.CommandUpdated.Generators, defaultTimeout)
 }
 
-func (cf *ConfigFile) SetWorkloadContainerImage(ctx context.Context, manifests Manifests, r resource.Resource, container string, newImageID image.Ref) error {
+func (cf *ConfigFile) SetWorkloadContainerImage(ctx context.Context, manifests Manifests, r resource.Resource, container string, newImageID image.Ref, defaultTimeout time.Duration) error {
 	if cf.PatchUpdated != nil {
 		return cf.updatePatchFile(ctx, manifests, func(previousManifests []byte) ([]byte, error) {
 			return manifests.SetWorkloadContainerImage(previousManifests, r.ResourceID(), container, newImageID)
-		})
+		}, defaultTimeout)
 	}
 
 	// Command-updated
-	result := cf.execContainerImageUpdaters(ctx, r.ResourceID(), container, newImageID.Name.String(), newImageID.Tag)
+	result := cf.execContainerImageUpdaters(ctx, r.ResourceID(), container, newImageID.Name.String(), newImageID.Tag, defaultTimeout)
 	if len(result) == 0 {
 		return makeNoCommandsRunErr("update.containerImage", cf)
 	}
@@ -264,7 +258,7 @@ func (cf *ConfigFile) SetWorkloadContainerImage(ctx context.Context, manifests M
 
 // UpdateWorkloadPolicies updates policies for a workload, using
 // commands or patching according to the config file.
-func (cf *ConfigFile) UpdateWorkloadPolicies(ctx context.Context, manifests Manifests, r resource.Resource, update resource.PolicyUpdate) (bool, error) {
+func (cf *ConfigFile) UpdateWorkloadPolicies(ctx context.Context, manifests Manifests, r resource.Resource, update resource.PolicyUpdate, defaultTimeout time.Duration) (bool, error) {
 	if cf.PatchUpdated != nil {
 		var changed bool
 		err := cf.updatePatchFile(ctx, manifests, func(previousManifests []byte) ([]byte, error) {
@@ -273,7 +267,7 @@ func (cf *ConfigFile) UpdateWorkloadPolicies(ctx context.Context, manifests Mani
 				changed = bytes.Compare(previousManifests, updatedManifests) != 0
 			}
 			return updatedManifests, err
-		})
+		}, defaultTimeout)
 		return changed, err
 	}
 
@@ -288,7 +282,7 @@ func (cf *ConfigFile) UpdateWorkloadPolicies(ctx context.Context, manifests Mani
 	}
 
 	for key, value := range changes {
-		result := cf.execPolicyUpdaters(ctx, r.ResourceID(), key, value)
+		result := cf.execPolicyUpdaters(ctx, r.ResourceID(), key, value, defaultTimeout)
 		if len(result) == 0 {
 			return false, makeNoCommandsRunErr("updaters.policy", cf)
 		}
@@ -324,11 +318,11 @@ type ConfigFileCombinedExecResult struct {
 
 // getGeneratedAndPatchedManifests is used to generate manifests when
 // the config is patchUpdated.
-func (cf *ConfigFile) getGeneratedAndPatchedManifests(ctx context.Context, manifests Manifests) ([]byte, []byte, string, error) {
+func (cf *ConfigFile) getGeneratedAndPatchedManifests(ctx context.Context, manifests Manifests, defaultTimeout time.Duration) ([]byte, []byte, string, error) {
 	generatedManifests := cf.PatchUpdated.generatorsResultCache
 	if generatedManifests == nil {
 		var err error
-		generatedManifests, err = cf.getGeneratedManifests(ctx, manifests, cf.PatchUpdated.Generators)
+		generatedManifests, err = cf.getGeneratedManifests(ctx, manifests, cf.PatchUpdated.Generators, defaultTimeout)
 		if err != nil {
 			return nil, nil, "", err
 		}
@@ -364,9 +358,9 @@ func (cf *ConfigFile) getGeneratedAndPatchedManifests(ctx context.Context, manif
 // getGeneratedManifests is used to produce the manifests based _only_
 // on the generators in the config. This is sufficient for
 // commandUpdated config, and the first step for patchUpdated config.
-func (cf *ConfigFile) getGeneratedManifests(ctx context.Context, manifests Manifests, generators []Generator) ([]byte, error) {
+func (cf *ConfigFile) getGeneratedManifests(ctx context.Context, manifests Manifests, generators []Command, defaultTimeout time.Duration) ([]byte, error) {
 	buf := bytes.NewBuffer(nil)
-	for i, cmdResult := range cf.execGenerators(ctx, generators) {
+	for i, cmdResult := range cf.execGenerators(ctx, generators, defaultTimeout) {
 		if cmdResult.Error != nil {
 			err := fmt.Errorf("error executing generator command %q from file %q: %s\nerror output:\n%s\ngenerated output:\n%s",
 				generators[i].Command,
@@ -386,8 +380,8 @@ func (cf *ConfigFile) getGeneratedManifests(ctx context.Context, manifests Manif
 
 // updatePatchFile calculates the patch given a transformation, and
 // updates the patch file given in the config.
-func (cf *ConfigFile) updatePatchFile(ctx context.Context, manifests Manifests, updateFn func(previousManifests []byte) ([]byte, error)) error {
-	generatedManifests, patchedManifests, patchFilePath, err := cf.getGeneratedAndPatchedManifests(ctx, manifests)
+func (cf *ConfigFile) updatePatchFile(ctx context.Context, manifests Manifests, updateFn func(previousManifests []byte) ([]byte, error), defaultTimeout time.Duration) error {
+	generatedManifests, patchedManifests, patchFilePath, err := cf.getGeneratedAndPatchedManifests(ctx, manifests, defaultTimeout)
 	if err != nil {
 		return fmt.Errorf("error parsing generated, patched output from file %s: %s", cf.configPathRelative, err)
 	}
@@ -404,12 +398,16 @@ func (cf *ConfigFile) updatePatchFile(ctx context.Context, manifests Manifests, 
 
 // execGenerators executes all the generators given and returns the
 // results; it will stop at the first failing command.
-func (cf *ConfigFile) execGenerators(ctx context.Context, generators []Generator) []ConfigFileExecResult {
+func (cf *ConfigFile) execGenerators(ctx context.Context, generators []Command, defaultTimeout time.Duration) []ConfigFileExecResult {
 	result := []ConfigFileExecResult{}
 	for _, g := range generators {
 		stdErr := bytes.NewBuffer(nil)
 		stdOut := bytes.NewBuffer(nil)
-		err := cf.execCommand(ctx, nil, stdOut, stdErr, g.Command)
+		timeout := defaultTimeout
+		if g.Timeout != nil && g.Timeout.Duration >= time.Second {
+			timeout = g.Timeout.Duration
+		}
+		err := cf.execCommand(ctx, nil, stdOut, stdErr, g.Command, timeout)
 		r := ConfigFileExecResult{
 			Stdout: stdOut.Bytes(),
 			Stderr: stdErr.Bytes(),
@@ -427,22 +425,22 @@ func (cf *ConfigFile) execGenerators(ctx context.Context, generators []Generator
 // execContainerImageUpdaters executes all the image updates in the configuration file.
 // It will stop at the first error, in which case the returned error will be non-nil
 func (cf *ConfigFile) execContainerImageUpdaters(ctx context.Context,
-	workload resource.ID, container string, image, imageTag string) []ConfigFileCombinedExecResult {
+	workload resource.ID, container string, image, imageTag string, defaultTimeout time.Duration) []ConfigFileCombinedExecResult {
 	env := makeEnvFromResourceID(workload)
 	env = append(env,
 		"FLUX_CONTAINER="+container,
 		"FLUX_IMG="+image,
 		"FLUX_TAG="+imageTag,
 	)
-	commands := []string{}
+	commands := []Command{}
 	var updaters []Updater
 	if cf.CommandUpdated != nil {
 		updaters = cf.CommandUpdated.Updaters
 	}
 	for _, u := range updaters {
-		commands = append(commands, u.ContainerImage.Command)
+		commands = append(commands, u.ContainerImage)
 	}
-	return cf.execCommandsWithCombinedOutput(ctx, env, commands)
+	return cf.execCommandsWithCombinedOutput(ctx, env, commands, defaultTimeout)
 }
 
 // execPolicyUpdaters executes all the policy update commands given in
@@ -450,29 +448,33 @@ func (cf *ConfigFile) execContainerImageUpdaters(ctx context.Context,
 // policy. It will stop at the first error, in which case the returned
 // error will be non-nil
 func (cf *ConfigFile) execPolicyUpdaters(ctx context.Context,
-	workload resource.ID, policyName, policyValue string) []ConfigFileCombinedExecResult {
+	workload resource.ID, policyName, policyValue string, defaultTimeout time.Duration) []ConfigFileCombinedExecResult {
 	env := makeEnvFromResourceID(workload)
 	env = append(env, "FLUX_POLICY="+policyName)
 	if policyValue != "" {
 		env = append(env, "FLUX_POLICY_VALUE="+policyValue)
 	}
-	commands := []string{}
+	commands := []Command{}
 	var updaters []Updater
 	if cf.CommandUpdated != nil {
 		updaters = cf.CommandUpdated.Updaters
 	}
 	for _, u := range updaters {
-		commands = append(commands, u.Policy.Command)
+		commands = append(commands, u.Policy)
 	}
-	return cf.execCommandsWithCombinedOutput(ctx, env, commands)
+	return cf.execCommandsWithCombinedOutput(ctx, env, commands, defaultTimeout)
 }
 
-func (cf *ConfigFile) execCommandsWithCombinedOutput(ctx context.Context, env []string, commands []string) []ConfigFileCombinedExecResult {
+func (cf *ConfigFile) execCommandsWithCombinedOutput(ctx context.Context, env []string, commands []Command, defaultTimeout time.Duration) []ConfigFileCombinedExecResult {
 	env = append(env, "PATH="+os.Getenv("PATH"))
 	result := []ConfigFileCombinedExecResult{}
 	for _, c := range commands {
 		stdOutAndErr := bytes.NewBuffer(nil)
-		err := cf.execCommand(ctx, env, stdOutAndErr, stdOutAndErr, c)
+		timeout := defaultTimeout
+		if c.Timeout != nil && c.Timeout.Duration >= time.Second {
+			timeout = c.Timeout.Duration
+		}
+		err := cf.execCommand(ctx, env, stdOutAndErr, stdOutAndErr, c.Command, timeout)
 		r := ConfigFileCombinedExecResult{
 			Output: stdOutAndErr.Bytes(),
 			Error:  err,
@@ -486,8 +488,8 @@ func (cf *ConfigFile) execCommandsWithCombinedOutput(ctx context.Context, env []
 	return result
 }
 
-func (cf *ConfigFile) execCommand(ctx context.Context, env []string, stdOut, stdErr io.Writer, command string) error {
-	cmdCtx, cancel := context.WithTimeout(ctx, CommandTimeout)
+func (cf *ConfigFile) execCommand(ctx context.Context, env []string, stdOut, stdErr io.Writer, command string, timeout time.Duration) error {
+	cmdCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", command)
 	cmd.Env = env

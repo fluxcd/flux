@@ -304,12 +304,12 @@ spec:
           {{- end }}
           resources:
 {{ toYaml .Values.resources | indent 12 }}
+{{- if .Values.extraContainers }}
+{{ toYaml .Values.extraContainers | indent 8}}
+{{- end }}
 {{- if .Values.hostAliases }}
       hostAliases:
 {{ toYaml .Values.hostAliases |indent 8 }}
-{{- end }}
-{{- if .Values.extraContainers }}
-{{ toYaml .Values.extraContainers | indent 8}}
 {{- end }}
 {{- if .Values.dnsPolicy }}
       dnsPolicy: {{ .Values.dnsPolicy }}

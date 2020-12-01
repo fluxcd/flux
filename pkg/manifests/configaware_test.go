@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -62,7 +63,7 @@ func setup(t *testing.T, paths []string, configs ...config) (*configAware, strin
 			ioutil.WriteFile(filepath.Join(baseDir, p, ConfigFilename), []byte(c.fluxyaml), 0600)
 		}
 	}
-	frs, err := NewConfigAware(baseDir, searchPaths, manifests)
+	frs, err := NewConfigAware(baseDir, searchPaths, manifests, time.Minute)
 	assert.NoError(t, err)
 	return frs, baseDir, cleanup
 }

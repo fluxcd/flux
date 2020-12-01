@@ -57,34 +57,95 @@ container images and config changes are propagated to the cluster.
 
 ### Who is using Flux in production
 
-|    |     |     |
-| -- | --- | --- |
-[ABA English](https://www.abaenglish.com)|[Alea Play Solutions](http://www.alea.com)|[Apester](https://apester.com)
-[APPUiO](https://appuio.ch)|[ArangoDB Oasis](https://arangodb.com/managed-service)|[Avisi](https://avisi.nl)
-[B3i](https://b3i.tech/)|[Babylon Health](https://www.babylonhealth.com/)|[Belvo](https://belvo.com/)
-[bimspot](https://bimspot.io)|[Bink](https://bink.com)|[BlaBlaCar](https://www.blablacar.com/)
-[blackmirror media](https://blackmirror.media)|[Canva](https://www.canva.com/)|[Carrot](https://carrot.com)
-[Chattigo](https://chattigo.com)|[Cloudlets](https://cloudlets.io)|[Cloudogu GmbH](https://cloudogu.com)
-[CLVR Cloud Ltd](https://clvr.cloud)|[College of William & Mary](https://www.wm.edu)|[Consorcio Chile](https://www.consorcio.cl)|
-[Control Plane](https://control-plane.io)|[CrowdRiff](https://crowdriff.com)|[Cybrary](https://cybrary.it)
-[Duedil](https://www.duedil.com/)|[Enliven Systems](https://enliven.systems)|[FELFEL](https://felfel.ch/)
-[FireHydrant](https://firehydrant.io)|[Frame.io](https://frame.io)|[gastromatic](https://www.gastromatic.de/)
-[Gini](https://gini.net)|[Greenpass](https://www.greenpass.com.br/)|[happn](https://www.happn.com)
-[HMCTS](https://www.gov.uk/government/organisations/hm-courts-and-tribunals-service)|[IBM Cloudant](https://www.ibm.com/cloud/cloudant)|[Improwised Technologies](https://www.improwised.com/)
-[Infabode](https://infabode.com)|[iQmetrix](https://www.iqmetrix.com)|[karriere tutor GmbH](https://www.karrieretutor.de)
-[Limejump](https://limejump.com)|[loveholidays](https://www.loveholidays.com/)|[LUNAR](https://www.lunarway.com/)
-[MediaMarktSaturn](https://www.mediamarktsaturn.com)|[Mettle](https://mettle.co.uk)|[Mintel](https://www.mintel.com)
-[Multicaja S.A](https://www.multicaja.cl)|[Okteto Cloud](https://okteto.com/)|[Omise](https://www.omise.co)
-[Payout](https://payout.one)|[Plex Systems](https://www.plex.com/)|[Qordoba](https://qordoba.com)
-[Quivr](https://quivr.be)|[Rakuten](https://rakuten.com)|[RentPath](https://rentpath.com)
-[Replicated](https://replicated.com)|[Resulta](https://resulta.com)|[Rungway](https://rungway.com)
-[Sage AI Labs](https://www.sage.com)|[Sngular](https://www.sngular.com)|[Starbucks](https://www.starbucks.com/)
-[SupplyStack](https://www.supplystack.com/)|[Talend](https://www.talend.com)|[Troii](https://troii.com/)
-[UK Hydrographic Office](https://www.gov.uk/government/organisations/uk-hydrographic-office)|[Under Armour](https://www.underarmour.com)|[VSHN](https://vshn.ch)
-[Walmart Chile](https://www.walmartchile.cl)|[Weave Cloud](https://cloud.weave.works)|[Wildlife Studios](https://wildlifestudios.com)
-[Workable](https://www.workable.com)|[Workarea](https://www.workarea.com)|[Working Group Two](https://wgtwo.com)
-[Yad2](https://yad2.co.il)|[Yusofleet](https://yusofleet.com)|[Zaaksysteem](https://zaaksysteem.nl)
-[Zwift](https://zwift.com)||
+<table><tr valign="top">
+<td>
+
+ - [ABA English](https://www.abaenglish.com)
+ - [Alea Play Solutions](http://www.alea.com)
+ - [Apester](https://apester.com)
+ - [APPUiO](https://appuio.ch)
+ - [ArangoDB Oasis](https://arangodb.com/managed-service)
+ - [Avisi](https://avisi.nl)
+ - [B3i](https://b3i.tech/)
+ - [Babylon Health](https://www.babylonhealth.com/)
+ - [Belvo](https://belvo.com/)
+ - [bimspot](https://bimspot.io)
+ - [Bink](https://bink.com)
+ - [BlaBlaCar](https://www.blablacar.com/)
+ - [blackmirror media](https://blackmirror.media)
+ - [Canva](https://www.canva.com/)
+ - [Carrot](https://carrot.com)
+ - [Chattigo](https://chattigo.com)
+ - [Cloudlets](https://cloudlets.io)
+ - [Cloudogu GmbH](https://cloudogu.com)
+ - [CLVR Cloud Ltd](https://clvr.cloud)
+ - [College of William & Mary](https://www.wm.edu)
+ - [Consorcio Chile](https://www.consorcio.cl)
+ - [Control Plane](https://control-plane.io)
+ - [CrowdRiff](https://crowdriff.com)
+ - [Cybrary](https://cybrary.it)
+ - [Duedil](https://www.duedil.com/)
+ - [Enliven Systems](https://enliven.systems)
+
+</td><td>
+
+ - [FELFEL](https://felfel.ch/)
+ - [FireHydrant](https://firehydrant.io)
+ - [Frame.io](https://frame.io)
+ - [gastromatic](https://www.gastromatic.de/)
+ - [Gini](https://gini.net)
+ - [Greenpass](https://www.greenpass.com.br/)
+ - [happn](https://www.happn.com)
+ - [HMCTS](https://www.gov.uk/government/organisations/hm-courts-and-tribunals-service)
+ - [IBM Cloudant](https://www.ibm.com/cloud/cloudant)
+ - [Improwised Technologies](https://www.improwised.com/)
+ - [Infabode](https://infabode.com)
+ - [iQmetrix](https://www.iqmetrix.com)
+ - [karriere tutor GmbH](https://www.karrieretutor.de)
+ - [Limejump](https://limejump.com)
+ - [loveholidays](https://www.loveholidays.com/)
+ - [Luma Health](https://lumahealth.io/)
+ - [LUNAR](https://www.lunarway.com/)
+ - [MediaMarktSaturn](https://www.mediamarktsaturn.com)
+ - [Mettle](https://mettle.co.uk)
+ - [Mintel](https://www.mintel.com)
+ - [Multicaja S.A](https://www.multicaja.cl)
+ - [Okteto Cloud](https://okteto.com/)
+ - [Omise](https://www.omise.co)
+ - [Payout](https://payout.one)
+ - [Plex Systems](https://www.plex.com/)
+ - [Qordoba](https://qordoba.com)
+
+</td><td>
+
+ - [Quivr](https://quivr.be)
+ - [Rakuten](https://rakuten.com)
+ - [RentPath](https://rentpath.com)
+ - [Replicated](https://replicated.com)
+ - [Resulta](https://resulta.com)
+ - [Rungway](https://rungway.com)
+ - [Sage AI Labs](https://www.sage.com)
+ - [Sngular](https://www.sngular.com)
+ - [Starbucks](https://www.starbucks.com/)
+ - [SupplyStack](https://www.supplystack.com/)
+ - [Swoop](https://www.swoopfunding.com)
+ - [Talend](https://www.talend.com)
+ - [Troii](https://troii.com/)
+ - [UK Hydrographic Office](https://www.gov.uk/government/organisations/uk-hydrographic-office)
+ - [Under Armour](https://www.underarmour.com)
+ - [VSHN](https://vshn.ch)
+ - [Walmart Chile](https://www.walmartchile.cl)
+ - [Weave Cloud](https://cloud.weave.works)
+ - [Wildlife Studios](https://wildlifestudios.com)
+ - [Workable](https://www.workable.com)
+ - [Workarea](https://www.workarea.com)
+ - [Working Group Two](https://wgtwo.com)
+ - [Yad2](https://yad2.co.il)
+ - [Yusofleet](https://yusofleet.com)
+ - [Zaaksysteem](https://zaaksysteem.nl)
+ - [Zwift](https://zwift.com)
+
+</td></tr></table>
 
 If you too are using Flux in production; please submit a PR to add your organization to the list!
 
@@ -142,9 +203,14 @@ be interested in the following:
 ## <a name="help"></a>Getting Help
 
 Reminder that Flux v1 is in maintenance mode. If you have any questions about Flux v2 and future migrations, these are the best ways to stay informed:
+- Read about the [GitOps Toolkit](https://toolkit.fluxcd.io/) (Flux v2 is built on the GitOps Toolkit).
+- Ask questions and add suggestions in our [GitOps Toolkit Discussions](https://github.com/fluxcd/toolkit/discussions)
+
+- Watch our [featured talks on updates to Flux v2 and the GitOps Toolkit](https://github.com/fluxcd/toolkit#featured-talks)
+- Join the next talk and Q&A about Flux v2 on [Nov 30, 10:00 am PT / 18:00 GMT](https://www.meetup.com/GitOps-Community/events/274658525/)
+
 - Join the [flux-dev mailing list](https://lists.cncf.io/g/cncf-flux-dev).
-- Join the next talk and Q&A about Flux v2 on [Nov 2, 10:00 am PT / 18:00 GMT](https://www.meetup.com/GitOps-Community/events/273934676/)
-- Join the Flux v2 / GitOps Toolkit [community meetings](https://github.com/fluxcd/toolkit/discussions)
+- Join the Flux v2 / GitOps Toolkit [community meetings](https://github.com/fluxcd/flux2#community)
 
 If you have further questions about Flux or continuous delivery:
 

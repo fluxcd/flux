@@ -73,7 +73,7 @@ type repo interface {
 func (d *Daemon) getManifestStore(r repo) (manifests.Store, error) {
 	absPaths := git.MakeAbsolutePaths(r, d.GitConfig.Paths)
 	if d.ManifestGenerationEnabled {
-		return manifests.NewConfigAware(r.Dir(), absPaths, d.Manifests)
+		return manifests.NewConfigAware(r.Dir(), absPaths, d.Manifests, d.SyncTimeout)
 	}
 	return manifests.NewRawFiles(r.Dir(), absPaths, d.Manifests), nil
 }
