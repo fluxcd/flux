@@ -207,7 +207,7 @@ Reminder that Flux v1 is in maintenance mode. If you have any questions about Fl
 - Ask questions and add suggestions in our [GitOps Toolkit Discussions](https://github.com/fluxcd/toolkit/discussions)
 
 - Watch our [featured talks on updates to Flux v2 and the GitOps Toolkit](https://github.com/fluxcd/toolkit#featured-talks)
-- Join the next talk and Q&A about Flux v2 on [Nov 30, 10:00 am PT / 18:00 GMT](https://www.meetup.com/GitOps-Community/events/274658525/)
+- Join the next talk and Q&A about Flux v2 on [Dec 14, 10:00 am PT / 18:00 GMT](https://www.meetup.com/GitOps-Community/events/274924513/)
 
 - Join the [flux-dev mailing list](https://lists.cncf.io/g/cncf-flux-dev).
 - Join the Flux v2 / GitOps Toolkit [community meetings](https://github.com/fluxcd/flux2#community)
