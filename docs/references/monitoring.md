@@ -20,7 +20,7 @@ The following metrics are exposed:
 
 Flux sync state can be obtained by using the following PromQL expressions:
 
-* `delta(flux_daemon_sync_duration_seconds_count{success='true'}[6m]) < 1` - for general flux sync errors - usually if 
+* `increase(flux_daemon_sync_duration_seconds_count{success='true'}[6m]) < 1` - for general flux sync errors - usually if 
 that is true then there are some problems with infrastructure or there are manifests parse error or there are manifests 
 with duplicate ids.
 
