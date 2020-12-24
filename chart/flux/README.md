@@ -95,7 +95,7 @@ helm repo add fluxcd https://charts.fluxcd.io
    helm upgrade -i flux fluxcd/flux \
    --set git.url=git@github.com:fluxcd/flux-get-started \
    --set git.secretName=flux-ssh \
-   --set git.secretDataKey=deploy-key \
+   --set git.secretDataKey=identity \
    --namespace flux
    ```
 
