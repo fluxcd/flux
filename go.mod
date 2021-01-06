@@ -35,7 +35,7 @@ require (
 	github.com/bradfitz/gomemcache v0.0.0-20190329173943-551aad21a668
 	github.com/cheggaaa/pb/v3 v3.0.2
 	github.com/docker/distribution v2.7.1+incompatible
-	github.com/evanphx/json-patch v4.5.0+incompatible
+	github.com/evanphx/json-patch v4.9.0+incompatible
 	github.com/fluxcd/flux/pkg/install v0.0.0-00010101000000-000000000000
 	github.com/fluxcd/helm-operator v1.0.0-rc6
 	github.com/ghodss/yaml v1.0.0

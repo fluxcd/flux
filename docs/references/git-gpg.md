@@ -187,7 +187,7 @@ made, and lock on this revision.
 2. Create a `ConfigMap` with all trusted public keys:
 
     ```sh
-    $ kubectl create configmap generic flux-gpg-public-keys \
+    $ kubectl create configmap flux-gpg-public-keys \
      --from-file=author.asc --from-file=author2.asc --dry-run -o yaml
      apiVersion: v1
      data:
