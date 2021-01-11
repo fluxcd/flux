@@ -25,6 +25,13 @@ rbac:
   create: true
   # Specifies whether PSP resources should be created
   pspEnabled: false
+  # Specifies the role rules to apply to the service account running Flux
+  rules:
+  - apiGroups: ['*']
+    resources: ['*']
+    verbs: ['*']
+  - nonResourceURLs: ['*']
+    verbs: ['*']
 
 serviceAccount:
   # Specifies whether a service account should be created

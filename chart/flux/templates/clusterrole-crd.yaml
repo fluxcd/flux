@@ -1,9 +1,8 @@
-{{- if .Values.rbac.create -}}
-{{if .Values.clusterRole.create -}}
-apiVersion: rbac.authorization.k8s.io/v1beta1
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ template "flux.clusterRoleName" . }}
+  name: {{ template "flux.clusterrole.crd.name" . }}
   labels:
     app: {{ template "flux.name" . }}
     chart: {{ template "flux.chart" . }}
@@ -11,22 +10,23 @@ metadata:
     heritage: {{ .Release.Service }}
 rules:
   - apiGroups:
-      - '*'
+      - apiextensions.k8s.io
     resources:
-      - '*'
+      - customresourcedefinitions
     verbs:
-      - '*'
-  - nonResourceURLs:
-      - '*'
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
     verbs:
-      - '*'
-{{- end -}}
-{{- if or .Values.clusterRole.create .Values.clusterRole.name }}
+      - list
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ template "flux.clusterRoleName" . }}
+  name: {{ template "flux.clusterrole.crd.name" . }}
   labels:
     app: {{ template "flux.name" . }}
     chart: {{ template "flux.chart" . }}
@@ -35,10 +35,8 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ template "flux.clusterRoleName" . }}
+  name: {{ template "flux.clusterrole.crd.name" . }}
 subjects:
   - name: {{ template "flux.serviceAccountName" . }}
     namespace: {{ .Release.Namespace | quote }}
     kind: ServiceAccount
-{{- end -}}
-{{- end -}}

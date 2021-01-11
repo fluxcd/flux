@@ -1,0 +1,34 @@
+{{- if .Values.rbac.create -}}
+{{- if .Values.clusterRole.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ template "flux.clusterRoleName" . }}
+  labels:
+    app: {{ template "flux.name" . }}
+    chart: {{ template "flux.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+rules: {{ .Values.rbac.rules | toYaml | nindent 2 }}
+{{- end -}}
+{{- if or .Values.clusterRole.create .Values.clusterRole.name }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ template "flux.clusterRoleName" . }}
+  labels:
+    app: {{ template "flux.name" . }}
+    chart: {{ template "flux.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ template "flux.clusterRoleName" . }}
+subjects:
+  - name: {{ template "flux.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace | quote }}
+    kind: ServiceAccount
+{{- end -}}
+{{- end -}}

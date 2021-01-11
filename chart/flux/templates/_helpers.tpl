@@ -47,11 +47,34 @@ Create the name of the cluster role to use
 */}}
 {{- define "flux.clusterRoleName" -}}
 {{- if .Values.clusterRole.create -}}
-    {{ default (include "flux.fullname" .) .Values.clusterRole.name }}
+{{- $name := printf "%s-%s" .Release.Namespace (include "flux.fullname" .) -}}
+{{ default $name .Values.clusterRole.name }}
 {{- else -}}
-    {{ default "default" .Values.clusterRole.name }}
+{{ default "default" .Values.clusterRole.name }}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Create cluster wide name for crd cluster role (includes the current namespace)
+*/}}
+{{- define "flux.clusterrole.crd.name" -}}
+{{- printf "%s-%s-%s" .Release.Namespace (include "flux.fullname" .) "crd" | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+Create cluster wide name for psp cluster role (includes the current namespace)
+*/}}
+{{- define "flux.clusterrole.psp.name" -}}
+{{- printf "%s-%s-%s" .Release.Namespace (include "flux.fullname" .) "psp" | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+Create cluster wide name for psp (includes the current namespace)
+*/}}
+{{- define "flux.psp.name" -}}
+{{- printf "%s-%s" .Release.Namespace (include "flux.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
 
 {{/*
 Create a custom repositories.yaml for Helm
