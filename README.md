@@ -110,16 +110,17 @@ container images and config changes are propagated to the cluster.
  - [Mettle](https://mettle.co.uk)
  - [Mintel](https://www.mintel.com)
  - [Multicaja S.A](https://www.multicaja.cl)
+ - [MyFitnessPal](https://www.myfitnesspal.com)
  - [NetHunt](https://nethunt.com)
  - [Okteto Cloud](https://okteto.com/)
  - [Omise](https://www.omise.co)
  - [Payout](https://payout.one)
  - [Plex Systems](https://www.plex.com/)
  - [Qordoba](https://qordoba.com)
- - [Quivr](https://quivr.be)
 
 </td><td>
 
+ - [Quivr](https://quivr.be)
  - [Rakuten](https://rakuten.com)
  - [RentPath](https://rentpath.com)
  - [Replicated](https://replicated.com)
