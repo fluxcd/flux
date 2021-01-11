@@ -69,6 +69,13 @@ Create cluster wide name for psp cluster role (includes the current namespace)
 {{- end }}
 
 {{/*
+Create cluster wide name for psp cluster role (includes the current namespace)
+*/}}
+{{- define "flux.rolebinding.psp.name" -}}
+{{- printf "%s-%s" (include "flux.fullname" .) "psp" | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
 Create cluster wide name for psp (includes the current namespace)
 */}}
 {{- define "flux.psp.name" -}}
