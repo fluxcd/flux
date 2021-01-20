@@ -205,14 +205,11 @@ be interested in the following:
 ## <a name="help"></a>Getting Help
 
 Reminder that Flux v1 is in maintenance mode. If you have any questions about Flux v2 and future migrations, these are the best ways to stay informed:
+
 - Read about the [GitOps Toolkit](https://toolkit.fluxcd.io/) (Flux v2 is built on the GitOps Toolkit).
 - Ask questions and add suggestions in our [GitOps Toolkit Discussions](https://github.com/fluxcd/toolkit/discussions)
-
-- Watch our [featured talks on updates to Flux v2 and the GitOps Toolkit](https://github.com/fluxcd/toolkit#featured-talks)
-- Join the next talk and Q&A about Flux v2 on [Dec 14, 10:00 am PT / 18:00 GMT](https://www.meetup.com/GitOps-Community/events/274924513/)
-
-- Join the [flux-dev mailing list](https://lists.cncf.io/g/cncf-flux-dev).
-- Join the Flux v2 / GitOps Toolkit [community meetings](https://github.com/fluxcd/flux2#community)
+- Watch our [featured talks on updates to Flux v2 and the GitOps Toolkit](https://fluxcd.io/community#featured-talks)
+- Join the Flux v2 / GitOps Toolkit [community meetings](https://fluxcd.io/community/#meetings)
 
 If you have further questions about Flux or continuous delivery:
 
