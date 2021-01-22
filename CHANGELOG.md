@@ -8,6 +8,61 @@
 > requests](https://github.com/fluxcd/toolkit/discussions) for Flux v2
 > and Toolkit components.
 
+## 1.21.1 (2021-01-06)
+
+### Fixes
+
+- Fix shell completion [fluxcd/flux#3355][]
+- Optional command timeout field in .flux.yaml [fluxcd/flux#3228][]
+
+### Maintenance and documentation
+
+- Add to list of production users [fluxcd/flux#3386][],
+  [fluxcd/flux#3247][], [fluxcd/flux#3360][], [fluxcd/flux#3290][],
+  [fluxcd/flux#3315][], [fluxcd/flux#3280][]
+- Let productions users table reflow better [fluxcd/flux#3376][]
+- Upgrade json-patch to v4.9.0 [fluxcd/flux#3373][]
+- snap: move to core20 [fluxcd/flux#3371][]
+- snap: update build to use go 1.15 [fluxcd/flux#3345][]
+- Update engineerd/setup-kind to v0.5.0 [fluxcd/flux#3364][]
+- Use fossa-contrib/fossa-action instead [fluxcd/flux#3331][]
+- Fixup configmap in Git GPG documentation [fluxcd/flux#3311][]
+- Add maintenance note to GitHub templates and README
+  [fluxcd/flux#3321][], [fluxcd/flux#3333][]
+- Move Fons to maintainer emeritus [fluxcd/flux#3319][]
+- Point to Flagger website [fluxcd/flux#3391][]
+- Specific documentation for HelmRelease Automation
+  [fluxcd/flux#3144][]
+
+### Thanks
+
+Thanks to @SimonyanG, @alanjcastonguay, @alisondy, @austinbv,
+@daniswoop, @demon, @dholbach, @douglasquintanilha, @gaffneyd4,
+@joaovitor, @kingdonb, @lalyos, @marshallford, @mcanaves, @mewzherder,
+@smorimoto, @squaremo and @stefansedich for their contributions to
+this release.
+
+[fluxcd/flux#3391]: https://github.com/fluxcd/flux/pull/3391
+[fluxcd/flux#3386]: https://github.com/fluxcd/flux/pull/3386
+[fluxcd/flux#3376]: https://github.com/fluxcd/flux/pull/3376
+[fluxcd/flux#3373]: https://github.com/fluxcd/flux/pull/3373
+[fluxcd/flux#3371]: https://github.com/fluxcd/flux/pull/3371
+[fluxcd/flux#3364]: https://github.com/fluxcd/flux/pull/3364
+[fluxcd/flux#3360]: https://github.com/fluxcd/flux/pull/3360
+[fluxcd/flux#3355]: https://github.com/fluxcd/flux/pull/3355
+[fluxcd/flux#3345]: https://github.com/fluxcd/flux/pull/3345
+[fluxcd/flux#3333]: https://github.com/fluxcd/flux/pull/3333
+[fluxcd/flux#3331]: https://github.com/fluxcd/flux/pull/3331
+[fluxcd/flux#3321]: https://github.com/fluxcd/flux/pull/3321
+[fluxcd/flux#3319]: https://github.com/fluxcd/flux/pull/3319
+[fluxcd/flux#3315]: https://github.com/fluxcd/flux/pull/3315
+[fluxcd/flux#3311]: https://github.com/fluxcd/flux/pull/3311
+[fluxcd/flux#3290]: https://github.com/fluxcd/flux/pull/3290
+[fluxcd/flux#3280]: https://github.com/fluxcd/flux/pull/3280
+[fluxcd/flux#3247]: https://github.com/fluxcd/flux/pull/3247
+[fluxcd/flux#3228]: https://github.com/fluxcd/flux/pull/3228
+[fluxcd/flux#3144]: https://github.com/fluxcd/flux/pull/3144
+
 ## 1.21.0 (2020-10-01)
 
 This minor version release updates the versions of `kubectl` and
