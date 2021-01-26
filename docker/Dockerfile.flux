@@ -4,6 +4,7 @@ WORKDIR /home/flux
 
 RUN apk add --no-cache openssh-client ca-certificates tini 'git>=2.24.2' 'gnutls>=3.6.7' 'glib>=2.62.5-r0' gnupg gawk socat
 RUN apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/testing git-secret
+RUN set -o pipefail && apk add --no-cache libintl && apk add --no-cache --virtual build_deps gettext && cp /usr/bin/envsubst /usr/local/bin/envsubst && apk del build_deps
 
 # Add git hosts to known hosts file so we can use
 # StrickHostKeyChecking with git+ssh
