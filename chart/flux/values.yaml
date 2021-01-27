@@ -77,6 +77,8 @@ extraVolumes: []
 #     - name: ndots
 #       value: "1"
 
+hostNetwork: false
+
 gpgKeys:
   # These keys will be imported into GPG in the Flux container.
   secretName: ""
