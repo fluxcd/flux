@@ -119,7 +119,8 @@ func (skr *sshKeyRing) Regenerate() error {
 
 	patch := map[string]map[string]string{
 		"data": map[string]string{
-			"identity": base64.StdEncoding.EncodeToString(privateKey),
+			"identity":     base64.StdEncoding.EncodeToString(privateKey),
+			"identity.pub": base64.StdEncoding.EncodeToString([]byte(publicKey.Key)),
 		},
 	}
 
