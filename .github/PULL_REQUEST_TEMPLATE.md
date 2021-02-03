@@ -7,7 +7,7 @@ If you want to learn about migrating to Flux v2, please review
 <https://github.com/fluxcd/flux2/discussions/413>.
 
 As it will take longer until we get around to issues and PRs in
-Flux v1, we strongly recommend that you starting familiaring yourself
+Flux v1, we strongly recommend that you start familiarising yourself
 with Flux v2: <https://toolkit.fluxcd.io/>
 
 This means that new features will only be added after very careful
