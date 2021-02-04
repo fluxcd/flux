@@ -94,6 +94,7 @@ container images and config changes are propagated to the cluster.
  - [Frame.io](https://frame.io)
  - [gastromatic](https://www.gastromatic.de/)
  - [Gini](https://gini.net)
+ - [GlobalX](https://globalx.com.au)
  - [Greenpass](https://www.greenpass.com.br/)
  - [happn](https://www.happn.com)
  - [HMCTS](https://www.gov.uk/government/organisations/hm-courts-and-tribunals-service)
@@ -116,10 +117,10 @@ container images and config changes are propagated to the cluster.
  - [Omise](https://www.omise.co)
  - [Payout](https://payout.one)
  - [Plex Systems](https://www.plex.com/)
- - [Qordoba](https://qordoba.com)
 
 </td><td>
 
+ - [Qordoba](https://qordoba.com)
  - [Quivr](https://quivr.be)
  - [Rakuten](https://rakuten.com)
  - [RentPath](https://rentpath.com)
