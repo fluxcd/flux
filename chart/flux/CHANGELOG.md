@@ -1,3 +1,15 @@
+## 1.6.1 (2021-02-04)
+
+### Improvements
+
+ - Updated Flux to `1.21.1`
+   [fluxcd/flux#3393](https://github.com/fluxcd/flux/pull/3393)
+
+### Fixes
+
+ - Sets namespace on memcached service
+   [fluxcd/flux#3346](https://github.com/fluxcd/flux/pull/3346)
+
 ## 1.6.0 (2020-11-20)
 
 ### Improvements
