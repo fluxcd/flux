@@ -8,6 +8,25 @@
 > requests](https://github.com/fluxcd/toolkit/discussions) for Flux v2
 > and Toolkit components.
 
+## 1.21.2 (2021-02-XX)
+
+### Fixes
+
+- Fix shell completion [fluxcd/flux#3355][]
+- WIP
+
+### Maintenance and documentation
+
+- Add to list of production users [fluxcd/flux#3386][],
+  [fluxcd/flux#3247][], [fluxcd/flux#3360][], [fluxcd/flux#3290][],
+  [fluxcd/flux#3315][], [fluxcd/flux#3280][]
+
+### Thanks
+
+Thanks to @ WIP for their contributions to this release
+
+[fluxcd/flux#3391]: https://github.com/fluxcd/flux/pull/3391
+
 ## 1.21.1 (2021-01-06)
 
 ### Fixes
