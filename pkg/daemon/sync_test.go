@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -715,9 +716,32 @@ func TestDoSync_WithErrors(t *testing.T) {
 		t.Error(err)
 	}
 
+	findWorkingDirs := func() map[string]bool {
+		entries, err := ioutil.ReadDir(os.TempDir())
+		if err != nil {
+			t.Fatalf("ioutil.ReadDir(%q)=%v, want no error", os.TempDir(), err)
+		}
+
+		found := make(map[string]bool, len(entries))
+		for _, e := range entries {
+			// Makes an assumption about the location a repo export will happen.
+			if strings.HasPrefix(e.Name(), "flux-working") {
+				found[e.Name()] = true
+			}
+		}
+		return found
+	}
+
+	prior := findWorkingDirs()
+
 	if err := d.Sync(ctx, time.Now().UTC(), "HEAD", syncState); err != nil {
 		// Check error not nil, manifest counters remain the same
 		checkSyncManifestsMetrics(t, len(expectedResourceIDs), 0)
+		for d := range findWorkingDirs() {
+			if !prior[d] {
+				t.Errorf("Found %q in %q - failed to cleanup when returning an error", d, os.TempDir())
+			}
+		}
 	} else {
 		t.Error("Sync must fail because of invalid manifest")
 	}
