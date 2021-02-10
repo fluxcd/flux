@@ -1,17 +1,5 @@
 # Flux documentation
 
-!!!info "Flux v1 is in maintenance mode"
-    You are looking at the documentation of Flux v1, which
-    [is in maintenance mode](https://github.com/fluxcd/flux/issues/3320).
-
-    The Flux community is working with most of its energy on
-    **[Flux v2](https://toolkit.fluxcd.io/)** these days which is a more modern
-    approach to GitOps, implements some long-requested features of v1 and
-    is generally more flexible. It will be GA soon.
-
-    We strongly recommend you familiarise yourself with Flux v2 and start
-    looking at your [migration path](https://github.com/fluxcd/flux2/discussions/413).
-
 ![](_files/flux-cd-diagram.png)
 
 Flux is a tool that automatically ensures that the state of a cluster matches
