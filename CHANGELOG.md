@@ -8,6 +8,45 @@
 > requests](https://github.com/fluxcd/toolkit/discussions) for Flux v2
 > and Toolkit components.
 
+## 1.21.2 (2021-02-16)
+
+This patch release surfaces a notice from https://docs.fluxcd.io/en/latest/
+declaring that "Flux v1 is in maintenance mode" into the Flux v1 stable docs,
+as well as pointing users from as many places as possible to the new Flux v2.
+
+### Fixes
+
+- Update AWS SDK and SOPS [fluxcd/flux#3401][]
+- Set Rollout strategy type: Recreate (Fixes for chart 1.6.2)
+  [fluxcd/flux#3325][]
+
+### Maintenance and documentation
+
+- Point to Flux v2 from docs [fluxcd/flux#3419][], [fluxcd/flux#3423][]
+- Point to new community resources at [fluxcd.io](https://fluxcd.io)
+  [fluxcd/flux#3403][]
+- Update issue/PR templates to mention Flux v2 [fluxcd/flux#3415][],
+  [fluxcd/flux#3414][]
+- Add NetHunt to list of production users [fluxcd/flux#3399][]
+
+### Thanks
+
+Thanks to @nairb774, @ViBiOh, @SvitlanaTsupryk-jul18, @dholbach, @drewfreyling,
+@stefanprodan, @hiddeco, @kingdonb and @squaremo for their contributions to
+this release.
+
+[fluxcd/flux#3423]: https://github.com/fluxcd/flux/pull/3423
+[fluxcd/flux#3419]: https://github.com/fluxcd/flux/pull/3419
+[fluxcd/flux#3416]: https://github.com/fluxcd/flux/pull/3416
+[fluxcd/flux#3415]: https://github.com/fluxcd/flux/pull/3415
+[fluxcd/flux#3414]: https://github.com/fluxcd/flux/pull/3414
+[fluxcd/flux#3403]: https://github.com/fluxcd/flux/pull/3403
+[fluxcd/flux#3401]: https://github.com/fluxcd/flux/pull/3401
+[fluxcd/flux#3400]: https://github.com/fluxcd/flux/pull/3400
+[fluxcd/flux#3399]: https://github.com/fluxcd/flux/pull/3399
+[fluxcd/flux#3358]: https://github.com/fluxcd/flux/pull/3358
+[fluxcd/flux#3325]: https://github.com/fluxcd/flux/pull/3325
+
 ## 1.21.1 (2021-01-06)
 
 ### Fixes
