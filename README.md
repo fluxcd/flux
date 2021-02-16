@@ -94,6 +94,7 @@ container images and config changes are propagated to the cluster.
  - [Frame.io](https://frame.io)
  - [gastromatic](https://www.gastromatic.de/)
  - [Gini](https://gini.net)
+ - [GlobalX](https://globalx.com.au)
  - [Greenpass](https://www.greenpass.com.br/)
  - [happn](https://www.happn.com)
  - [HMCTS](https://www.gov.uk/government/organisations/hm-courts-and-tribunals-service)
@@ -111,15 +112,16 @@ container images and config changes are propagated to the cluster.
  - [Mintel](https://www.mintel.com)
  - [Multicaja S.A](https://www.multicaja.cl)
  - [MyFitnessPal](https://www.myfitnesspal.com)
+ - [NetHunt](https://nethunt.com)
  - [Okteto Cloud](https://okteto.com/)
  - [Omise](https://www.omise.co)
  - [Payout](https://payout.one)
  - [Plex Systems](https://www.plex.com/)
- - [Qordoba](https://qordoba.com)
- - [Quivr](https://quivr.be)
 
 </td><td>
 
+ - [Qordoba](https://qordoba.com)
+ - [Quivr](https://quivr.be)
  - [Rakuten](https://rakuten.com)
  - [RentPath](https://rentpath.com)
  - [Replicated](https://replicated.com)
@@ -204,14 +206,11 @@ be interested in the following:
 ## <a name="help"></a>Getting Help
 
 Reminder that Flux v1 is in maintenance mode. If you have any questions about Flux v2 and future migrations, these are the best ways to stay informed:
+
 - Read about the [GitOps Toolkit](https://toolkit.fluxcd.io/) (Flux v2 is built on the GitOps Toolkit).
 - Ask questions and add suggestions in our [GitOps Toolkit Discussions](https://github.com/fluxcd/toolkit/discussions)
-
-- Watch our [featured talks on updates to Flux v2 and the GitOps Toolkit](https://github.com/fluxcd/toolkit#featured-talks)
-- Join the next talk and Q&A about Flux v2 on [Dec 14, 10:00 am PT / 18:00 GMT](https://www.meetup.com/GitOps-Community/events/274924513/)
-
-- Join the [flux-dev mailing list](https://lists.cncf.io/g/cncf-flux-dev).
-- Join the Flux v2 / GitOps Toolkit [community meetings](https://github.com/fluxcd/flux2#community)
+- Watch our [featured talks on updates to Flux v2 and the GitOps Toolkit](https://fluxcd.io/community#featured-talks)
+- Join the Flux v2 / GitOps Toolkit [community meetings](https://fluxcd.io/community/#meetings)
 
 If you have further questions about Flux or continuous delivery:
 

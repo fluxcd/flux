@@ -15,6 +15,7 @@ theme:
   palette:
     primary: blue
     accent: indigo
+  custom_dir: docs_theme_override
 
 docs_dir: docs
 
