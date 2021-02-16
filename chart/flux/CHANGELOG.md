@@ -1,3 +1,15 @@
+## 1.6.2 (2021-02-16)
+
+### Improvements
+
+ - Updated Flux to `1.21.2`
+   [fluxcd/flux#3421](https://github.com/fluxcd/flux/pull/3421)
+
+### Fixes
+
+ - Set Rollout strategy type: Recreate
+   [fluxcd/flux#3325](https://github.com/fluxcd/flux/pull/3325)
+
 ## 1.6.1 (2021-02-04)
 
 ### Improvements
