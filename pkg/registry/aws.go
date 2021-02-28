@@ -134,9 +134,6 @@ func ImageCredsWithAWSAuth(lookup func() ImageCreds, logger log.Logger, config A
 			metadataRegion, err := ec2.Region()
 			if err != nil {
 				preflightErr = err
-				if config.Regions == nil {
-					config.Regions = []string{}
-				}
 				logger.Log("error", "fetching region for AWS", "err", err)
 				return
 			}
