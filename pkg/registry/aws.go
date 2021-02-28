@@ -45,7 +45,10 @@ type AWSRegistryConfig struct {
 	BlockIDs   []string
 }
 
-func contains(strs []string, str string) bool {
+func containsOrNil(strs []string, str string) bool {
+	if strs == nil {
+		return true
+	}
 	for _, s := range strs {
 		if s == str {
 			return true
@@ -169,15 +172,10 @@ func ImageCredsWithAWSAuth(lookup func() ImageCreds, logger log.Logger, config A
 	regionEmbargo := map[string]time.Time{}
 
 	// should this registry be scanned?
-	var shouldScan func(string, string) bool
-	if config.AccountIDs == nil {
-		shouldScan = func(region, accountID string) bool {
-			return contains(config.Regions, region) && !contains(config.BlockIDs, accountID)
-		}
-	} else {
-		shouldScan = func(region, accountID string) bool {
-			return contains(config.Regions, region) && contains(config.AccountIDs, accountID) && !contains(config.BlockIDs, accountID)
-		}
+	shouldScan := func(region, accountID string) bool {
+		return containsOrNil(config.Regions, region) &&
+			containsOrNil(config.AccountIDs, accountID) &&
+			!containsOrNil(config.BlockIDs, accountID)
 	}
 
 	ensureCreds := func(domain, region, accountID string, now time.Time) error {
