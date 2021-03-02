@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	crdv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	crdfake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -13,7 +13,7 @@ import (
 func TestCachedDiscovery(t *testing.T) {
 	coreClient := makeFakeClient()
 
-	myCRD := &crdv1beta1.CustomResourceDefinition{
+	myCRD := &crdv1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "custom",
 		},
@@ -69,7 +69,7 @@ func TestCachedDiscovery(t *testing.T) {
 	coreClient.Fake.Resources = append(apiResources, updatedAPI)
 
 	// Provoke the cached discovery client into invalidating
-	_, err = crdClient.ApiextensionsV1beta1().CustomResourceDefinitions().Update(myCRD)
+	_, err = crdClient.ApiextensionsV1().CustomResourceDefinitions().Update(myCRD)
 	if err != nil {
 		t.Fatal(err)
 	}
