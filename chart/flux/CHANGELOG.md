@@ -1,3 +1,41 @@
+## 1.6.2 (2021-02-16)
+
+### Improvements
+
+ - Updated Flux to `1.21.2`
+   [fluxcd/flux#3421](https://github.com/fluxcd/flux/pull/3421)
+
+### Fixes
+
+ - Set Rollout strategy type: Recreate
+   [fluxcd/flux#3325](https://github.com/fluxcd/flux/pull/3325)
+
+## 1.6.1 (2021-02-04)
+
+### Improvements
+
+ - Updated Flux to `1.21.1`
+   [fluxcd/flux#3393](https://github.com/fluxcd/flux/pull/3393)
+
+### Fixes
+
+ - Sets namespace on memcached service
+   [fluxcd/flux#3346](https://github.com/fluxcd/flux/pull/3346)
+
+## 1.6.0 (2020-11-20)
+
+### Improvements
+
+ - Updated Flux to `1.21.0`
+   [fluxcd/flux#3314](https://github.com/fluxcd/flux/pull/3314)
+ - Allow envFrom entries in values.yaml
+   [fluxcd/flux#3109](https://github.com/fluxcd/flux/pull/3109)
+
+### Fixes
+
+ - Fix order of hostAliases vs extraContainers
+   [fluxcd/flux#3367](https://github.com/fluxcd/flux/pull/3367)
+
 ## 1.5.0 (2020-08-20)
 
 ### Improvements

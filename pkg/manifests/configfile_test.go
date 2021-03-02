@@ -3,6 +3,7 @@ package manifests
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -45,6 +46,15 @@ patchUpdated:
 version: 1
 commandUpdated:
   generators: []
+  patchFile: "foo.yaml"
+`,
+
+		"generator timeout is a number": `
+version: 1
+patchUpdated:
+  generators:
+  - command: some command
+    timeout: 5
   patchFile: "foo.yaml"
 `,
 	} {
@@ -97,9 +107,12 @@ func TestJustFileDirective(t *testing.T) {
 const patchUpdatedConfigFile = `---
 version: 1
 patchUpdated:
-  generators: 
-    - command: foo
-    - command: bar
+  generators:
+    - command: sleep 1 
+    - command: sleep 1
+      timeout: 2s
+    - command: sleep 2
+      timeout: 1s
   patchFile: baz.yaml
 `
 
@@ -112,9 +125,21 @@ func TestParsePatchUpdatedConfigFile(t *testing.T) {
 	assert.NotNil(t, cf.PatchUpdated)
 	assert.Nil(t, cf.CommandUpdated)
 	assert.Equal(t, 1, cf.Version)
-	assert.Equal(t, 2, len(cf.PatchUpdated.Generators))
-	assert.Equal(t, "bar", cf.PatchUpdated.Generators[1].Command)
+	assert.Equal(t, 3, len(cf.PatchUpdated.Generators))
+	assert.Equal(t, time.Second*2, cf.PatchUpdated.Generators[1].Timeout.Duration)
+	assert.Equal(t, "sleep 2", cf.PatchUpdated.Generators[2].Command)
 	assert.Equal(t, "baz.yaml", cf.PatchUpdated.PatchFile)
+}
+
+func TestExecGeneratorsTimeout(t *testing.T) {
+	var cf ConfigFile
+	if err := ParseConfigFile([]byte(patchUpdatedConfigFile), &cf); err != nil {
+		t.Fatal(err)
+	}
+	result := cf.execGenerators(context.Background(), cf.PatchUpdated.Generators, time.Second*2)
+	assert.Nil(t, result[0].Error)
+	assert.Nil(t, result[1].Error)
+	assert.NotNil(t, result[2].Error)
 }
 
 const echoCmdUpdatedConfigFile = `---
@@ -159,7 +184,7 @@ func TestExecGenerators(t *testing.T) {
 	var cf ConfigFile
 	err := ParseConfigFile([]byte(echoCmdUpdatedConfigFile), &cf)
 	assert.NoError(t, err)
-	result := cf.execGenerators(context.Background(), cf.CommandUpdated.Generators)
+	result := cf.execGenerators(context.Background(), cf.CommandUpdated.Generators, time.Minute)
 	assert.Equal(t, 2, len(result), "result: %s", result)
 	assert.Equal(t, "g1\n", string(result[0].Stdout))
 	assert.Equal(t, "g2\n", string(result[1].Stdout))
@@ -170,7 +195,7 @@ func TestExecContainerImageUpdaters(t *testing.T) {
 	err := ParseConfigFile([]byte(echoCmdUpdatedConfigFile), &cf)
 	assert.NoError(t, err)
 	resourceID := resource.MustParseID("default:deployment/foo")
-	result := cf.execContainerImageUpdaters(context.Background(), resourceID, "bar", "repo/image", "latest")
+	result := cf.execContainerImageUpdaters(context.Background(), resourceID, "bar", "repo/image", "latest", time.Minute)
 	assert.Equal(t, 2, len(result), "result: %s", result)
 	assert.Equal(t,
 		"uci1 default:deployment/foo default deployment foo bar repo/image latest\n",
@@ -188,7 +213,7 @@ func TestExecAnnotationUpdaters(t *testing.T) {
 
 	// Test the update/addition of annotations
 	annotationValue := "value"
-	result := cf.execPolicyUpdaters(context.Background(), resourceID, "key", annotationValue)
+	result := cf.execPolicyUpdaters(context.Background(), resourceID, "key", annotationValue, time.Minute)
 	assert.Equal(t, 2, len(result), "result: %s", result)
 	assert.Equal(t,
 		"ua1 default:deployment/foo default deployment foo key value\n",
@@ -198,7 +223,7 @@ func TestExecAnnotationUpdaters(t *testing.T) {
 		string(result[1].Output))
 
 	// Test the deletion of annotations "
-	result = cf.execPolicyUpdaters(context.Background(), resourceID, "key", "")
+	result = cf.execPolicyUpdaters(context.Background(), resourceID, "key", "", time.Minute)
 	assert.Equal(t, 2, len(result), "result: %s", result)
 	assert.Equal(t,
 		"ua1 default:deployment/foo default deployment foo key delete\n",

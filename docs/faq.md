@@ -118,7 +118,7 @@ should also provide a readonly SSH key; e.g., on GitHub, leave the
 
 ### Does Flux automatically sync changes back to git?
 
-No. It applies changes to git only when a Flux command or API call makes them.
+No, Flux will not update Git based on changes to the clusters performed through some other means. It applies changes to git only when a Flux command or API call makes them. For example, when [automated image updates](references/automated-image-update.md) are enabled.
 
 ### Will Flux delete resources when I remove them from git?
 
@@ -304,7 +304,7 @@ Yes. The easiest way to do that is to use the following annotation in the manife
 the change to git:
 
 ```yaml
-    fluxcd.io/ignore: true
+    fluxcd.io/ignore: "true"
 ```
 
 To stop ignoring these annotated resources, you simply remove the annotation from the manifests in git.

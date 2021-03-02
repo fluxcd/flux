@@ -26,7 +26,7 @@ Operator](https://github.com/fluxcd/helm-operator) to declaratively manage chart
 releases using `HelmRelease` custom resources.
 
 For progressive delivery patterns like Canary Releases, A/B Testing and Blue/Green,
-Flux can be used together with [Flagger](https://github.com/weaveworks/flagger).
+Flux can be used together with [Flagger](https://flagger.app).
 
 ## Getting help
 

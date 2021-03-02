@@ -15,6 +15,7 @@ theme:
   palette:
     primary: blue
     accent: indigo
+  custom_dir: docs_theme_override
 
 docs_dir: docs
 
@@ -40,6 +41,10 @@ extra:
       link: https://fluxcd.io
     - icon: fontawesome/brands/github-alt
       link: https://github.com/fluxcd
+    - icon: fontawesome/brands/twitter
+      link: https://twitter.com/fluxcd
+    - icon: fontawesome/brands/linkedin
+      link: https://linkedin.com/groups/8985374
 
 nav:
   - Introducing Flux: introduction.md

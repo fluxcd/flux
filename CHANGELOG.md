@@ -8,6 +8,141 @@
 > requests](https://github.com/fluxcd/toolkit/discussions) for Flux v2
 > and Toolkit components.
 
+## 1.21.2 (2021-02-16)
+
+This patch release surfaces a notice from https://docs.fluxcd.io/en/latest/
+declaring that "Flux v1 is in maintenance mode" into the Flux v1 stable docs,
+as well as pointing users from as many places as possible to the new Flux v2.
+
+### Fixes
+
+- Update AWS SDK and SOPS [fluxcd/flux#3401][]
+- Set Rollout strategy type: Recreate (Fixes for chart 1.6.2)
+  [fluxcd/flux#3325][]
+
+### Maintenance and documentation
+
+- Point to Flux v2 from docs [fluxcd/flux#3419][], [fluxcd/flux#3423][]
+- Point to new community resources at [fluxcd.io](https://fluxcd.io)
+  [fluxcd/flux#3403][]
+- Update issue/PR templates to mention Flux v2 [fluxcd/flux#3415][],
+  [fluxcd/flux#3414][]
+- Add NetHunt to list of production users [fluxcd/flux#3399][]
+
+### Thanks
+
+Thanks to @nairb774, @ViBiOh, @SvitlanaTsupryk-jul18, @dholbach, @drewfreyling,
+@stefanprodan, @hiddeco, @kingdonb and @squaremo for their contributions to
+this release.
+
+[fluxcd/flux#3423]: https://github.com/fluxcd/flux/pull/3423
+[fluxcd/flux#3419]: https://github.com/fluxcd/flux/pull/3419
+[fluxcd/flux#3416]: https://github.com/fluxcd/flux/pull/3416
+[fluxcd/flux#3415]: https://github.com/fluxcd/flux/pull/3415
+[fluxcd/flux#3414]: https://github.com/fluxcd/flux/pull/3414
+[fluxcd/flux#3403]: https://github.com/fluxcd/flux/pull/3403
+[fluxcd/flux#3401]: https://github.com/fluxcd/flux/pull/3401
+[fluxcd/flux#3400]: https://github.com/fluxcd/flux/pull/3400
+[fluxcd/flux#3399]: https://github.com/fluxcd/flux/pull/3399
+[fluxcd/flux#3358]: https://github.com/fluxcd/flux/pull/3358
+[fluxcd/flux#3325]: https://github.com/fluxcd/flux/pull/3325
+
+## 1.21.1 (2021-01-06)
+
+### Fixes
+
+- Fix shell completion [fluxcd/flux#3355][]
+- Optional command timeout field in .flux.yaml [fluxcd/flux#3228][]
+
+### Maintenance and documentation
+
+- Add to list of production users [fluxcd/flux#3386][],
+  [fluxcd/flux#3247][], [fluxcd/flux#3360][], [fluxcd/flux#3290][],
+  [fluxcd/flux#3315][], [fluxcd/flux#3280][]
+- Let productions users table reflow better [fluxcd/flux#3376][]
+- Upgrade json-patch to v4.9.0 [fluxcd/flux#3373][]
+- snap: move to core20 [fluxcd/flux#3371][]
+- snap: update build to use go 1.15 [fluxcd/flux#3345][]
+- Update engineerd/setup-kind to v0.5.0 [fluxcd/flux#3364][]
+- Use fossa-contrib/fossa-action instead [fluxcd/flux#3331][]
+- Fixup configmap in Git GPG documentation [fluxcd/flux#3311][]
+- Add maintenance note to GitHub templates and README
+  [fluxcd/flux#3321][], [fluxcd/flux#3333][]
+- Move Fons to maintainer emeritus [fluxcd/flux#3319][]
+- Point to Flagger website [fluxcd/flux#3391][]
+- Specific documentation for HelmRelease Automation
+  [fluxcd/flux#3144][]
+
+### Thanks
+
+Thanks to @SimonyanG, @alanjcastonguay, @alisondy, @austinbv,
+@daniswoop, @demon, @dholbach, @douglasquintanilha, @gaffneyd4,
+@joaovitor, @kingdonb, @lalyos, @marshallford, @mcanaves, @mewzherder,
+@smorimoto, @squaremo and @stefansedich for their contributions to
+this release.
+
+[fluxcd/flux#3391]: https://github.com/fluxcd/flux/pull/3391
+[fluxcd/flux#3386]: https://github.com/fluxcd/flux/pull/3386
+[fluxcd/flux#3376]: https://github.com/fluxcd/flux/pull/3376
+[fluxcd/flux#3373]: https://github.com/fluxcd/flux/pull/3373
+[fluxcd/flux#3371]: https://github.com/fluxcd/flux/pull/3371
+[fluxcd/flux#3364]: https://github.com/fluxcd/flux/pull/3364
+[fluxcd/flux#3360]: https://github.com/fluxcd/flux/pull/3360
+[fluxcd/flux#3355]: https://github.com/fluxcd/flux/pull/3355
+[fluxcd/flux#3345]: https://github.com/fluxcd/flux/pull/3345
+[fluxcd/flux#3333]: https://github.com/fluxcd/flux/pull/3333
+[fluxcd/flux#3331]: https://github.com/fluxcd/flux/pull/3331
+[fluxcd/flux#3321]: https://github.com/fluxcd/flux/pull/3321
+[fluxcd/flux#3319]: https://github.com/fluxcd/flux/pull/3319
+[fluxcd/flux#3315]: https://github.com/fluxcd/flux/pull/3315
+[fluxcd/flux#3311]: https://github.com/fluxcd/flux/pull/3311
+[fluxcd/flux#3290]: https://github.com/fluxcd/flux/pull/3290
+[fluxcd/flux#3280]: https://github.com/fluxcd/flux/pull/3280
+[fluxcd/flux#3247]: https://github.com/fluxcd/flux/pull/3247
+[fluxcd/flux#3228]: https://github.com/fluxcd/flux/pull/3228
+[fluxcd/flux#3144]: https://github.com/fluxcd/flux/pull/3144
+
+## 1.21.0 (2020-10-01)
+
+This minor version release updates the versions of `kubectl` and
+`kustomize`.
+
+> **NB**: the updated version of Kustomize includes a _breaking
+> change_ (despite being a patch release), in which [prefix
+> transformers no longer apply to
+> namespaces](https://github.com/kubernetes-sigs/kustomize/issues/235).
+
+### Fixes
+
+- Update go, kubectl and kustomize [fluxcd/flux#3309][]
+
+### Maintenance and documentation
+
+- Correct FAQ typo: fluxcd.io/ignore value must be string [fluxcd/flux#3303][]
+- Clarify misleading FAQ entry. [fluxcd/flux#3281][]
+- Update Fluxcloud URL [fluxcd/flux#3307][]
+- Add production users to list [fluxcd/flux#3249][],
+  [fluxcd/flux#3300][], [fluxcd/flux#3274][]
+- FOSSA scan enabled [fluxcd/flux#3294][]
+- Exclude chart releases from Snap [fluxcd/flux#3266][]
+
+### Thanks
+
+Thanks to @Frederik-Baetens, @austinpray, @bricef, @dewe, @dholbach,
+@idvoretskyi, @lloydchang, @lucioveloso and @stefanprodan for their
+contributions to this release.
+
+[fluxcd/flux#3309]: https://github.com/fluxcd/flux/pull/3309
+[fluxcd/flux#3307]: https://github.com/fluxcd/flux/pull/3307
+[fluxcd/flux#3303]: https://github.com/fluxcd/flux/pull/3303
+[fluxcd/flux#3300]: https://github.com/fluxcd/flux/pull/3300
+[fluxcd/flux#3294]: https://github.com/fluxcd/flux/pull/3294
+[fluxcd/flux#3281]: https://github.com/fluxcd/flux/pull/3281
+[fluxcd/flux#3274]: https://github.com/fluxcd/flux/pull/3274
+[fluxcd/flux#3266]: https://github.com/fluxcd/flux/pull/3266
+[fluxcd/flux#3263]: https://github.com/fluxcd/flux/pull/3263
+[fluxcd/flux#3249]: https://github.com/fluxcd/flux/pull/3249
+
 ## 1.20.2 (2020-08-19)
 
 This patch release includes a bump to kubectl, which may help users

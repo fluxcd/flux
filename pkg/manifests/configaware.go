@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/fluxcd/flux/pkg/image"
 	"github.com/fluxcd/flux/pkg/resource"
@@ -31,12 +32,15 @@ type configAware struct {
 	// have a set of resources
 	mu            sync.RWMutex
 	resourcesByID map[string]resourceWithOrigin
+
+	// default command timeout
+	defaultTimeout time.Duration
 }
 
 // NewConfigAware constructs a `Store` that processes in-repo config
 // files (`.flux.yaml`) where present, and otherwise looks for "raw"
 // YAML files.
-func NewConfigAware(baseDir string, targetPaths []string, manifests Manifests) (*configAware, error) {
+func NewConfigAware(baseDir string, targetPaths []string, manifests Manifests, syncTimeout time.Duration) (*configAware, error) {
 	configFiles, rawManifestDirs, err := splitConfigFilesAndRawManifestPaths(baseDir, targetPaths)
 	if err != nil {
 		return nil, err
@@ -48,9 +52,10 @@ func NewConfigAware(baseDir string, targetPaths []string, manifests Manifests) (
 			baseDir:   baseDir,
 			paths:     rawManifestDirs,
 		},
-		manifests:   manifests,
-		baseDir:     baseDir,
-		configFiles: configFiles,
+		manifests:      manifests,
+		baseDir:        baseDir,
+		configFiles:    configFiles,
+		defaultTimeout: syncTimeout,
 	}
 	return result, nil
 }
@@ -146,7 +151,7 @@ func (ca *configAware) SetWorkloadContainerImage(ctx context.Context, resourceID
 		if err := ca.rawFiles.setManifestWorkloadContainerImage(resWithOrigin.resource, container, newImageID); err != nil {
 			return err
 		}
-	} else if err := resWithOrigin.configFile.SetWorkloadContainerImage(ctx, ca.manifests, resWithOrigin.resource, container, newImageID); err != nil {
+	} else if err := resWithOrigin.configFile.SetWorkloadContainerImage(ctx, ca.manifests, resWithOrigin.resource, container, newImageID, ca.defaultTimeout); err != nil {
 		return err
 	}
 	// Reset resources, since we have modified one
@@ -168,7 +173,7 @@ func (ca *configAware) UpdateWorkloadPolicies(ctx context.Context, resourceID re
 		changed, err = ca.rawFiles.updateManifestWorkloadPolicies(resWithOrigin.resource, update)
 	} else {
 		cf := resWithOrigin.configFile
-		changed, err = cf.UpdateWorkloadPolicies(ctx, ca.manifests, resWithOrigin.resource, update)
+		changed, err = cf.UpdateWorkloadPolicies(ctx, ca.manifests, resWithOrigin.resource, update, ca.defaultTimeout)
 	}
 	if err != nil {
 		return false, err
@@ -210,7 +215,7 @@ func (ca *configAware) getResourcesByID(ctx context.Context) (map[string]resourc
 	}
 
 	for _, cf := range ca.configFiles {
-		resourceManifests, err := cf.GenerateManifests(ctx, ca.manifests)
+		resourceManifests, err := cf.GenerateManifests(ctx, ca.manifests, ca.defaultTimeout)
 		if err != nil {
 			return nil, err
 		}
