@@ -13,7 +13,7 @@ replace github.com/Azure/go-autorest => github.com/Azure/go-autorest v12.2.0+inc
 // transitive requirement from Helm Operator
 replace (
 	github.com/docker/docker => github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0
-	github.com/fluxcd/helm-operator => github.com/fluxcd/helm-operator v1.0.0-rc9
+	github.com/fluxcd/helm-operator => github.com/fluxcd/helm-operator v1.2.0
 	github.com/fluxcd/helm-operator/pkg/install => github.com/fluxcd/helm-operator/pkg/install v0.0.0-20200213151218-f7e487142b46
 )
 
@@ -46,7 +46,7 @@ require (
 	github.com/docker/docker v20.10.3+incompatible // indirect
 	github.com/evanphx/json-patch v4.9.0+incompatible
 	github.com/fluxcd/flux/pkg/install v0.0.0-00010101000000-000000000000
-	github.com/fluxcd/helm-operator v1.0.0-rc6
+	github.com/fluxcd/helm-operator v1.2.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-kit/kit v0.9.0
 	github.com/golang/gddo v0.0.0-20190312205958-5a2505f3dbf0
@@ -59,7 +59,7 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/magefile/mage v1.11.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0
-	github.com/opentracing-contrib/go-stdlib v0.0.0-20190519235532-cf7a6c988dc9 // indirect
+	github.com/opentracing-contrib/go-stdlib v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/term v0.0.0-20190109203006-aa71e9d9e942
 	github.com/prometheus/client_golang v1.7.1
