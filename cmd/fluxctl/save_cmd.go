@@ -25,7 +25,7 @@ func newSave(parent *rootOpts) *saveOpts {
 func (opts *saveOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "save --out config/",
-		Short: "save workload definitions to local files in cluster-native format",
+		Short: "Save workload definitions to local files in cluster-native format",
 		Example: makeExample(
 			"fluxctl save",
 		),
