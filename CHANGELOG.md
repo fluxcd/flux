@@ -8,6 +8,55 @@
 > requests](https://github.com/fluxcd/toolkit/discussions) for Flux v2
 > and Toolkit components.
 
+## 1.22.0 (2021-03-17)
+
+This release continues the support of Flux v1 in maintenance mode.
+
+This minor release of Flux v1 adds support for `envsubst`, lining up with the [Post-Build Variable Substitution](https://toolkit.fluxcd.io/components/kustomize/kustomization/#variable-substitution) feature which was added in Flux v2 to help replicate some functionality that was lost when `.flux.yaml` was deprecated in Flux v2.
+
+Some other minor enhancements that are non breaking changes have also been highlighted below.
+
+All users are encouraged to begin finding a migration path to Flux v2, and filing issues when their migrations are blocked. While the length of time that maintenance mode will continue providing fixes and support for Flux v1 has not been formally determined yet, we can safely say that the horizon is still at least 6 months away.
+
+### Enhancements
+
+- Add envsubst package to docker image [fluxcd/flux#3407][]
+- whitelist two environment variables for AWS IAM roles in Kubernetes - [fluxcd/flux#3229][]
+- Store public key in k8s secret [fluxcd/flux#3411][]
+- Add new metric to check if the repository is down or misconfigured [fluxcd/flux#3302][]
+
+### Fixes
+
+- Add parsing of Docker sha256 fixations - [fluxcd/flux#3440][]
+- Align antecedent annotation in flux and helm-operator rebased [fluxcd/flux#3296][]
+- Rationalize usage messages [fluxcd/flux#3445][]
+
+### Maintenance and documentation
+
+- Remove the link-checker action [fluxcd/flux#3432][]
+- go mod update [fluxcd/flux#3436][]
+- Omnibus branch for Flux v1.22.0 Release [fluxcd/flux#3442][]
+  - (Merged #3436, #3229, #3440, #3411, #3296, #3445, #3407, #3302)
+- add twitter and linkedin to docs.f.i [fluxcd/flux#3429][]
+- Housekeeping: merge release branch 1.21.x into master [fluxcd/flux#3427][]
+
+### Thanks
+
+Thanks to @squaremo, @mattwillsher, @hermanbanken, @masterkain, @rust84, @fabstu, @derrickburns, @dlespiau, @alaa, @alex-shpak, @stevehipwell, @drazul, @stefanprodan, @hiddeco, @dholbach and @kingdonb for their contributions to this release.
+
+[fluxcd/flux#3296]: https://github.com/fluxcd/flux/pull/3296
+[fluxcd/flux#3436]: https://github.com/fluxcd/flux/pull/3436
+[fluxcd/flux#3229]: https://github.com/fluxcd/flux/pull/3229
+[fluxcd/flux#3440]: https://github.com/fluxcd/flux/pull/3440
+[fluxcd/flux#3411]: https://github.com/fluxcd/flux/pull/3411
+[fluxcd/flux#3445]: https://github.com/fluxcd/flux/pull/3445
+[fluxcd/flux#3407]: https://github.com/fluxcd/flux/pull/3407
+[fluxcd/flux#3302]: https://github.com/fluxcd/flux/pull/3302
+[fluxcd/flux#3442]: https://github.com/fluxcd/flux/pull/3442
+[fluxcd/flux#3432]: https://github.com/fluxcd/flux/pull/3432
+[fluxcd/flux#3429]: https://github.com/fluxcd/flux/pull/3429
+[fluxcd/flux#3427]: https://github.com/fluxcd/flux/pull/3427
+
 ## 1.21.2 (2021-02-16)
 
 This patch release surfaces a notice from https://docs.fluxcd.io/en/latest/
