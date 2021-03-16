@@ -107,115 +107,115 @@ func main() {
 	}
 	// This mirrors how kubectl extracts information from the environment.
 	var (
-		logFormat         = fs.String("log-format", "fmt", "change the log format.")
-		listenAddr        = fs.StringP("listen", "l", ":3030", "listen address where /metrics and API will be served")
-		listenMetricsAddr = fs.String("listen-metrics", "", "listen address for /metrics endpoint")
-		kubernetesKubectl = fs.String("kubernetes-kubectl", "", "optional, explicit path to kubectl tool")
-		versionFlag       = fs.Bool("version", false, "get version number")
+		logFormat         = fs.String("log-format", "fmt", "Change the log format.")
+		listenAddr        = fs.StringP("listen", "l", ":3030", "Listen address where /metrics and API will be served")
+		listenMetricsAddr = fs.String("listen-metrics", "", "Listen address for /metrics endpoint")
+		kubernetesKubectl = fs.String("kubernetes-kubectl", "", "optional, Explicit path to kubectl tool")
+		versionFlag       = fs.Bool("version", false, "Get version number")
 		// Git repo & key etc.
 		gitURL       = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:fluxcd/flux-get-started")
-		gitBranch    = fs.String("git-branch", "master", "branch of git repo to use for Kubernetes manifests")
-		gitPath      = fs.StringSlice("git-path", []string{}, "relative paths within the git repo to locate Kubernetes manifests")
-		gitReadonly  = fs.Bool("git-readonly", false, fmt.Sprintf("use to prevent Flux from pushing changes to git; implies --sync-state=%s", fluxsync.NativeStateMode))
-		gitUser      = fs.String("git-user", "Weave Flux", "username to use as git committer")
-		gitEmail     = fs.String("git-email", "support@weave.works", "email to use as git committer")
-		gitSetAuthor = fs.Bool("git-set-author", false, "if set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.")
-		gitLabel     = fs.String("git-label", "", "label to keep track of sync progress; overrides both --git-sync-tag and --git-notes-ref")
-		gitSecret    = fs.Bool("git-secret", false, `if set, git-secret will be run on every git checkout. A gpg key must be imported using  --git-gpg-key-import or by mounting a keyring containing it directly`)
-		sopsEnabled  = fs.Bool("sops", false, `if set, decrypt SOPS-encrypted manifest files with before syncing them. Provide decryption keys in the same way you would provide them for the sops binary. Be aware that manifests generated with .flux.yaml are not automatically decrypted`)
+		gitBranch    = fs.String("git-branch", "master", "Branch of git repo to use for Kubernetes manifests")
+		gitPath      = fs.StringSlice("git-path", []string{}, "Relative paths within the git repo to locate Kubernetes manifests")
+		gitReadonly  = fs.Bool("git-readonly", false, fmt.Sprintf("Use to prevent Flux from pushing changes to git; implies --sync-state=%s", fluxsync.NativeStateMode))
+		gitUser      = fs.String("git-user", "Weave Flux", "Username to use as git committer")
+		gitEmail     = fs.String("git-email", "support@weave.works", "Email to use as git committer")
+		gitSetAuthor = fs.Bool("git-set-author", false, "If set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.")
+		gitLabel     = fs.String("git-label", "", "Label to keep track of sync progress; overrides both --git-sync-tag and --git-notes-ref")
+		gitSecret    = fs.Bool("git-secret", false, "If set, git-secret will be run on every git checkout. A gpg key must be imported using  --git-gpg-key-import or by mounting a keyring containing it directly")
+		sopsEnabled  = fs.Bool("sops", false, "If set, decrypt SOPS-encrypted manifest files with before syncing them. Provide decryption keys in the same way you would provide them for the sops binary. Be aware that manifests generated with .flux.yaml are not automatically decrypted")
 		// Old git config; still used if --git-label is not supplied, but --git-label is preferred.
-		gitSyncTag     = fs.String("git-sync-tag", defaultGitSyncTag, fmt.Sprintf("tag to use to mark sync progress for this cluster (only relevant when --sync-state=%s)", fluxsync.GitTagStateMode))
-		gitNotesRef    = fs.String("git-notes-ref", defaultGitNotesRef, "ref to use for keeping commit annotations in git notes")
-		gitSkip        = fs.Bool("git-ci-skip", false, `append "[ci skip]" to commit messages so that CI will skip builds`)
-		gitSkipMessage = fs.String("git-ci-skip-message", "", "additional text for commit messages, useful for skipping builds in CI. Use this to supply specific text, or set --git-ci-skip")
+		gitSyncTag     = fs.String("git-sync-tag", defaultGitSyncTag, fmt.Sprintf("Tag to use to mark sync progress for this cluster (only relevant when --sync-state=%s)", fluxsync.GitTagStateMode))
+		gitNotesRef    = fs.String("git-notes-ref", defaultGitNotesRef, "Ref to use for keeping commit annotations in git notes")
+		gitSkip        = fs.Bool("git-ci-skip", false, `Append "[ci skip]" to commit messages so that CI will skip builds`)
+		gitSkipMessage = fs.String("git-ci-skip-message", "", "Additional text for commit messages, useful for skipping builds in CI. Use this to supply specific text, or set --git-ci-skip")
 
-		gitPollInterval = fs.Duration("git-poll-interval", 5*time.Minute, "period at which to poll git repo for new commits")
-		gitTimeout      = fs.Duration("git-timeout", 20*time.Second, "duration after which git operations time out")
+		gitPollInterval = fs.Duration("git-poll-interval", 5*time.Minute, "Period at which to poll git repo for new commits")
+		gitTimeout      = fs.Duration("git-timeout", 20*time.Second, "Duration after which git operations time out")
 
 		// GPG commit signing
-		gitImportGPG               = fs.StringSlice("git-gpg-key-import", []string{}, "keys at the paths given will be imported for use of signing and verifying commits")
-		gitSigningKey              = fs.String("git-signing-key", "", "if set, commits Flux makes will be signed with this GPG key")
-		gitVerifySignatures        = fs.Bool("git-verify-signatures", false, "(deprecated) sets --git-verify-signatures-mode=all when set")
-		gitVerifySignaturesModeStr = fs.String("git-verify-signatures-mode", fluxsync.VerifySignaturesModeDefault, fmt.Sprintf("if git-verify-signatures is set, which strategy to use for signature verification (one of %s)", strings.Join([]string{fluxsync.VerifySignaturesModeNone, fluxsync.VerifySignaturesModeAll, fluxsync.VerifySignaturesModeFirstParent}, ",")))
+		gitImportGPG               = fs.StringSlice("git-gpg-key-import", []string{}, "Keys at the paths given will be imported for use of signing and verifying commits")
+		gitSigningKey              = fs.String("git-signing-key", "", "If set, commits Flux makes will be signed with this GPG key")
+		gitVerifySignatures        = fs.Bool("git-verify-signatures", false, "(deprecated) Sets --git-verify-signatures-mode=all when set")
+		gitVerifySignaturesModeStr = fs.String("git-verify-signatures-mode", fluxsync.VerifySignaturesModeDefault, fmt.Sprintf("If git-verify-signatures is set, which strategy to use for signature verification (one of %s)", strings.Join([]string{fluxsync.VerifySignaturesModeNone, fluxsync.VerifySignaturesModeAll, fluxsync.VerifySignaturesModeFirstParent}, ",")))
 
 		// syncing
-		syncInterval = fs.Duration("sync-interval", 5*time.Minute, "apply config in git to cluster at least this often, even if there are no new commits")
-		syncTimeout  = fs.Duration("sync-timeout", 1*time.Minute, "duration after which sync operations time out")
-		syncGC       = fs.Bool("sync-garbage-collection", false, "delete resources that were created by fluxd, but are no longer in the git repo")
-		dryGC        = fs.Bool("sync-garbage-collection-dry", false, "only log what would be garbage collected, rather than deleting. Implies --sync-garbage-collection")
-		syncState    = fs.String("sync-state", fluxsync.GitTagStateMode, fmt.Sprintf("method used by flux for storing state (one of {%s})", strings.Join([]string{fluxsync.GitTagStateMode, fluxsync.NativeStateMode}, ",")))
+		syncInterval = fs.Duration("sync-interval", 5*time.Minute, "Apply config in git to cluster at least this often, even if there are no new commits")
+		syncTimeout  = fs.Duration("sync-timeout", 1*time.Minute, "Duration after which sync operations time out")
+		syncGC       = fs.Bool("sync-garbage-collection", false, "Delete resources that were created by fluxd, but are no longer in the git repo")
+		dryGC        = fs.Bool("sync-garbage-collection-dry", false, "Only log what would be garbage collected, rather than deleting. Implies --sync-garbage-collection")
+		syncState    = fs.String("sync-state", fluxsync.GitTagStateMode, fmt.Sprintf("Method used by flux for storing state (one of {%s})", strings.Join([]string{fluxsync.GitTagStateMode, fluxsync.NativeStateMode}, ",")))
 
 		// registry
-		memcachedHostname = fs.String("memcached-hostname", "memcached", "hostname for memcached service.")
-		memcachedPort     = fs.Int("memcached-port", 11211, "memcached service port.")
-		memcachedTimeout  = fs.Duration("memcached-timeout", time.Second, "maximum time to wait before giving up on memcached requests.")
+		memcachedHostname = fs.String("memcached-hostname", "memcached", "Hostname for memcached service.")
+		memcachedPort     = fs.Int("memcached-port", 11211, "Memcached service port.")
+		memcachedTimeout  = fs.Duration("memcached-timeout", time.Second, "Maximum time to wait before giving up on memcached requests.")
 		memcachedService  = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
 
-		registryDisableScanning = fs.Bool("registry-disable-scanning", false, "do not scan container image registries to fill in the registry cache")
-		automationInterval      = fs.Duration("automation-interval", 5*time.Minute, "period at which to check for image updates for automated workloads")
-		registryPollInterval    = fs.Duration("registry-poll-interval", 5*time.Minute, "period at which to check for updated images")
-		registryRPS             = fs.Float64("registry-rps", 50, "maximum registry requests per second per host")
-		registryBurst           = fs.Int("registry-burst", defaultRemoteConnections, "maximum number of warmer connections to remote and memcache")
-		registryTrace           = fs.Bool("registry-trace", false, "output trace of image registry requests to log")
-		registryInsecure        = fs.StringSlice("registry-insecure-host", []string{}, "let these registry hosts skip TLS host verification and fall back to using HTTP instead of HTTPS; this allows man-in-the-middle attacks, so use with extreme caution")
-		registryExcludeImage    = fs.StringSlice("registry-exclude-image", []string{"k8s.gcr.io/*"}, "do not scan images that match these glob expressions; the default is to exclude the 'k8s.gcr.io/*' images")
-		registryIncludeImage    = fs.StringSlice("registry-include-image", nil, "if a value or values is given, scan _only_ images matching the glob pattern(s) (less any explicitly excluded)")
-		registryUseLabels       = fs.StringSlice("registry-use-labels", []string{"index.docker.io/weaveworks/*", "index.docker.io/fluxcd/*"}, "use the timestamp (RFC3339) from labels for (canonical) image refs that match these glob expression")
+		registryDisableScanning = fs.Bool("registry-disable-scanning", false, "Do not scan container image registries to fill in the registry cache")
+		automationInterval      = fs.Duration("automation-interval", 5*time.Minute, "Period at which to check for image updates for automated workloads")
+		registryPollInterval    = fs.Duration("registry-poll-interval", 5*time.Minute, "Period at which to check for updated images")
+		registryRPS             = fs.Float64("registry-rps", 50, "Maximum registry requests per second per host")
+		registryBurst           = fs.Int("registry-burst", defaultRemoteConnections, "Maximum number of warmer connections to remote and memcache")
+		registryTrace           = fs.Bool("registry-trace", false, "Output trace of image registry requests to log")
+		registryInsecure        = fs.StringSlice("registry-insecure-host", []string{}, "Let these registry hosts skip TLS host verification and fall back to using HTTP instead of HTTPS; this allows man-in-the-middle attacks, so use with extreme caution")
+		registryExcludeImage    = fs.StringSlice("registry-exclude-image", []string{"k8s.gcr.io/*"}, "Do not scan images that match these glob expressions; the default is to exclude the 'k8s.gcr.io/*' images")
+		registryIncludeImage    = fs.StringSlice("registry-include-image", nil, "If a value or values is given, scan _only_ images matching the glob pattern(s) (less any explicitly excluded)")
+		registryUseLabels       = fs.StringSlice("registry-use-labels", []string{"index.docker.io/weaveworks/*", "index.docker.io/fluxcd/*"}, "Use the timestamp (RFC3339) from labels for (canonical) image refs that match these glob expression")
 
 		// AWS authentication
-		registryAWSRegions         = fs.StringSlice("registry-ecr-region", nil, "include just these AWS regions when scanning images in ECR; when not supplied, the cluster's region will included if it can be detected through the AWS API")
-		registryAWSAccountIDs      = fs.StringSlice("registry-ecr-include-id", nil, "restrict ECR scanning to these AWS account IDs; if not supplied, all account IDs that aren't excluded may be scanned")
-		registryAWSBlockAccountIDs = fs.StringSlice("registry-ecr-exclude-id", []string{registry.EKS_SYSTEM_ACCOUNT, registry.EKS_SYSTEM_ACCOUNT_CN}, "do not scan ECR for images in these AWS account IDs; the default is to exclude the EKS system accounts")
+		registryAWSRegions         = fs.StringSlice("registry-ecr-region", nil, "Include just these AWS regions when scanning images in ECR; when not supplied, the cluster's region will included if it can be detected through the AWS API")
+		registryAWSAccountIDs      = fs.StringSlice("registry-ecr-include-id", nil, "Restrict ECR scanning to these AWS account IDs; if not supplied, all account IDs that aren't excluded may be scanned")
+		registryAWSBlockAccountIDs = fs.StringSlice("registry-ecr-exclude-id", []string{registry.EKS_SYSTEM_ACCOUNT, registry.EKS_SYSTEM_ACCOUNT_CN}, "Do not scan ECR for images in these AWS account IDs; the default is to exclude the EKS system accounts")
 
-		registryRequire = fs.StringSlice("registry-require", nil, fmt.Sprintf(`exit with an error if auto-authentication with any of the given registries is not possible (possible values: {%s})`, strings.Join(RequireValues, ",")))
+		registryRequire = fs.StringSlice("registry-require", nil, fmt.Sprintf("Exit with an error if auto-authentication with any of the given registries is not possible (possible values: {%s})", strings.Join(RequireValues, ",")))
 
 		// k8s-secret backed ssh keyring configuration
-		_                        = fs.Bool("k8s-in-cluster", true, "set this to true if fluxd is deployed as a container inside Kubernetes")
-		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "name of the k8s secret used to store the private SSH key")
-		k8sSecretVolumeMountPath = fs.String("k8s-secret-volume-mount-path", "/etc/fluxd/ssh", "mount location of the k8s secret storing the private SSH key")
-		k8sSecretDataKey         = fs.String("k8s-secret-data-key", "identity", "data key holding the private SSH key within the k8s secret")
+		_                        = fs.Bool("k8s-in-cluster", true, "Set this to true if fluxd is deployed as a container inside Kubernetes")
+		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "Name of the k8s secret used to store the private SSH key")
+		k8sSecretVolumeMountPath = fs.String("k8s-secret-volume-mount-path", "/etc/fluxd/ssh", "Mount location of the k8s secret storing the private SSH key")
+		k8sSecretDataKey         = fs.String("k8s-secret-data-key", "identity", "Data key holding the private SSH key within the k8s secret")
 
 		// k8s-scope settings
-		k8sNamespaceWhitelist = fs.StringSlice("k8s-namespace-whitelist", []string{}, "restrict the view of the cluster to the namespaces listed. All namespaces are included if this is not set")
-		k8sAllowNamespace     = fs.StringSlice("k8s-allow-namespace", []string{}, "restrict all operations to the provided namespaces")
-		k8sDefaultNamespace   = fs.String("k8s-default-namespace", "", "the namespace to use for resources where a namespace is not specified")
-		k8sExcludeResource    = fs.StringSlice("k8s-unsafe-exclude-resource", []string{"*metrics.k8s.io/*", "webhook.certmanager.k8s.io/*", "v1/Event"}, "do not attempt to obtain cluster resources whose group/version/kind matches these glob expressions. Potentially unsafe, please read its documentation first")
-		k8sVerbosity          = fs.Int("k8s-verbosity", 0, "klog verbosity level")
+		k8sNamespaceWhitelist = fs.StringSlice("k8s-namespace-whitelist", []string{}, "Restrict the view of the cluster to the namespaces listed. All namespaces are included if this is not set")
+		k8sAllowNamespace     = fs.StringSlice("k8s-allow-namespace", []string{}, "Restrict all operations to the provided namespaces")
+		k8sDefaultNamespace   = fs.String("k8s-default-namespace", "", "The namespace to use for resources where a namespace is not specified")
+		k8sExcludeResource    = fs.StringSlice("k8s-unsafe-exclude-resource", []string{"*metrics.k8s.io/*", "webhook.certmanager.k8s.io/*", "v1/Event"}, "Do not attempt to obtain cluster resources whose group/version/kind matches these glob expressions. Potentially unsafe, please read its documentation first")
+		k8sVerbosity          = fs.Int("k8s-verbosity", 0, "Klog verbosity level")
 
 		// SSH key generation
 		sshKeyBits   = optionalVar(fs, &ssh.KeyBitsValue{}, "ssh-keygen-bits", "-b argument to ssh-keygen (default unspecified)")
 		sshKeyType   = optionalVar(fs, &ssh.KeyTypeValue{}, "ssh-keygen-type", "-t argument to ssh-keygen (default unspecified)")
 		sshKeyFormat = optionalVar(fs, &ssh.KeyFormatValue{}, "ssh-keygen-format", "-m argument to ssh-keygen (default RFC4716)")
-		sshKeygenDir = fs.String("ssh-keygen-dir", "", "directory, ideally on a tmpfs volume, in which to generate new SSH keys when necessary")
+		sshKeygenDir = fs.String("ssh-keygen-dir", "", "Directory, ideally on a tmpfs volume, in which to generate new SSH keys when necessary")
 
 		// manifest generation
-		manifestGeneration = fs.Bool("manifest-generation", false, "search for .flux.yaml files to generate manifests")
+		manifestGeneration = fs.Bool("manifest-generation", false, "Search for .flux.yaml files to generate manifests")
 
 		// upstream connection settings
-		upstreamURL = fs.String("connect", "", "connect to an upstream service e.g., Weave Cloud, at this base address")
-		token       = fs.String("token", "", "authentication token for upstream service")
-		rpcTimeout  = fs.Duration("rpc-timeout", 10*time.Second, "maximum time an operation requested by the upstream may take")
+		upstreamURL = fs.String("connect", "", "Connect to an upstream service e.g., Weave Cloud, at this base address")
+		token       = fs.String("token", "", "Authentication token for upstream service")
+		rpcTimeout  = fs.Duration("rpc-timeout", 10*time.Second, "Maximum time an operation requested by the upstream may take")
 
-		dockerConfig = fs.String("docker-config", "", "path to a docker config to use for image registry credentials")
+		dockerConfig = fs.String("docker-config", "", "Path to a docker config to use for image registry credentials")
 
 		_ = fs.Duration("registry-cache-expiry", 0, "")
 	)
-	fs.MarkDeprecated("registry-cache-expiry", "no longer used; cache entries are expired adaptively according to how often they change")
-	fs.MarkDeprecated("k8s-namespace-whitelist", "changed to --k8s-allow-namespace, use that instead")
-	fs.MarkDeprecated("registry-poll-interval", "changed to --automation-interval, use that instead")
-	fs.MarkDeprecated("k8s-in-cluster", "no longer used")
-	fs.MarkDeprecated("git-verify-signatures", "changed to --git-verify-signatures-mode, use that instead")
+	fs.MarkDeprecated("registry-cache-expiry", "No longer used; cache entries are expired adaptively according to how often they change")
+	fs.MarkDeprecated("k8s-namespace-whitelist", "Changed to --k8s-allow-namespace, use that instead")
+	fs.MarkDeprecated("registry-poll-interval", "Changed to --automation-interval, use that instead")
+	fs.MarkDeprecated("k8s-in-cluster", "No longer used")
+	fs.MarkDeprecated("git-verify-signatures", "Changed to --git-verify-signatures-mode, use that instead")
 
 	var kubeConfig *string
 	{
 		// Set the default kube config
 		if home := homeDir(); home != "" {
-			kubeConfig = fs.String("kube-config", filepath.Join(home, ".kube", "config"), "the absolute path of the k8s config file.")
+			kubeConfig = fs.String("kube-config", filepath.Join(home, ".kube", "config"), "The absolute path of the k8s config file.")
 		} else {
-			kubeConfig = fs.String("kube-config", "", "the absolute path of the k8s config file.")
+			kubeConfig = fs.String("kube-config", "", "The absolute path of the k8s config file.")
 		}
 	}
-	fs.MarkDeprecated("kube-config", "please use the KUBECONFIG environment variable instead")
+	fs.MarkDeprecated("kube-config", "Please use the KUBECONFIG environment variable instead")
 
 	// Explicitly initialize klog to enable stderr logging,
 	// and parse our own flags.
@@ -300,7 +300,7 @@ func main() {
 			}
 		}
 		if len(changedGitRelatedFlags) > 0 {
-			logger.Log("warning", fmt.Sprintf("configuring any of {%s} has no effect when --git-readonly is set", strings.Join(changedGitRelatedFlags, ", ")))
+			logger.Log("warning", fmt.Sprintf("Configuring any of {%s} has no effect when --git-readonly is set", strings.Join(changedGitRelatedFlags, ", ")))
 		}
 	}
 
@@ -409,7 +409,7 @@ func main() {
 	{
 		var err error
 		if *kubeConfig != "" {
-			logger.Log("msg", fmt.Sprintf("using kube config: %q to connect to the cluster", *kubeConfig))
+			logger.Log("msg", fmt.Sprintf("Using kube config: %q to connect to the cluster", *kubeConfig))
 			restClientConfig, err = clientcmd.BuildConfigFromFlags("", *kubeConfig)
 		} else {
 			restClientConfig, err = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
