@@ -1,3 +1,10 @@
+## 1.7.0 (2021-03-17)
+
+### Improvements
+
+ - Updated Flux to `1.22.0`
+   [fluxcd/flux#3447](https://github.com/fluxcd/flux/pull/3447)
+
 ## 1.6.2 (2021-02-16)
 
 ### Improvements
