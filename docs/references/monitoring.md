@@ -17,6 +17,7 @@ The following metrics are exposed:
 | `flux_daemon_sync_manifests`             | Number of manifests being synced to cluster
 | `flux_registry_fetch_duration_seconds`   | Duration of image metadata requests (from cache)
 | `flux_fluxd_connection_duration_seconds` | Duration in seconds of the current connection to fluxsvc
+| `flux_git_ready`                         | Status of the git repository
 
 Flux sync state can be obtained by using the following PromQL expressions:
 
@@ -27,3 +28,6 @@ with duplicate ids.
 * `flux_daemon_sync_manifests{success='false'} > 0` - for git manifests errors - if true then there are either some 
 problems with applying git manifests to kubernetes - e.g. configmap size is too big to fit in annotations or 
 immutable field (like label selector) was changed. 
+
+* `flux_git_ready < 1` - for git clone/fetch/push errors. If true then there are some problems in the git repository,
+ or the repository cannot be reached.

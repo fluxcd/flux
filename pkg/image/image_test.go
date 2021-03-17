@@ -52,6 +52,9 @@ func TestParseRef(t *testing.T) {
 		{"quay.io/library/alpine:latest", "quay.io", "library/alpine", "quay.io/library/alpine:latest"},
 		{"quay.io/library/alpine:mytag", "quay.io", "library/alpine", "quay.io/library/alpine:mytag"},
 		{"localhost:5000/path/to/repo/alpine:mytag", "localhost:5000", "path/to/repo/alpine", "localhost:5000/path/to/repo/alpine:mytag"},
+		// It is possible in Kubernetes to have the Docker SHA hardcoded, see also
+		// https://stackoverflow.com/questions/57543456/how-to-reference-a-docker-image-via-sha256-hash-in-kubernetes-pod/57543494
+		{"kennethreitz/httpbin@sha256:599fe5e5073102dbb0ee3dbb65f049dab44fa9fc251f6835c9990f8fb196a72b", dockerHubHost, "kennethreitz/httpbin", "index.docker.io/kennethreitz/httpbin"},
 	} {
 		i, err := ParseRef(x.test)
 		if err != nil {

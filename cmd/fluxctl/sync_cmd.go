@@ -22,7 +22,7 @@ func newSync(parent *rootOpts) *syncOpts {
 func (opts *syncOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sync",
-		Short: "synchronize the cluster with the git repository, now",
+		Short: "Synchronize the cluster with the git repository, now",
 		RunE:  opts.RunE,
 	}
 	return cmd

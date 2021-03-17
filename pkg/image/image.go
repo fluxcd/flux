@@ -112,6 +112,7 @@ func (i Name) ToRef(tag string) Ref {
 type Ref struct {
 	Name
 	Tag string
+	SHA string
 }
 
 // CanonicalRef is an image ref with none of the fields left to be
@@ -122,11 +123,13 @@ type CanonicalRef struct {
 
 // String returns the Ref as a string (i.e., unparsed) without canonicalising it.
 func (i Ref) String() string {
-	var tag string
-	if i.Tag != "" {
-		tag = ":" + i.Tag
+	var suffix string
+	if i.SHA != "" {
+		suffix = "@sha256:" + i.SHA
+	} else if i.Tag != "" {
+		suffix = ":" + i.Tag
 	}
-	return fmt.Sprintf("%s%s", i.Name.String(), tag)
+	return fmt.Sprintf("%s%s", i.Name.String(), suffix)
 }
 
 // ParseRef parses a string representation of an image id into an
@@ -160,8 +163,21 @@ func ParseRef(s string) (Ref, error) {
 		id.Image = strings.Join(elements[1:], "/")
 	}
 
+	// Figure out if there is a SHA256 hardcoded
+	imageParts := strings.SplitN(id.Image, "@sha256:", 2)
+	switch len(imageParts) {
+	case 1:
+		break
+	case 2:
+		if imageParts[0] == "" || imageParts[1] == "" {
+			return id, errors.Wrapf(ErrMalformedImageID, "parsing %q", s)
+		}
+		id.Image = imageParts[0]
+		id.SHA = imageParts[1]
+	}
+
 	// Figure out if there's a tag
-	imageParts := strings.Split(id.Image, ":")
+	imageParts = strings.Split(id.Image, ":")
 	switch len(imageParts) {
 	case 1:
 		break

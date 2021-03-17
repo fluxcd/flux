@@ -167,6 +167,7 @@ func (r *Repo) Status() (GitRepoStatus, error) {
 }
 
 func (r *Repo) setUnready(s GitRepoStatus, err error) {
+	metricGitReady.Set(MetricRepoUnready)
 	r.mu.Lock()
 	r.status = s
 	r.err = err
@@ -174,6 +175,7 @@ func (r *Repo) setUnready(s GitRepoStatus, err error) {
 }
 
 func (r *Repo) setReady() {
+	metricGitReady.Set(MetricRepoReady)
 	r.mu.Lock()
 	r.status = RepoReady
 	r.err = nil
