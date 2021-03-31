@@ -8,6 +8,20 @@
 > requests](https://github.com/fluxcd/toolkit/discussions) for Flux v2
 > and Toolkit components.
 
+## 1.22.1 (2021-03-31)
+
+This release rolls the upstream alpine base image, mitigating a CVE warning.
+
+### Fixes
+
+- Addresses CVE in gnutls@3.6.15-r0 [fluxcd/flux#3453][]
+
+### Thanks
+
+Thanks to @stefanprodan, @bleech1, and @kingdonb for their contributions to this release.
+
+[fluxcd/flux#3453]: https://github.com/fluxcd/flux/issues/3453
+
 ## 1.22.0 (2021-03-17)
 
 This release continues the support of Flux v1 in maintenance mode.
