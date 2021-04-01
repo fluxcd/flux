@@ -203,7 +203,7 @@ memcached:
   enabled: true
   hostnameOverride:
   repository: memcached
-  tag: 1.6.9
+  tag: 1.6.9-alpine
   pullSecret:
   createClusterIP: true
   verbose: false
