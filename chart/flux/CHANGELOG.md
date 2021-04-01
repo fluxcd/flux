@@ -1,3 +1,12 @@
+## 1.8.0 (2021-04-01)
+
+### Improvements
+
+ - Updated Flux to `1.22.1`
+   [fluxcd/flux#3455](https://github.com/fluxcd/flux/pull/3455)
+ - Updated memcached to `1.6.9-alpine`
+   [fluxcd/flux#3459](https://github.com/fluxcd/flux/pull/3459)
+
 ## 1.7.0 (2021-03-17)
 
 ### Improvements
