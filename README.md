@@ -137,6 +137,7 @@ container images and config changes are propagated to the cluster.
  - [UK Hydrographic Office](https://www.gov.uk/government/organisations/uk-hydrographic-office)
  - [Under Armour](https://www.underarmour.com)
  - [VSHN](https://vshn.ch)
+ - [Verifa Oy](https://verifa.io/)
  - [Walmart Chile](https://www.walmartchile.cl)
  - [Weave Cloud](https://cloud.weave.works)
  - [Wildlife Studios](https://wildlifestudios.com)
