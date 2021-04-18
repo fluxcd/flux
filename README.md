@@ -130,6 +130,7 @@ container images and config changes are propagated to the cluster.
  - [Sage AI Labs](https://www.sage.com)
  - [Sngular](https://www.sngular.com)
  - [Starbucks](https://www.starbucks.com/)
+ - [Stencila](https://stenci.la/)
  - [SupplyStack](https://www.supplystack.com/)
  - [Swoop](https://www.swoopfunding.com)
  - [Talend](https://www.talend.com)
