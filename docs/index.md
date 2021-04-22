@@ -1,3 +1,7 @@
+## Flux v1 is in Maintenance Mode
+
+Please [upgrade to Flux v2](https://toolkit.fluxcd.io/guides/flux-v1-migration/) as soon as possible. [Flux v1 is in Maintenance Mode](faq/#migrate-to-flux-v2)
+
 # Flux documentation
 
 ![](_files/flux-cd-diagram.png)
