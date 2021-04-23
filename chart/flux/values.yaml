@@ -21,6 +21,10 @@ service:
 # Specifies which namespaces flux should have access to
 allowedNamespaces: []
 
+# Specifies which namespace flux should use for resources where a namespace is not
+# specified. If none is provided here, the default namespace in kubeconfig is used.
+defaultNamespace: ""
+
 rbac:
   # Specifies whether RBAC resources should be created
   create: true

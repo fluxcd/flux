@@ -198,6 +198,9 @@ spec:
           {{- if not .Values.clusterRole.create }}
           - --k8s-allow-namespace={{ join "," (append .Values.allowedNamespaces .Release.Namespace) }}
           {{- end}}
+          {{- if .Values.defaultNamespace }}
+          - --k8s-default-namespace={{ .Values.defaultNamespace }}
+          {{- end }}
           {{- if .Values.logFormat }}
           - --log-format={{ .Values.logFormat }}
           {{end}}
