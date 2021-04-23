@@ -1,3 +1,16 @@
+## 1.9.0 (2021-04-23)
+
+### Improvements
+
+ - Updated Flux to `1.22.2`
+   [fluxcd/flux#3473](https://github.com/fluxcd/flux/pull/3473)
+ - Add support for headless service for Flux
+   [fluxcd/flux#3101](https://github.com/fluxcd/flux/pull/3101)
+ - Allow specifying k8s-default-namespace
+   [fluxcd/flux#3131](https://github.com/fluxcd/flux/pull/3131)
+ - Update nodeSelector from beta.kubernetes.io to kubernetes.io
+   [fluxcd/flux#3472](https://github.com/fluxcd/flux/pull/3472)
+
 ## 1.8.0 (2021-04-01)
 
 ### Improvements
