@@ -255,6 +255,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `serviceAccount.annotations`                      | ``                                                   | Additional Service Account annotations
 | `clusterRole.create`                              | `true`                                               | If `false`, Flux will be restricted to the namespaces given in `allowedNamespaces` and the namespace where it is deployed
 | `service.type`                                    | `ClusterIP`                                          | Service type to be used (exposing the Flux API outside of the cluster is not advised)
+| `service.createClusterIP`                                    | `true`                                          | If `false` and service type is `ClusterIP` the service will still be created, but without IP address (a.k.a. headless service).
 | `service.port`                                    | `3030`                                               | Service port to be used
 | `sync.state`                                      | `git`                                                | Where to keep sync state; either a tag in the upstream repo (`git`), or as an annotation on the SSH secret (`secret`)
 | `sync.timeout`                                    | `None`                                               | Duration after which sync operations time out (defaults to `1m`)
