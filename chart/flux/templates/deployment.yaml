@@ -318,7 +318,7 @@ spec:
 {{ toYaml .Values.dnsConfig | indent 8 }}
 {{- end }}
       nodeSelector:
-        beta.kubernetes.io/os: linux
+        kubernetes.io/os: linux
       {{- with .Values.nodeSelector }}
 {{ toYaml . | indent 8 }}
     {{- end }}
