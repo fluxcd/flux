@@ -8,6 +8,32 @@
 > requests](https://github.com/fluxcd/toolkit/discussions) for Flux v2
 > and Toolkit components.
 
+## 1.22.2 (2021-04-23)
+
+This release bundles migration-related documentation updates with some minor fixes, and tracks Kustomize to the end of its v3.8 minor release series. The next release will probably include an update to Kustomize v3.10.
+
+### Fixes
+
+- Set sync-timeout for kustomize build [fluxcd/flux#3381][]
+- Fix recursive calls in mock [fluxcd/flux#3250][]
+- Update kustomize to v3.8.10 [fluxcd/flux#3471][]
+
+### Maintenance and documentation
+
+- Why should I migrate to Flux v2? [fluxcd/flux#3467][]
+- Add production users to list [fluxcd/flux#3465][], [fluxcd/flux#3461][]
+
+### Thanks
+
+Thanks to @stefanprodan, @bvwells, @jumpeiMano, @kingdonb, @maniankara and @nokome for their contributions to this release.
+
+[fluxcd/flux#3471]: https://github.com/fluxcd/flux/pull/3471
+[fluxcd/flux#3467]: https://github.com/fluxcd/flux/pull/3467
+[fluxcd/flux#3465]: https://github.com/fluxcd/flux/pull/3465
+[fluxcd/flux#3461]: https://github.com/fluxcd/flux/pull/3461
+[fluxcd/flux#3381]: https://github.com/fluxcd/flux/pull/3381
+[fluxcd/flux#3250]: https://github.com/fluxcd/flux/pull/3250
+
 ## 1.22.1 (2021-03-31)
 
 This release rolls the upstream alpine base image, mitigating a CVE warning.
