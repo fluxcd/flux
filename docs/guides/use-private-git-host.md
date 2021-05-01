@@ -93,7 +93,7 @@ flux` in the file `flux-deployment.yaml` before applying it.
 ## If using Helm
 
 If you are deploying flux via a Helm chart, then you will need to add 
-the contents of you known_hosts file as a Value `ssh.known_hosts`.
+the contents of your known_hosts file as a Value `ssh.known_hosts`.
 
 Currently you can't reference a pre-existing ConfigMap from the Helm 
 Chart. 
