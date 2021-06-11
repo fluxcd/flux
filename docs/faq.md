@@ -38,7 +38,7 @@ An error is captured as a Kubernetes `Event` CRD, and is reflected in the `Statu
 
 There is an idealized use case of GitOps we might explain as: when an update comes, a pull-request is automatically opened and when it gets merged, it is automatically applied to the cluster. That sounds great, but is not really how things work in Flux v1.
 
-In Flux v2, this can actually be used as a real strategy; it is straight-forward to implement and covered by documenation: [Push updates to a different branch](/guides/image-update/#push-updates-to-a-different-branch).
+In Flux v2, this can actually be used as a real strategy; it is straight-forward to implement and covered by documenation: [Push updates to a different branch](https://fluxcd.io/docs/guides/image-update/#push-updates-to-a-different-branch).
 
 In Flux v1, it was possible to set up incoming webhooks with [flux-recv](https://github.com/fluxcd/flux-recv) as a sidecar to Flux, which while it worked nicely, it isn't nicely integrated and frankly feels bolted-on, sort of like an after-market part. This may be more than appearance, it isn't mentioned at all in Flux v1 docs!
 
