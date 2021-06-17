@@ -47,7 +47,7 @@ new infrastructure.
 
 [![CircleCI](https://circleci.com/gh/fluxcd/flux.svg?style=svg)](https://circleci.com/gh/fluxcd/flux)
 [![GoDoc](https://godoc.org/github.com/fluxcd/flux?status.svg)](https://godoc.org/github.com/fluxcd/flux)
-[![Documentation](https://img.shields.io/badge/latest-documentation-informational)](https://docs.fluxcd.io/en/latest/)
+[![Documentation](https://img.shields.io/badge/latest-documentation-informational)](https://fluxcd.io/legacy/flux/)
 
 ## What Flux does
 
@@ -74,10 +74,10 @@ could easily integrate.
 
 With the following tutorials:
 
-- [Get started with Flux](https://docs.fluxcd.io/en/latest/tutorials/get-started)
-- [Get started with Flux using Helm](https://docs.fluxcd.io/en/latest/tutorials/get-started-helm)
+- [Get started with Flux](https://fluxcd.io/legacy/flux/tutorials/get-started/)
+- [Get started with Flux using Helm](https://fluxcd.io/legacy/flux/tutorials/get-started-helm/)
 
-or just [browse through the documentation](https://docs.fluxcd.io).
+or just [browse through the documentation](https://fluxcd.io/legacy/flux/).
 
 Do you want to release your Helm charts in a declarative way?
 Take a look at the [`fluxcd/helm-operator`](https://github.com/fluxcd/helm-operator).
@@ -109,7 +109,7 @@ To familiarise yourself with the project and how things work, you might
 be interested in the following:
 
 - [Our contributions guidelines](CONTRIBUTING.md)
-- [Build documentation](https://docs.fluxcd.io/en/latest/contributing/building)
+- [Build documentation](https://fluxcd.io/legacy/flux/contributing/building/)
 - [Release documentation](internal/docs/releasing.md)
 
 ## <a name="help"></a>Getting Help
@@ -123,7 +123,7 @@ Reminder that Flux v1 is in maintenance mode. If you have any questions about Fl
 
 If you have further questions about Flux or continuous delivery:
 
-- Read [the Flux docs](https://docs.fluxcd.io).
+- Read [the Flux docs](https://fluxcd.io/legacy/flux/).
 - Invite yourself to the <a href="https://slack.cncf.io" target="_blank">CNCF community</a>
   slack and ask a question on the [#flux](https://cloud-native.slack.com/messages/flux/)
   channel.

@@ -22,7 +22,7 @@ Kubernetes >= v1.11
 ## Installation
 
 We put together a simple [Get Started
-tutorial](https://docs.fluxcd.io/en/stable/tutorials/get-started-helm) which takes about 5-10 minutes to follow.
+tutorial](https://fluxcd.io/legacy/flux/tutorials/get-started-helm/) which takes about 5-10 minutes to follow.
 You will have a fully working Flux installation deploying workloads to your cluster.
 
 ## Installing Flux using Helm
@@ -106,7 +106,7 @@ helm repo add fluxcd https://charts.fluxcd.io
 
    If you haven't supplied your own deploy key, Flux generates an SSH key and logs the public
    key at startup.  You can obtain the SSH public key by installing
-   [fluxctl](https://docs.fluxcd.io/en/stable/references/fluxctl) and running:
+   [fluxctl](https://fluxcd.io/legacy/flux/references/fluxctl/) and running:
 
    ```sh
    fluxctl identity --k8s-fwd-ns flux
@@ -326,8 +326,8 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `prometheus.serviceMonitor.interval`              | ``                                                   | Interval at which metrics should be scraped
 | `prometheus.serviceMonitor.namespace`             | ``                                                   | The namespace where the ServiceMonitor is deployed
 | `prometheus.serviceMonitor.additionalLabels`      | `{}`                                                 | Additional labels to add to the ServiceMonitor
-| `syncGarbageCollection.enabled`                   | `false`                                              | If enabled, fluxd will delete resources that it created, but are no longer present in git (see [garbage collection](../../docs/references/garbagecollection.md))
-| `syncGarbageCollection.dry`                       | `false`                                              | If enabled, fluxd won't delete any resources, but log the garbage collection output (see [garbage collection](../../docs/references/garbagecollection.md))
+| `syncGarbageCollection.enabled`                   | `false`                                              | If enabled, fluxd will delete resources that it created, but are no longer present in git (see [garbage collection](https://fluxcd.io/legacy/flux/references/garbagecollection/))
+| `syncGarbageCollection.dry`                       | `false`                                              | If enabled, fluxd won't delete any resources, but log the garbage collection output (see [garbage collection](https://fluxcd.io/legacy/flux/references/garbagecollection/))
 | `manifestGeneration`                              | `false`                                              | If enabled, fluxd will look for `.flux.yaml` and run Kustomize or other manifest generators
 | `hostAliases`                                     | `{}`                                                 | Additional hostAliases to add to the Flux pod(s). See <https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/>
 | `dashboards.enabled`                              | `false`                                              | If enabled, flux will create a configmap with a dashboard in json that's going to be picked up by grafana (see [sidecar.dashboards.enabled](https://github.com/helm/charts/tree/master/stable/grafana#configuration)). Also remember to set `prometheus.enabled=true` to expose the metrics.

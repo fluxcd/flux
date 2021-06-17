@@ -189,9 +189,3 @@ build-fluxctl: release-bins
 		--build-arg VCS_REF="$(VCS_REF)" \
 		--build-arg BUILD_DATE="$(BUILD_DATE)" \
 		-f ./build/docker/fluxctl/Dockerfile ./build/docker/fluxctl
-
-docs-deps:
-	pip3 install -r docs/requirements.txt
-
-serve-docs: docs-deps
-	mkdocs serve
