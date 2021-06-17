@@ -16,7 +16,7 @@ We need to clone a git repo to proceed, and you haven't supplied
 one. Please upload a config file, including a git repository URL, as
 described in
 
-    https://docs.fluxcd.io/en/latest/references/fluxctl
+    https://fluxcd.io/legacy/flux/references/fluxctl/
 
 `,
 }

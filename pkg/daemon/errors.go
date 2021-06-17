@@ -28,7 +28,7 @@ giving this error:
 Check that any files mentioned are well-formed, and resources are not
 defined more than once. It's also worth reviewing
 
-    https://docs.fluxcd.io/en/latest/requirements
+    https://fluxcd.io/legacy/flux/requirements/
 
 to make sure you're not running into any corner cases.
 

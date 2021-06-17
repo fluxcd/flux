@@ -3,7 +3,7 @@ Get the Git deploy key by either (a) running
   kubectl -n {{ .Release.Namespace }} logs deployment/{{ .Release.Name }} | grep identity.pub | cut -d '"' -f2
 
 or by (b) installing fluxctl through
-https://docs.fluxcd.io/en/latest/references/fluxctl#installing-fluxctl
+https://fluxcd.io/legacy/flux/references/fluxctl/#installing-fluxctl
 and running:
 
   fluxctl identity --k8s-fwd-ns {{ .Release.Namespace }}
