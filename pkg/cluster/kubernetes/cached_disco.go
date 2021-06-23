@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	crdv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -64,7 +64,7 @@ func MakeCachedDiscovery(d discovery.DiscoveryInterface, c crd.Interface, shutdo
 	// We have an empty cache, so it's _a priori_ invalid. (Yes, that's the zero value, but better safe than sorry)
 	cachedDisco.Invalidate()
 
-	crdClient := c.ApiextensionsV1beta1().CustomResourceDefinitions()
+	crdClient := c.ApiextensionsV1().CustomResourceDefinitions()
 	lw := &toolscache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 			return crdClient.List(options)
@@ -84,7 +84,7 @@ func MakeCachedDiscovery(d discovery.DiscoveryInterface, c crd.Interface, shutdo
 			cachedDisco.Invalidate()
 		},
 	}
-	_, controller := toolscache.NewInformer(lw, &crdv1beta1.CustomResourceDefinition{}, 0, handle)
+	_, controller := toolscache.NewInformer(lw, &crdv1.CustomResourceDefinition{}, 0, handle)
 	go cachedDisco.invalidatePeriodically(shutdown)
 	go controller.Run(shutdown)
 	return cachedDisco
