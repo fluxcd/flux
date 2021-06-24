@@ -8,6 +8,37 @@
 > requests](https://github.com/fluxcd/toolkit/discussions) for Flux v2
 > and Toolkit components.
 
+## 1.23.0 (2021-06-25)
+
+This release migrates Flux's discovery cache and helm chart to API versions
+that are compatible with the upcoming Kubernetes 1.22.0 release and tested
+against Kubernetes 1.22.0-alpha.3, where all v1beta1 versions from the
+`rbac.authorization.k8s.io`, and `apiextensions.k8s.io` API groups are
+deprecated, in favor of their GA v1 counterparts.
+
+**Note: Kubernetes Upgrade Required**
+
+These APIs have been available in Kubernetes releases (respectively) from 1.8,
+and 1.16. Users will need to upgrade to at least Kubernetes 1.16. This release
+has been available since September 2019, and was already EOL in August 2020.
+Flux Users should be on at least this version by now.
+
+This will enable Flux v1 to continue to work on upcoming versions of Kubernetes that have yet to be released.
+
+### Maintenance and documentation
+
+- Remove docs, point to new locations [fluxcd/flux#3491][]
+- Move list of production users [fluxcd/flux#3481][]
+- Update the discovery cache to apiextensions v1 [fluxcd/flux#3439][]
+
+### Thanks
+
+Thanks to @stefanprodan, @dholbach, @hiddeco, and @kingdonb, for their contributions to this release.
+
+[fluxcd/flux#3491]: https://github.com/fluxcd/flux/pull/3491
+[fluxcd/flux#3481]: https://github.com/fluxcd/flux/pull/3481
+[fluxcd/flux#3439]: https://github.com/fluxcd/flux/pull/3439
+
 ## 1.22.2 (2021-04-23)
 
 This release bundles migration-related documentation updates with some minor fixes, and tracks Kustomize to the end of its v3.8 minor release series. The next release will probably include an update to Kustomize v3.10.

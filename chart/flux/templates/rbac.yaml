@@ -1,6 +1,6 @@
 {{- if .Values.rbac.create -}}
 {{if .Values.clusterRole.create -}}
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: {{ template "flux.clusterRoleName" . }}
@@ -23,7 +23,7 @@ rules:
 {{- end -}}
 {{- if or .Values.clusterRole.create .Values.clusterRole.name }}
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: {{ template "flux.clusterRoleName" . }}
