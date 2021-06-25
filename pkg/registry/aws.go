@@ -23,7 +23,7 @@ import (
 
 const (
 	// For recognising ECR hosts
-	awsPartitionSuffix = ".amazonaws.com"
+	awsPartitionSuffix   = ".amazonaws.com"
 	awsCnPartitionSuffix = ".amazonaws.com.cn"
 
 	// How long AWS tokens remain valid, according to AWS docs; this
@@ -33,7 +33,7 @@ const (
 	// how long to skip refreshing a region after we've failed
 	embargoDuration = 10 * time.Minute
 
-	EKS_SYSTEM_ACCOUNT = "602401143452"
+	EKS_SYSTEM_ACCOUNT    = "602401143452"
 	EKS_SYSTEM_ACCOUNT_CN = "918309763551"
 )
 
@@ -120,27 +120,30 @@ func ImageCredsWithAWSAuth(lookup func() ImageCreds, logger log.Logger, config A
 					"exclude-ids", fmt.Sprintf("%v", config.BlockIDs))
 			}()
 
-			// This forces the AWS SDK to load config, so we can get
-			// the default region if it's there.
-			sess := session.Must(session.NewSessionWithOptions(session.Options{
-				SharedConfigState: session.SharedConfigEnable,
-			}))
-			// Always try to connect to the metadata service, so we
-			// can fail fast if it's not available.
-			ec2 := ec2metadata.New(sess)
-			metadataRegion, err := ec2.Region()
-			if err != nil {
-				preflightErr = err
-				if config.Regions == nil {
-					config.Regions = []string{}
+			if config.Regions != nil {
+				okToUseAWS = true
+				logger.Log("info", "using regions from local config")
+			} else {
+				// This forces the AWS SDK to load config, so we can get
+				// the default region if it's there.
+				sess := session.Must(session.NewSessionWithOptions(session.Options{
+					SharedConfigState: session.SharedConfigEnable,
+				}))
+				// Always try to connect to the metadata service, so we
+				// can fail fast if it's not available.
+				ec2 := ec2metadata.New(sess)
+				metadataRegion, err := ec2.Region()
+				if err != nil {
+					preflightErr = err
+					if config.Regions == nil {
+						config.Regions = []string{}
+					}
+					logger.Log("error", "fetching region for AWS", "err", err)
+					return
 				}
-				logger.Log("error", "fetching region for AWS", "err", err)
-				return
-			}
 
-			okToUseAWS = true
+				okToUseAWS = true
 
-			if config.Regions == nil {
 				clusterRegion := *sess.Config.Region
 				regionSource := "local config"
 				if clusterRegion == "" {
