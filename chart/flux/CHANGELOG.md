@@ -1,9 +1,14 @@
 ## 1.10.0 (2021-06-25)
 
+**Kubernetes Upgrade Required**: Kubernetes `<v1.16` are out of support.
+This release drops beta APIs and adds support for Kubernetes `>=v1.22.0`.
+
 ### Improvements
 
  - Updated Flux to `1.23.0`
-   [fluxcd/flux#3494](https://github.com/fluxcd/flux/pull/3494)
+   [fluxcd/flux#3495](https://github.com/fluxcd/flux/pull/3495)
+ - update Role,ClusterRole,..Bindings to v1
+   [fluxcd/flux#3493](https://github.com/fluxcd/flux/pull/3493)
 
 ## 1.9.0 (2021-04-23)
 
