@@ -8,6 +8,29 @@
 > requests](https://github.com/fluxcd/toolkit/discussions) for Flux v2
 > and Toolkit components.
 
+## 1.23.1 (2021-07-23)
+
+This release reverts a breaking change reported in [fluxcd/flux#3500][], caused
+from an upgrade to Kustomize v3.8.10.
+
+Flux v1 will remain at Kustomize v3.8.7 until maintenance is ended, since any
+further upgrades of Kustomize all appear to contain breaking changes.
+
+### Fixes
+
+- Roll back Kustomize to v3.8.7 [fluxcd/flux#3504][]
+- Update SOPS to v3.6.1 [fluxcd/flux#3508][]
+- fix e2e tests - use the latest kind version (v0.11.1) [fluxcd/flux#3507][]
+
+### Thanks
+
+Thanks to @bquantump, @mmcaya, @aleclerc-sonrai, @hiddeco, @ahached, @squaremo, @hiddeco, and @kingdonb for their contributions to this release.
+
+[fluxcd/flux#3500]: https://github.com/fluxcd/flux/issues/3500
+[fluxcd/flux#3508]: https://github.com/fluxcd/flux/pull/3508
+[fluxcd/flux#3507]: https://github.com/fluxcd/flux/pull/3507
+[fluxcd/flux#3504]: https://github.com/fluxcd/flux/pull/3504
+
 ## 1.23.0 (2021-06-25)
 
 This release migrates Flux's discovery cache and helm chart to API versions
