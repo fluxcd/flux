@@ -1,3 +1,10 @@
+## 1.10.1 (2021-07-23)
+
+### Improvements
+
+ - Updated Flux to `1.23.1`
+   [fluxcd/flux#3509](https://github.com/fluxcd/flux/pull/3509)
+
 ## 1.10.0 (2021-06-25)
 
 **Kubernetes Upgrade Required**: Kubernetes `<v1.16` are out of support.
