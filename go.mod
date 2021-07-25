@@ -40,7 +40,6 @@ require (
 	github.com/bradfitz/gomemcache v0.0.0-20190329173943-551aad21a668
 	github.com/cheggaaa/pb/v3 v3.0.8
 	github.com/containerd/continuity v0.0.0-20210208174643-50096c924a4e // indirect
-	github.com/containerd/stargz-snapshotter/estargz v0.4.1 // indirect
 	github.com/docker/cli v20.10.3+incompatible // indirect
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/docker/docker v20.10.3+incompatible // indirect
@@ -56,7 +55,6 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/imdario/mergo v0.3.12
-	github.com/magefile/mage v1.11.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opentracing-contrib/go-stdlib v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1
@@ -73,7 +71,6 @@ require (
 	github.com/xeipuuv/gojsonschema v1.1.0
 	go.mozilla.org/sops/v3 v3.6.1
 	golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914
-	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
 	gopkg.in/yaml.v2 v2.4.0
