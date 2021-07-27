@@ -17,13 +17,13 @@ replace (
 	github.com/fluxcd/helm-operator/pkg/install => github.com/fluxcd/helm-operator/pkg/install v0.0.0-20200213151218-f7e487142b46
 )
 
-// Pin kubernetes dependencies to 1.17.17
+// Pin kubernetes dependencies to 1.21.3
 replace (
-	k8s.io/api => k8s.io/api v0.17.17
-	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.17.17
-	k8s.io/apimachinery => k8s.io/apimachinery v0.17.17
-	k8s.io/client-go => k8s.io/client-go v0.17.17
-	k8s.io/code-generator => k8s.io/code-generator v0.17.17
+	k8s.io/api => k8s.io/api v0.21.3
+	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.21.3
+	k8s.io/apimachinery => k8s.io/apimachinery v0.21.3
+	k8s.io/client-go => k8s.io/client-go v0.21.3
+	k8s.io/code-generator => k8s.io/code-generator v0.21.3
 )
 
 // github.com/fluxcd/flux/pkg/install lives in this very repository, so use that
