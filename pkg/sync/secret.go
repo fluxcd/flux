@@ -7,7 +7,7 @@ import (
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	kubernetes "k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/typed/core/v1"
+	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 )
 
@@ -46,37 +46,39 @@ func (p NativeSyncProvider) String() string {
 
 // GetRevision gets the revision of the current sync marker (representing the place flux has synced to).
 func (p NativeSyncProvider) GetRevision(ctx context.Context) (string, error) {
-	resource, err := p.resourceAPI.Get(p.resourceName, meta_v1.GetOptions{})
+	resource, err := p.resourceAPI.Get(ctx, p.resourceName, meta_v1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
 	revision, exists := resource.Annotations[syncMarkerKey]
 	if !exists {
-		return "", p.setRevision("")
+		return "", p.setRevision(ctx, "")
 	}
 	return revision, nil
 }
 
 // UpdateMarker updates the revision the sync marker points to.
 func (p NativeSyncProvider) UpdateMarker(ctx context.Context, revision string) error {
-	return p.setRevision(revision)
+	return p.setRevision(ctx, revision)
 }
 
 // DeleteMarker resets the state of the object.
 func (p NativeSyncProvider) DeleteMarker(ctx context.Context) error {
-	return p.setRevision("")
+	return p.setRevision(ctx, "")
 }
 
-func (p NativeSyncProvider) setRevision(revision string) error {
+func (p NativeSyncProvider) setRevision(ctx context.Context, revision string) error {
 	jsonPatch, err := json.Marshal(patch(revision))
 	if err != nil {
 		return err
 	}
 
 	_, err = p.resourceAPI.Patch(
+		ctx,
 		p.resourceName,
 		types.StrategicMergePatchType,
 		jsonPatch,
+		meta_v1.PatchOptions{},
 	)
 	return err
 }
