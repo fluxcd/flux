@@ -116,7 +116,7 @@ func (dk *deploymentKind) getWorkload(ctx context.Context, c *Cluster, namespace
 	if err := ctx.Err(); err != nil {
 		return workload{}, err
 	}
-	deployment, err := c.client.AppsV1().Deployments(namespace).Get(name, meta_v1.GetOptions{})
+	deployment, err := c.client.AppsV1().Deployments(namespace).Get(context.TODO(), name, meta_v1.GetOptions{})
 	if err != nil {
 		return workload{}, err
 	}
@@ -128,7 +128,7 @@ func (dk *deploymentKind) getWorkloads(ctx context.Context, c *Cluster, namespac
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	deployments, err := c.client.AppsV1().Deployments(namespace).List(meta_v1.ListOptions{})
+	deployments, err := c.client.AppsV1().Deployments(namespace).List(context.TODO(), meta_v1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +199,7 @@ func (dk *daemonSetKind) getWorkload(ctx context.Context, c *Cluster, namespace,
 	if err := ctx.Err(); err != nil {
 		return workload{}, err
 	}
-	daemonSet, err := c.client.AppsV1().DaemonSets(namespace).Get(name, meta_v1.GetOptions{})
+	daemonSet, err := c.client.AppsV1().DaemonSets(namespace).Get(context.TODO(), name, meta_v1.GetOptions{})
 	if err != nil {
 		return workload{}, err
 	}
@@ -211,7 +211,7 @@ func (dk *daemonSetKind) getWorkloads(ctx context.Context, c *Cluster, namespace
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	daemonSets, err := c.client.AppsV1().DaemonSets(namespace).List(meta_v1.ListOptions{})
+	daemonSets, err := c.client.AppsV1().DaemonSets(namespace).List(context.TODO(), meta_v1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +266,7 @@ func (dk *statefulSetKind) getWorkload(ctx context.Context, c *Cluster, namespac
 	if err := ctx.Err(); err != nil {
 		return workload{}, err
 	}
-	statefulSet, err := c.client.AppsV1().StatefulSets(namespace).Get(name, meta_v1.GetOptions{})
+	statefulSet, err := c.client.AppsV1().StatefulSets(namespace).Get(context.TODO(), name, meta_v1.GetOptions{})
 	if err != nil {
 		return workload{}, err
 	}
@@ -278,7 +278,7 @@ func (dk *statefulSetKind) getWorkloads(ctx context.Context, c *Cluster, namespa
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	statefulSets, err := c.client.AppsV1().StatefulSets(namespace).List(meta_v1.ListOptions{})
+	statefulSets, err := c.client.AppsV1().StatefulSets(namespace).List(context.TODO(), meta_v1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -365,7 +365,7 @@ func (dk *cronJobKind) getWorkload(ctx context.Context, c *Cluster, namespace, n
 	if err := ctx.Err(); err != nil {
 		return workload{}, err
 	}
-	cronJob, err := c.client.BatchV1beta1().CronJobs(namespace).Get(name, meta_v1.GetOptions{})
+	cronJob, err := c.client.BatchV1beta1().CronJobs(namespace).Get(context.TODO(), name, meta_v1.GetOptions{})
 	if err != nil {
 		return workload{}, err
 	}
@@ -377,7 +377,7 @@ func (dk *cronJobKind) getWorkloads(ctx context.Context, c *Cluster, namespace s
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	cronJobs, err := c.client.BatchV1beta1().CronJobs(namespace).List(meta_v1.ListOptions{})
+	cronJobs, err := c.client.BatchV1beta1().CronJobs(namespace).List(context.TODO(), meta_v1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -437,7 +437,7 @@ func (hr *helmReleaseKind) getWorkloads(ctx context.Context, c *Cluster, namespa
 }
 
 func makeHelmReleaseStableWorkload(helmRelease *hr_v1.HelmRelease) workload {
-	containers := createK8sHRContainers(helmRelease.ObjectMeta.Annotations, helmRelease.Spec.Values.Data)
+	containers := createK8sHRContainers(helmRelease.ObjectMeta.Annotations, helmRelease.GetValues())
 
 	podTemplate := apiv1.PodTemplateSpec{
 		ObjectMeta: helmRelease.ObjectMeta,

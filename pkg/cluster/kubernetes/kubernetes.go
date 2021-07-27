@@ -248,7 +248,7 @@ func (c *Cluster) Export(ctx context.Context) ([]byte, error) {
 	defer encoder.Close()
 
 	for _, ns := range namespaces {
-		namespace, err := c.client.CoreV1().Namespaces().Get(ns, meta_v1.GetOptions{})
+		namespace, err := c.client.CoreV1().Namespaces().Get(ctx, ns, meta_v1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -311,7 +311,7 @@ func (c *Cluster) getAllowedAndExistingNamespaces(ctx context.Context) ([]string
 			if err := ctx.Err(); err != nil {
 				return nil, err
 			}
-			ns, err := c.client.CoreV1().Namespaces().Get(name, meta_v1.GetOptions{})
+			ns, err := c.client.CoreV1().Namespaces().Get(ctx, name, meta_v1.GetOptions{})
 			switch {
 			case err == nil:
 				c.updateLoggedAllowedNS(name, false) // reset, so if the namespace goes away we'll log it again

@@ -8,7 +8,7 @@ replace github.com/docker/distribution => github.com/fluxcd/distribution v0.0.0-
 
 // fix go-autorest ambiguous import caused by sops
 // sops needs to update their deps ref: https://github.com/kubernetes/client-go/issues/628
-replace github.com/Azure/go-autorest => github.com/Azure/go-autorest v12.2.0+incompatible
+// replace github.com/Azure/go-autorest => github.com/Azure/go-autorest v12.2.0+incompatible
 
 // transitive requirement from Helm Operator
 replace (
@@ -33,13 +33,11 @@ require (
 	github.com/Azure/azure-sdk-for-go v38.0.0+incompatible // indirect
 	github.com/Jeffail/gabs v1.4.0
 	github.com/Masterminds/semver/v3 v3.1.1
-	github.com/Microsoft/go-winio v0.4.16 // indirect
 	github.com/aws/aws-sdk-go v1.33.18
 	github.com/bradfitz/gomemcache v0.0.0-20190329173943-551aad21a668
 	github.com/cheggaaa/pb/v3 v3.0.2
 	github.com/containerd/continuity v0.0.0-20210208174643-50096c924a4e // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.4.1 // indirect
-	github.com/docker/cli v20.10.3+incompatible // indirect
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/docker/docker v20.10.3+incompatible // indirect
 	github.com/evanphx/json-patch v4.9.0+incompatible
@@ -48,7 +46,6 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-kit/kit v0.10.0
 	github.com/golang/gddo v0.0.0-20190312205958-5a2505f3dbf0
-	github.com/google/go-cmp v0.5.4 // indirect
 	github.com/google/go-containerregistry v0.4.0
 	github.com/google/go-github/v28 v28.1.1
 	github.com/gorilla/mux v1.7.3
@@ -77,7 +74,6 @@ require (
 	golang.org/x/sys v0.0.0-20210426230700-d19ff857e887
 	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba
 	gopkg.in/yaml.v2 v2.4.0
-	gotest.tools/v3 v3.0.3 // indirect
 	k8s.io/api v0.21.3
 	k8s.io/apiextensions-apiserver v0.20.4
 	k8s.io/apimachinery v0.21.3
