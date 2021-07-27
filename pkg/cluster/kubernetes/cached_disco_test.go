@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -69,7 +70,7 @@ func TestCachedDiscovery(t *testing.T) {
 	coreClient.Fake.Resources = append(apiResources, updatedAPI)
 
 	// Provoke the cached discovery client into invalidating
-	_, err = crdClient.ApiextensionsV1().CustomResourceDefinitions().Update(myCRD)
+	_, err = crdClient.ApiextensionsV1().CustomResourceDefinitions().Update(context.TODO(), myCRD, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"sort"
@@ -37,6 +38,10 @@ const (
 
 func fakeClients() (ExtendedClient, func()) {
 	scheme := runtime.NewScheme()
+	listMapping := map[schema.GroupVersionResource]string{
+		{Group: "", Version: "v1", Resource: "namespaces"}:      "List",
+		{Group: "apps", Version: "v1", Resource: "deployments"}: "List",
+	}
 
 	// Set this to `true` to output a trace of the API actions called
 	// while running the tests
@@ -63,7 +68,7 @@ func fakeClients() (ExtendedClient, func()) {
 
 	coreClient := corefake.NewSimpleClientset(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: defaultTestNamespace}})
 	hrClient := helmopfake.NewSimpleClientset()
-	dynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
+	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listMapping)
 	crdClient := crdfake.NewSimpleClientset()
 	shutdown := make(chan struct{})
 	discoveryClient := MakeCachedDiscovery(coreClient.Discovery(), crdClient, shutdown)
@@ -153,12 +158,12 @@ func (a fakeApplier) apply(_ log.Logger, cs changeSet, errored map[resource.ID]e
 		name := res.GetName()
 
 		if cmd == "apply" {
-			_, err := dc.Get(name, metav1.GetOptions{})
+			_, err := dc.Get(context.TODO(), name, metav1.GetOptions{})
 			switch {
 			case errors.IsNotFound(err):
-				_, err = dc.Create(res, metav1.CreateOptions{})
+				_, err = dc.Create(context.TODO(), res, metav1.CreateOptions{})
 			case err == nil:
-				_, err = dc.Update(res, metav1.UpdateOptions{})
+				_, err = dc.Update(context.TODO(), res, metav1.UpdateOptions{})
 			}
 			if err != nil {
 				errs = append(errs, cluster.ResourceError{obj.ResourceID, obj.Source, err})
@@ -172,12 +177,12 @@ func (a fakeApplier) apply(_ log.Logger, cs changeSet, errored map[resource.ID]e
 					errs = append(errs, cluster.ResourceError{obj.ResourceID, obj.Source, err})
 					return
 				}
-				_, err := a.coreClient.CoreV1().Namespaces().Get(ns.Name, metav1.GetOptions{})
+				_, err := a.coreClient.CoreV1().Namespaces().Get(context.TODO(), ns.Name, metav1.GetOptions{})
 				switch {
 				case errors.IsNotFound(err):
-					_, err = a.coreClient.CoreV1().Namespaces().Create(&ns)
+					_, err = a.coreClient.CoreV1().Namespaces().Create(context.TODO(), &ns, metav1.CreateOptions{})
 				case err == nil:
-					_, err = a.coreClient.CoreV1().Namespaces().Update(&ns)
+					_, err = a.coreClient.CoreV1().Namespaces().Update(context.TODO(), &ns, metav1.UpdateOptions{})
 				}
 				if err != nil {
 					errs = append(errs, cluster.ResourceError{obj.ResourceID, obj.Source, err})
@@ -186,14 +191,14 @@ func (a fakeApplier) apply(_ log.Logger, cs changeSet, errored map[resource.ID]e
 			}
 
 		} else if cmd == "delete" {
-			if err := dc.Delete(name, &metav1.DeleteOptions{}); err != nil {
+			if err := dc.Delete(context.TODO(), name, metav1.DeleteOptions{}); err != nil {
 				errs = append(errs, cluster.ResourceError{obj.ResourceID, obj.Source, err})
 				return
 			}
 			if res.GetKind() == "Namespace" {
 				// We also create namespaces in the core fake client since the dynamic client
 				// and core clients don't share resources
-				if err := a.coreClient.CoreV1().Namespaces().Delete(res.GetName(), &metav1.DeleteOptions{}); err != nil {
+				if err := a.coreClient.CoreV1().Namespaces().Delete(context.TODO(), res.GetName(), metav1.DeleteOptions{}); err != nil {
 					errs = append(errs, cluster.ResourceError{obj.ResourceID, obj.Source, err})
 					return
 				}
@@ -564,12 +569,12 @@ metadata:
 			Resource: "deployments",
 		}
 		client := kube.client.dynamicClient.Resource(gvr).Namespace(depNS)
-		depActual, err := client.Get(depName, metav1.GetOptions{})
+		depActual, err := client.Get(context.TODO(), depName, metav1.GetOptions{})
 		assert.NoError(t, err)
 		depCopy := depActual.DeepCopy()
 		depCopyName := depName + "copy"
 		depCopy.SetName(depCopyName)
-		depCopyActual, err := client.Create(depCopy, metav1.CreateOptions{})
+		depCopyActual, err := client.Create(context.TODO(), depCopy, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
 		// Check that both dep and its copy have the same GCmark label
@@ -581,9 +586,9 @@ metadata:
 		test(t, kube, "", "", false)
 
 		// Check that defs1 is removed from the cluster but its copy isn't, due to having a different name
-		_, err = client.Get(depName, metav1.GetOptions{})
+		_, err = client.Get(context.TODO(), depName, metav1.GetOptions{})
 		assert.Error(t, err)
-		_, err = client.Get(depCopyName, metav1.GetOptions{})
+		_, err = client.Get(context.TODO(), depCopyName, metav1.GetOptions{})
 		assert.NoError(t, err)
 	})
 
@@ -674,14 +679,14 @@ spec:
 			Version:  "v1",
 			Resource: "deployments",
 		})
-		res, err := rc.Namespace("foobar").Get("dep1", metav1.GetOptions{})
+		res, err := rc.Namespace("foobar").Get(context.TODO(), "dep1", metav1.GetOptions{})
 		if err != nil {
 			t.Fatal(err)
 		}
 		annots := res.GetAnnotations()
 		annots["flux.weave.works/ignore"] = "true"
 		res.SetAnnotations(annots)
-		if _, err = rc.Namespace("foobar").Update(res, metav1.UpdateOptions{}); err != nil {
+		if _, err = rc.Namespace("foobar").Update(context.TODO(), res, metav1.UpdateOptions{}); err != nil {
 			t.Fatal(err)
 		}
 
@@ -753,14 +758,14 @@ metadata:
 			Version:  "v1",
 			Resource: "deployments",
 		})
-		res, err := rc.Namespace("foobar").Get("dep1", metav1.GetOptions{})
+		res, err := rc.Namespace("foobar").Get(context.TODO(), "dep1", metav1.GetOptions{})
 		if err != nil {
 			t.Fatal(err)
 		}
 		annots := res.GetAnnotations()
 		annots["flux.weave.works/ignore"] = "true"
 		res.SetAnnotations(annots)
-		if _, err = rc.Namespace("foobar").Update(res, metav1.UpdateOptions{}); err != nil {
+		if _, err = rc.Namespace("foobar").Update(context.TODO(), res, metav1.UpdateOptions{}); err != nil {
 			t.Fatal(err)
 		}
 
@@ -792,10 +797,10 @@ spec:
 		err = yaml.Unmarshal([]byte(ns1), &ns1obj)
 		assert.NoError(t, err)
 		// Put the pre-existing resource in the cluster
-		_, err = kube.client.coreClient.CoreV1().Namespaces().Create(&ns1obj)
+		_, err = kube.client.coreClient.CoreV1().Namespaces().Create(context.TODO(), &ns1obj, metav1.CreateOptions{})
 		assert.NoError(t, err)
 		dc := kube.client.dynamicClient.Resource(gvr).Namespace(dep1res.GetNamespace())
-		_, err = dc.Create(dep1res, metav1.CreateOptions{})
+		_, err = dc.Create(context.TODO(), dep1res, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
 		// Check that our resource-getting also sees the pre-existing resource
@@ -808,7 +813,7 @@ spec:
 		test(t, kube, "", "", false)
 
 		// .. but, our resource is still there.
-		r, err := dc.Get(dep1res.GetName(), metav1.GetOptions{})
+		r, err := dc.Get(context.TODO(), dep1res.GetName(), metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.NotNil(t, r)
 
@@ -827,7 +832,7 @@ spec:
 		test(t, kube, update, "", false)
 
 		// Check that it still exists, as created
-		r, err = dc.Get(dep1res.GetName(), metav1.GetOptions{})
+		r, err = dc.Get(context.TODO(), dep1res.GetName(), metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.NotNil(t, r)
 		checkSame(t, []byte(existing), r)

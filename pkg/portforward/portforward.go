@@ -4,6 +4,7 @@ package portforward
 // licensed under the Apache License 2.0
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -71,7 +72,7 @@ func NewPortForwarder(namespace string, labels metav1.LabelSelector, port int) (
 }
 
 // Start a port forward to a pod - blocks until the tunnel is ready for use.
-func (p *PortForward) Start() error {
+func (p *PortForward) Start(ctx context.Context) error {
 	p.stopChan = make(chan struct{}, 1)
 	readyChan := make(chan struct{}, 1)
 	errChan := make(chan error, 1)
@@ -81,7 +82,7 @@ func (p *PortForward) Start() error {
 		return errors.Wrap(err, "Could not find a port to bind to")
 	}
 
-	dialer, err := p.dialer()
+	dialer, err := p.dialer(ctx)
 	if err != nil {
 		return errors.Wrap(err, "Could not create a dialer")
 	}
@@ -146,8 +147,8 @@ func (p *PortForward) getFreePort() (int, error) {
 }
 
 // Create an httpstream.Dialer for use with portforward.New
-func (p *PortForward) dialer() (httpstream.Dialer, error) {
-	pod, err := p.getPodName()
+func (p *PortForward) dialer(ctx context.Context) (httpstream.Dialer, error) {
+	pod, err := p.getPodName(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "Could not get pod name")
 	}
@@ -169,10 +170,10 @@ func (p *PortForward) dialer() (httpstream.Dialer, error) {
 
 // Gets the pod name to port forward to, if Name is set, Name is returned. Otherwise,
 // it will call findPodByLabels().
-func (p *PortForward) getPodName() (string, error) {
+func (p *PortForward) getPodName(ctx context.Context) (string, error) {
 	var err error
 	if p.Name == "" {
-		p.Name, err = p.findPodByLabels()
+		p.Name, err = p.findPodByLabels(ctx)
 	}
 	return p.Name, err
 }
@@ -180,12 +181,12 @@ func (p *PortForward) getPodName() (string, error) {
 // Find the name of a pod by label, returns an error if the label returns
 // more or less than one pod.
 // It searches for the labels specified by labels.
-func (p *PortForward) findPodByLabels() (string, error) {
+func (p *PortForward) findPodByLabels(ctx context.Context) (string, error) {
 	if len(p.Labels.MatchLabels) == 0 && len(p.Labels.MatchExpressions) == 0 {
 		return "", errors.New("No pod labels specified")
 	}
 
-	pods, err := p.Clientset.CoreV1().Pods(p.Namespace).List(metav1.ListOptions{
+	pods, err := p.Clientset.CoreV1().Pods(p.Namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: metav1.FormatLabelSelector(&p.Labels),
 		FieldSelector: fields.OneTermEqualSelector("status.phase", string(v1.PodRunning)).String(),
 	})
