@@ -72,7 +72,7 @@ func (opts *syncOpts) RunE(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	rev := result.Revision[:7]
+	rev := result.Revision[:12]
 	fmt.Fprintf(cmd.OutOrStderr(), "Revision of %s to apply is %s\n", gitConfig.Remote.Branch, rev)
 	fmt.Fprintf(cmd.OutOrStderr(), "Waiting for %s to be applied ...\n", rev)
 	err = awaitSync(ctx, opts.API, rev, opts.Timeout)

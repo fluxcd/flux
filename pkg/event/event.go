@@ -174,7 +174,7 @@ func shortRevision(rev string) string {
 	if len(rev) <= 7 {
 		return rev
 	}
-	return rev[:7]
+	return rev[:12]
 }
 
 // CommitEventMetadata is the metadata for when new git commits are created

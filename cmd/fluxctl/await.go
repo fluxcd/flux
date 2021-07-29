@@ -33,7 +33,7 @@ is safe to retry operations.`)
 		update.PrintResults(stdout, result.Result, verbosity)
 	}
 	if result.Revision != "" {
-		fmt.Fprintf(stderr, "Commit pushed:\t%s\n", result.Revision[:7])
+		fmt.Fprintf(stderr, "Commit pushed:\t%s\n", result.Revision[:12])
 	}
 	if result.Result == nil {
 		fmt.Fprintf(stderr, "Nothing to do\n")
@@ -54,7 +54,7 @@ to run a sync interactively.`)
 			}
 			return err
 		}
-		fmt.Fprintf(stderr, "Commit applied:\t%s\n", result.Revision[:7])
+		fmt.Fprintf(stderr, "Commit applied:\t%s\n", result.Revision[:12])
 	}
 
 	return nil
