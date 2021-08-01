@@ -21,7 +21,7 @@ function uninstall_tiller() {
   kubectl --namespace kube-system delete sa tiller
 }
 
-HELMRELEASE_CRD_URL=https://raw.githubusercontent.com/fluxcd/helm-operator/v1.0.0-rc4/deploy/flux-helm-release-crd.yaml
+HELMRELEASE_CRD_URL=https://raw.githubusercontent.com/fluxcd/helm-operator/v1.4.0/deploy/crds.yaml
 
 function install_flux_with_helm() {
 
