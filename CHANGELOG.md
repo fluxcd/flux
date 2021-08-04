@@ -8,6 +8,22 @@
 > requests](https://github.com/fluxcd/toolkit/discussions) for Flux v2
 > and Toolkit components.
 
+## 1.23.2 (2021-08-04)
+
+This patch release addresses some error cases that may be encountered when an
+AWS ECR repo is used together with Image Update Automation, but the AWS API for
+Instance Metadata is unavailable, or when it has been purposefully blocked.
+
+### Fixes
+
+- Skip AWS Metadata API pre-flight check when regions are passed via config [fluxcd/flux#3485][]
+
+### Thanks
+
+Thanks to @hiddeco, @evq, @squaremo, @pbn4, @admssa, @renanqts, @jclynny, @sureshamk, @jayvie, and @gonzalobarbitta for their contributions to this release.
+
+[fluxcd/flux#3485]: https://github.com/fluxcd/flux/pull/3485
+
 ## 1.23.1 (2021-07-23)
 
 This release reverts a breaking change reported in [fluxcd/flux#3500][], caused
