@@ -1,0 +1,79 @@
+---
+name: Bug report
+description: Create a report to help us improve Flux Legacy
+labels: blocked-needs-validation, bug
+assignees: []
+body:
+- type: markdown
+  attributes:
+    value: |
+      ## [Migrate to Flux v2](https://github.com/fluxcd/flux2/discussions/413)
+      Flux v1 is in maintenance mode and all users are recommended to upgrade to Flux v2.
+      ## Support
+      Find out more about your support options and getting help at: https://fluxcd.io/support/
+- type: textarea
+  validations:
+    required: true
+  attributes:
+    label: Describe the bug
+    description: A clear description of what the bug is.
+- type: textarea
+  validations:
+    required: true
+  attributes:
+    label: Steps to reproduce
+    description: |
+      Steps to reproduce the problem.
+    placeholder: |
+      For example:
+      1. Install Flux with (`helm`|`fluxctl install`), configured with '...' options
+      2. Run command '...'
+      3. See error
+- type: textarea
+  validations:
+    required: true
+  attributes:
+    label: Expected behavior
+    description: A brief description of what you expected to happen.
+- type: input
+  validations:
+    required: true
+  attributes:
+    label: Kubernetes version / Distro / Cloud provider
+    description: Any relevant version information about the cluster that runs Flux
+    placeholder: kubeadm v1.22.0 on bare metal / Amazon EKS 1.21.2-eks.1 / etc.
+- type: input
+  validations:
+    required: true
+  attributes:
+    label: Flux version
+    description: "`flux` daemon version, Flux's helm chart version, and/or `fluxctl version`"
+    placeholder: Flux v1.23.2 / Helm chart 1.10.2 / fluxctl 1.23.2
+- type: input
+  attributes:
+    label: Git provider
+    description: If applicable, add the Git provider you are having problems with, e.g. GitHub (Enterprise), GitLab, etc.
+- type: input
+  attributes:
+    label: Container Registry provider
+    description: If applicable, add the Container Registry provider you are having problems with, e.g. DockerHub, GitHub Packages, Quay.io, etc.
+- type: textarea
+  attributes:
+    label: Additional context
+    description: Add any other context about the problem here. This can be logs, environment specific caveats, etc.
+- type: checkboxes
+  id: maintenance
+  attributes:
+    label: Maintenance Acknowledgement
+    description: Please be aware of Flux v1's [maintenance status](https://github.com/fluxcd/flux/issues/3320) and review the [FAQ page](https://fluxcd.io/legacy/flux/faq/)
+    options:
+    - label: I am aware of Flux v1's maintenance status
+      required: true
+- type: checkboxes
+  id: terms
+  attributes:
+    label: Code of Conduct
+    description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/fluxcd/.github/blob/main/CODE_OF_CONDUCT.md)
+    options:
+    - label: I agree to follow this project's Code of Conduct
+      required: true
