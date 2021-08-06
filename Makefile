@@ -129,7 +129,7 @@ cache/%/kustomize-$(KUSTOMIZE_VERSION): docker/kustomize.version
 
 cache/%/helm-$(HELM_VERSION):
 	mkdir -p cache/$*
-	curl --fail -L -o cache/$*/helm-$(HELM_VERSION).tar.gz "https://storage.googleapis.com/kubernetes-helm/helm-v$(HELM_VERSION)-$*.tar.gz"
+	curl --fail -L -o cache/$*/helm-$(HELM_VERSION).tar.gz "https://get.helm.sh/helm-v$(HELM_VERSION)-$*.tar.gz"
 	tar -m -C ./cache -xzf cache/$*/helm-$(HELM_VERSION).tar.gz $*/helm
 	mv cache/$*/helm $@
 
