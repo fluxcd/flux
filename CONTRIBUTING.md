@@ -48,7 +48,7 @@ Agenda and minutes of previous Flux Dev meetings can be reviewed in this
 [Google doc](https://docs.google.com/document/d/1l_M0om0qUEN_NNiGgpqJ2tvsF2iioHkaARDeh6b70B0/edit#).
 
 Meeting recordings can be viewed in this [Youtube
-playlist](https://www.youtube.com/playlist?list=PLbx4FZ4kOKntmgJqaT-iJ8tn4xat150yL).
+playlist](https://www.youtube.com/playlist?list=PLwjBY07V76p5mWNgdINjIiuUiItIeLhIN).
 
 ## Getting Started
 
