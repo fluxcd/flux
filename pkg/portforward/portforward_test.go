@@ -4,6 +4,7 @@ package portforward
 // licensed under the Apache License 2.0
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -42,7 +43,7 @@ func TestFindPodByLabels(t *testing.T) {
 		},
 	}
 
-	pod, err := pf.findPodByLabels()
+	pod, err := pf.findPodByLabels(context.TODO())
 	assert.Nil(t, err)
 	assert.Equal(t, "mypod2", pod)
 }
@@ -60,7 +61,7 @@ func TestFindPodByLabelsNoneExist(t *testing.T) {
 		},
 	}
 
-	_, err := pf.findPodByLabels()
+	_, err := pf.findPodByLabels(context.TODO())
 	assert.NotNil(t, err)
 	assert.Equal(t, "Could not find running pod for selector: labels \"name=flux\"", err.Error())
 }
@@ -82,7 +83,7 @@ func TestFindPodByLabelsMultiple(t *testing.T) {
 		},
 	}
 
-	_, err := pf.findPodByLabels()
+	_, err := pf.findPodByLabels(context.TODO())
 	assert.NotNil(t, err)
 	assert.Equal(t, "Ambiguous pod: found more than one pod for selector: labels \"name=flux\"", err.Error())
 }
@@ -108,7 +109,7 @@ func TestFindPodByLabelsExpression(t *testing.T) {
 		},
 	}
 
-	pod, err := pf.findPodByLabels()
+	pod, err := pf.findPodByLabels(context.TODO())
 	assert.Nil(t, err)
 	assert.Equal(t, "mypod2", pod)
 }
@@ -134,7 +135,7 @@ func TestFindPodByLabelsExpressionNotFound(t *testing.T) {
 		},
 	}
 
-	_, err := pf.findPodByLabels()
+	_, err := pf.findPodByLabels(context.TODO())
 	assert.NotNil(t, err)
 	assert.Equal(t, "Could not find running pod for selector: labels \"name in (flux,fluxd)\"", err.Error())
 }
@@ -144,7 +145,7 @@ func TestGetPodNameNameSet(t *testing.T) {
 		Name: "hello",
 	}
 
-	pod, err := pf.getPodName()
+	pod, err := pf.getPodName(context.TODO())
 	assert.Nil(t, err)
 	assert.Equal(t, "hello", pod)
 }
@@ -162,7 +163,7 @@ func TestGetPodNameNoNameSet(t *testing.T) {
 		},
 	}
 
-	pod, err := pf.getPodName()
+	pod, err := pf.getPodName(context.TODO())
 	assert.Nil(t, err)
 	assert.Equal(t, "mypod", pod)
 	assert.Equal(t, pf.Name, pod)

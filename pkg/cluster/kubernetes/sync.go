@@ -8,12 +8,13 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"github.com/ryanuber/go-glob"
 	"io"
 	"os/exec"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/ryanuber/go-glob"
 
 	"github.com/go-kit/kit/log"
 	"github.com/imdario/mergo"
@@ -336,7 +337,7 @@ func (c *Cluster) listAllowedResources(
 	if !namespaced {
 		// The resource is not namespaced, everything is allowed
 		resourceClient := c.client.dynamicClient.Resource(gvr)
-		data, err := resourceClient.List(options)
+		data, err := resourceClient.List(context.TODO(), options)
 		if err != nil {
 			return nil, err
 		}
@@ -350,7 +351,7 @@ func (c *Cluster) listAllowedResources(
 	}
 	var result []unstructured.Unstructured
 	for _, ns := range namespaces {
-		data, err := c.client.dynamicClient.Resource(gvr).Namespace(ns).List(options)
+		data, err := c.client.dynamicClient.Resource(gvr).Namespace(ns).List(context.TODO(), options)
 		if err != nil {
 			return result, err
 		}

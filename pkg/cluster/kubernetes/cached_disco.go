@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -67,10 +68,10 @@ func MakeCachedDiscovery(d discovery.DiscoveryInterface, c crd.Interface, shutdo
 	crdClient := c.ApiextensionsV1().CustomResourceDefinitions()
 	lw := &toolscache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-			return crdClient.List(options)
+			return crdClient.List(context.TODO(), options)
 		},
 		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-			return crdClient.Watch(options)
+			return crdClient.Watch(context.TODO(), options)
 		},
 	}
 	handle := toolscache.ResourceEventHandlerFuncs{
