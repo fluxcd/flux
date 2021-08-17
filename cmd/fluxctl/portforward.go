@@ -67,7 +67,7 @@ func tryPortforward(ctx context.Context, kubeConfigContext string, ns string, se
 		return portforwarder, errors.Wrap(err, "Could not create kubernetes client")
 	}
 
-	err = portforwarder.Start(context.TODO())
+	err = portforwarder.Start(ctx)
 	if err != nil {
 		return portforwarder, err
 	}
