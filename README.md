@@ -118,7 +118,8 @@ Reminder that Flux v1 is in maintenance mode. If you have any questions about Fl
 
 - Read about the [GitOps Toolkit](https://toolkit.fluxcd.io/) (Flux v2 is built on the GitOps Toolkit).
 - Ask questions and add suggestions in our [GitOps Toolkit Discussions](https://github.com/fluxcd/toolkit/discussions)
-- Watch our [featured talks on updates to Flux v2 and the GitOps Toolkit](https://fluxcd.io/community#featured-talks)
+- Check out our **[events calendar](https://fluxcd.io/#calendar)**, both with upcoming talks, events and meetings you can attend.
+- Or view the **[resources section](https://fluxcd.io/resources)** with past events videos you can watch.
 - Join the Flux v2 / GitOps Toolkit [community meetings](https://fluxcd.io/community/#meetings)
 
 If you have further questions about Flux or continuous delivery:
