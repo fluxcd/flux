@@ -8,7 +8,7 @@ TEST_FLAGS?=
 BATS_COMMIT := 3a1c2f28be260f8687ff83183cef4963faabedd6
 SHELLCHECK_VERSION := 0.7.0
 SHFMT_VERSION := 2.6.4
-HELM_VERSION := 2.16.0
+HELM_VERSION := 2.17.0
 
 include docker/kubectl.version
 include docker/kustomize.version
