@@ -10,6 +10,8 @@ sources:
 maintainers:
   - name: stefanprodan
     email: stefan@weave.works
+  - name: kingdonb
+    email: kingdon@weave.works
 engine: gotpl
 icon: https://raw.githubusercontent.com/fluxcd/flux/master/docs/_files/weave-flux.png
 keywords:
