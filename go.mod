@@ -1,6 +1,6 @@
 module github.com/fluxcd/flux
 
-go 1.15
+go 1.16
 
 // remove when https://github.com/docker/distribution/pull/2905 is released.
 // Update: on 2021-02-25 this has been merged, 2.7.2 should include it soon!
