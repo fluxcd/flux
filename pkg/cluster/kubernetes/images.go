@@ -55,7 +55,7 @@ func mergeCredentials(log func(...interface{}) error,
 		saName = "default"
 	}
 
-	sa, err := client.CoreV1().ServiceAccounts(namespace).Get(saName, meta_v1.GetOptions{})
+	sa, err := client.CoreV1().ServiceAccounts(namespace).Get(context.TODO(), saName, meta_v1.GetOptions{})
 	if err == nil {
 		for _, ips := range sa.ImagePullSecrets {
 			imagePullSecrets = append(imagePullSecrets, ips.Name)
@@ -73,7 +73,7 @@ func mergeCredentials(log func(...interface{}) error,
 			continue
 		}
 
-		secret, err := client.CoreV1().Secrets(namespace).Get(name, meta_v1.GetOptions{})
+		secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, meta_v1.GetOptions{})
 		if err != nil {
 			log("err", errors.Wrapf(err, "getting secret %q from namespace %q", name, namespace))
 			imagePullSecretCache[namespacedSecretName] = registry.NoCredentials()

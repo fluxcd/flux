@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -14,11 +15,11 @@ import (
 
 // Attempt to create PortForwards to fluxes that match the label selectors until a Flux
 // is found or an error is returned.
-func tryPortforwards(context string, ns string, selectors ...metav1.LabelSelector) (p *portforward.PortForward, err error) {
+func tryPortforwards(kubeConfigContext string, ns string, selectors ...metav1.LabelSelector) (p *portforward.PortForward, err error) {
 	message := fmt.Sprintf("No pod found in namespace %q using the following selectors:", ns)
 
 	for _, selector := range selectors {
-		p, err = tryPortforward(context, ns, selector)
+		p, err = tryPortforward(context.TODO(), kubeConfigContext, ns, selector)
 		if err == nil {
 			return
 		}
@@ -39,7 +40,7 @@ func tryPortforwards(context string, ns string, selectors ...metav1.LabelSelecto
 }
 
 // Attempt to create a portforward in the namespace for the provided LabelSelector
-func tryPortforward(kubeConfigContext string, ns string, selector metav1.LabelSelector) (*portforward.PortForward, error) {
+func tryPortforward(ctx context.Context, kubeConfigContext string, ns string, selector metav1.LabelSelector) (*portforward.PortForward, error) {
 	portforwarder := &portforward.PortForward{
 		Namespace:       ns,
 		Labels:          selector,
@@ -66,7 +67,7 @@ func tryPortforward(kubeConfigContext string, ns string, selector metav1.LabelSe
 		return portforwarder, errors.Wrap(err, "Could not create kubernetes client")
 	}
 
-	err = portforwarder.Start()
+	err = portforwarder.Start(ctx)
 	if err != nil {
 		return portforwarder, err
 	}
