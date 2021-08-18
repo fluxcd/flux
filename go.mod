@@ -36,7 +36,7 @@ require (
 	github.com/Jeffail/gabs v1.4.0
 	github.com/Masterminds/semver/v3 v3.0.3
 	github.com/Microsoft/go-winio v0.4.16 // indirect
-	github.com/aws/aws-sdk-go v1.33.18
+	github.com/aws/aws-sdk-go v1.37.18
 	github.com/bradfitz/gomemcache v0.0.0-20190329173943-551aad21a668
 	github.com/cheggaaa/pb/v3 v3.0.2
 	github.com/containerd/continuity v0.0.0-20210208174643-50096c924a4e // indirect
@@ -56,7 +56,6 @@ require (
 	github.com/gorilla/mux v1.7.3
 	github.com/gorilla/websocket v1.4.2
 	github.com/imdario/mergo v0.3.8
-	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/magefile/mage v1.11.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opentracing-contrib/go-stdlib v1.0.0 // indirect
@@ -73,8 +72,7 @@ require (
 	github.com/weaveworks/go-checkpoint v0.0.0-20170503165305-ebbb8b0518ab
 	github.com/whilp/git-urls v0.0.0-20160530060445-31bac0d230fa
 	github.com/xeipuuv/gojsonschema v1.1.0
-	go.mozilla.org/sops/v3 v3.6.1
-	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b // indirect
+	go.mozilla.org/sops/v3 v3.7.1
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/sys v0.0.0-20210225134936-a50acf3fe073
