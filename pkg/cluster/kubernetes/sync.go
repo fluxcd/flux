@@ -116,14 +116,15 @@ func (c *Cluster) Sync(syncSet cluster.SyncSet) error {
 		errs = append(errs, deleteErrs...)
 	}
 
+	// It is expected that Cluster.Sync is invoked with *all* resources.
+	// Otherwise it will override previously recorded sync errors.
+	c.setSyncErrors(errs)
+
 	// If `nil`, errs is a cluster.SyncError(nil) rather than error(nil), so it cannot be returned directly.
 	if errs == nil {
 		return nil
 	}
 
-	// It is expected that Cluster.Sync is invoked with *all* resources.
-	// Otherwise it will override previously recorded sync errors.
-	c.setSyncErrors(errs)
 	return errs
 }
 
