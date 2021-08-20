@@ -8,21 +8,67 @@
 > requests](https://github.com/fluxcd/toolkit/discussions) for Flux v2
 > and Toolkit components.
 
-## 1.23.2 (2021-08-04)
+## 1.24.0 (2021-08-20)
 
-This patch release addresses some error cases that may be encountered when an
+This minor release addresses some error cases that may be encountered when an
 AWS ECR repo is used together with Image Update Automation, but the AWS API for
 Instance Metadata is unavailable, or when it has been purposefully blocked.
+
+This release also includes an update to the release version of Memcached, which
+is a patch release.
+
+With this release, @kingdonb is officially recognized as a maintainer of Flux.
+🎈🎉🎂🎊🎈
 
 ### Fixes
 
 - Skip AWS Metadata API pre-flight check when regions are passed via config [fluxcd/flux#3485][]
+- Reset sync errors on successful sync [fluxcd/flux#3156][]
+
+### Maintenance and documentation
+
+- Update kubernetes go client (@ 0.21.3), update Golang to 1.16.7, other go mod updates [fluxcd/flux#3538][]
+- Bump go.mozilla.org/sops/v3 from 3.6.1 to 3.7.1 [fluxcd/flux#3514][]
+- Upgrade base image to alpine-3.14.1 [fluxcd/flux#3532][]
+- Update CI pipelines to test on Kubernetes 1.22.0 [fluxcd/flux#3530][]
+- Add GitHub issue template [fluxcd/flux#3527][]
+- Update links to calendar and resources [fluxcd/flux#3534][]
+- Update youtube playlist [fluxcd/flux#3531][]
+
+### Thanks
+
+Thanks to @squaremo, @stefanprodan, @dependabot[bot], @dholbach, @pbn4, @pierluigilenoci, @evq, @kingdonb, @osela and @schizoid90 for their contributions to this release.
+
+[fluxcd/flux#3538]: https://github.com/fluxcd/flux/pull/3538
+[fluxcd/flux#3534]: https://github.com/fluxcd/flux/pull/3534
+[fluxcd/flux#3532]: https://github.com/fluxcd/flux/pull/3532
+[fluxcd/flux#3531]: https://github.com/fluxcd/flux/pull/3531
+[fluxcd/flux#3530]: https://github.com/fluxcd/flux/pull/3530
+[fluxcd/flux#3527]: https://github.com/fluxcd/flux/pull/3527
+[fluxcd/flux#3514]: https://github.com/fluxcd/flux/pull/3514
+[fluxcd/flux#3485]: https://github.com/fluxcd/flux/pull/3485
+[fluxcd/flux#3156]: https://github.com/fluxcd/flux/pull/3156
+
+## 1.23.2 (2021-08-04)
+
+Post-publish note: this patch release did not correctly merge and include the
+fix for the issue that it was advertised to address at release time.
+
+This release image only rolled the packages from Alpine upstream and contained
+no code changes. The fix for [#3485][fluxcd/flux#3485] will be included in the
+following release, see [Flux Daemon 1.24.0](https://github.com/fluxcd/flux/releases/tag/1.24.0).
+
+~This patch release addresses some error cases that may be encountered when an
+AWS ECR repo is used together with Image Update Automation, but the AWS API for
+Instance Metadata is unavailable, or when it has been purposefully blocked.~
+
+### Fixes
+
+- ~Skip AWS Metadata API pre-flight check when regions are passed via config [fluxcd/flux#3485][]~
 
 ### Thanks
 
 Thanks to @hiddeco, @evq, @squaremo, @pbn4, @admssa, @renanqts, @jclynny, @sureshamk, @jayvie, and @gonzalobarbitta for their contributions to this release.
-
-[fluxcd/flux#3485]: https://github.com/fluxcd/flux/pull/3485
 
 ## 1.23.1 (2021-07-23)
 
