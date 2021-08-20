@@ -209,7 +209,7 @@ updates:
 					return
 				}
 				switch {
-				case strings.Contains(err.Error(), "429"):
+				case strings.Contains(err.Error(), "429"), strings.Contains(err.Error(), "toomanyrequests"):
 					// abort the image tags fetching if we've been rate limited
 					warnAboutRateLimit.Do(func() {
 						c.logger.Log("warn", "aborting image tag fetching due to rate limiting, will try again later")
