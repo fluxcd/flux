@@ -1,3 +1,16 @@
+## 1.11.0 (2021-08-20)
+
+### Fixes
+
+ - Always honor the allowedNamespaces setting (or absence), for use with
+   dynamically created namespaces
+   [fluxcd/flux#3482](https://github.com/fluxcd/flux/pull/3482)
+
+### Improvements
+
+ - Updated Flux to `1.24.0`
+   [fluxcd/flux#3539](https://github.com/fluxcd/flux/pull/3539)
+
 ## 1.10.2 (2021-08-04)
 
 ### Improvements
