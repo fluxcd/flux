@@ -9,7 +9,7 @@ logFormat: fmt
 
 image:
   repository: docker.io/fluxcd/flux
-  tag: 1.23.2
+  tag: 1.24.0
   pullPolicy: IfNotPresent
   pullSecret:
 
@@ -208,7 +208,7 @@ memcached:
   enabled: true
   hostnameOverride:
   repository: memcached
-  tag: 1.6.9-alpine
+  tag: 1.6.10-alpine
   pullSecret:
   createClusterIP: true
   verbose: false
