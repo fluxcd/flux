@@ -8,6 +8,27 @@
 > requests](https://github.com/fluxcd/toolkit/discussions) for Flux v2
 > and Toolkit components.
 
+## 1.24.1 (2021-08-24)
+
+This release fixes an issue when Docker Hub rate limit is not properly handled
+by Flux daemon as rate limiting. Docker Hub sends its rate limit warnings as an
+error that does not include the expected "429" Too Many Requests status code.
+
+### Fixes
+
+- Adding Docker Hub rate limit condition message [fluxcd/flux#3543][]
+
+### Maintenance and documentation
+
+- Add CodeQL Security Scanning [fluxcd/flux#3446][]
+
+### Thanks
+
+Thanks to @fdpeiter and @kingdonb for their contributions to this release.
+
+[fluxcd/flux#3543]: https://github.com/fluxcd/flux/pull/3543
+[fluxcd/flux#3446]: https://github.com/fluxcd/flux/pull/3446
+
 ## 1.24.0 (2021-08-20)
 
 This minor release addresses some error cases that may be encountered when an
