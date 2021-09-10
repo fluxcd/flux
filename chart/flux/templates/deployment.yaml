@@ -195,7 +195,7 @@ spec:
               name: {{ .Values.env.secretName }}
           {{- end }}
           args:
-          {{- if and (not .Values.clusterRole.create) ( .Values.allowedNamespaces) }}
+          {{- if not .Values.clusterRole.create }}
           - --k8s-allow-namespace={{ join "," (append .Values.allowedNamespaces .Release.Namespace) }}
           {{- end}}
           {{- if .Values.defaultNamespace }}

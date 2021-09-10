@@ -1,3 +1,14 @@
+## 1.11.2 (2021-09-10)
+
+Single-tenant Flux users reported a regression that affected automated image
+updates in certain configurations from this chart fix, so it is reverted to
+preserve backwards compatibility.
+
+### Fixes
+
+ - Revert [#3482](https://github.com/fluxcd/flux/pull/3482) (undo chart-1.11.0)
+   [fluxcd/flux#3553](https://github.com/fluxcd/flux/pull/3553)
+
 ## 1.11.1 (2021-09-09)
 
 ### Improvements
