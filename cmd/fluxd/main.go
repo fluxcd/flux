@@ -421,6 +421,7 @@ func main() {
 			logger.Log("err", err)
 			os.Exit(1)
 		}
+		restClientConfig.WarningHandler = rest.NoWarnings{}
 		restClientConfig.QPS = 50.0
 		restClientConfig.Burst = 100
 	}
