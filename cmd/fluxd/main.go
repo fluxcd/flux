@@ -436,7 +436,12 @@ func main() {
 			logger.Log("err", err)
 			os.Exit(1)
 		}
-		dynamicClientset, err := k8sclientdynamic.NewForConfig(restClientConfig)
+
+		// The dynamic client gets deprecation warnings, which are not useful:
+		// see <https://github.com/fluxcd/flux/issues/3554>.  Suppress them.
+		noWarningsRestClientConfig := rest.CopyConfig(restClientConfig)
+		noWarningsRestClientConfig.WarningHandler = rest.NoWarnings{}
+		dynamicClientset, err := k8sclientdynamic.NewForConfig(noWarningsRestClientConfig)
 		if err != nil {
 			logger.Log("err", err)
 			os.Exit(1)
