@@ -8,6 +8,24 @@
 > requests](https://github.com/fluxcd/toolkit/discussions) for Flux v2
 > and Toolkit components.
 
+## 1.24.2 (2021-11-02)
+
+This release updates the behavior of the dynamic client logger to eliminate the
+needless emission of some especially noisy and unhelpful deprecation warnings.
+
+This release also includes a base image upgrade of the Alpine 3.14.2 upstream
+that mitigates several CVE warnings from dependencies like nettle and libcurl.
+
+### Fixes
+
+- Suppress deprecation warnings [fluxcd/flux#3558][]
+
+### Thanks
+
+Thanks to @dimbleby, @squaremo, and @kingdonb for their contributions to this release.
+
+[fluxcd/flux#3558]: https://github.com/fluxcd/flux/pull/3558
+
 ## 1.24.1 (2021-09-08)
 
 This release fixes an issue when Docker Hub rate limit is not properly handled
