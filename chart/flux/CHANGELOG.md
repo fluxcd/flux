@@ -1,3 +1,12 @@
+## 1.11.3 (2021-11-02)
+
+### Improvements
+
+ - Updated Flux to `1.24.2`
+   [fluxcd/flux#3565](https://github.com/fluxcd/flux/pull/3565)
+ - Update Memcached to `1.6.12`
+   [fluxcd/flux#3566](https://github.com/fluxcd/flux/pull/3566)
+
 ## 1.11.2 (2021-09-10)
 
 Single-tenant Flux users reported a regression that affected automated image
