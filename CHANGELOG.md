@@ -8,6 +8,26 @@
 > requests](https://github.com/fluxcd/toolkit/discussions) for Flux v2
 > and Toolkit components.
 
+## 1.24.3 (2021-11-24)
+
+This release includes the [new host keys][github.blog-2021-09-01] for GitHub,
+changes effective on November 16, that could be important for users of Flux.
+
+This release also includes a base image upgrade to the Alpine 3.14.3 upstream
+that mitigates low and medium severity CVE warnings from the base image.
+
+### Fixes
+
+- Add fingerprints for new github.com host keys [fluxcd/flux#3571][]
+
+### Thanks
+
+Thanks to @kingdonb, @stefanprodan, @squaremo, and @hiddeco for their
+contributions to this release.
+
+[fluxcd/flux#3571]: https://github.com/fluxcd/flux/pull/3571
+[github.blog-2021-09-01]: https://github.blog/2021-09-01-improving-git-protocol-security-github/
+
 ## 1.24.2 (2021-11-02)
 
 This release updates the behavior of the dynamic client logger to eliminate the
