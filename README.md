@@ -1,18 +1,20 @@
 # Flux
 
-> **On Flux v2** In an announcement in August 2019, the expectation
-> was set that the Flux project would integrate the GitOps Engine,
-> then being factored out of ArgoCD. Since the result would be
-> backward-incompatible, it would require a major version bump: Flux
-> v2.
+> **On Flux v2**
 >
-> After experimentation and considerable thought, we (the maintainers)
-> have found a path to Flux v2 that we think better serves our vision
-> of GitOps: the [GitOps Toolkit](https://toolkit.fluxcd.io/). In
-> consequence, we do not now plan to integrate GitOps Engine into
-> Flux.
+> This repository contains the source code of Flux Legacy, or Flux v1. It largely
+> just receives security fixes at this point.
 >
-> :warning: This also means that **[Flux v1 is in maintenance mode](https://github.com/fluxcd/flux/issues/3320)**.
+> Development has moved to [fluxcd/flux2](https://github.com/fluxcd/flux2) and its
+> controllers entirely. If you consider using Flux, we **strongly recommend** you
+> take a look at <https://fluxcd.io/docs/get-started> to get started, or if you are
+> on Flux Legacy <https://fluxcd.io/docs/migration/> to migrate.
+>
+> Many of the long-requested features for Flux have been integrated into the new
+> version of Flux, you will find it much more versatile.
+>
+> :warning: Read our announcement here:
+> **[Flux v1 is in maintenance mode](https://github.com/fluxcd/flux/issues/3320)**.
 
 We believe in GitOps:
 
