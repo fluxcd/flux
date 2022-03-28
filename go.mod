@@ -67,7 +67,7 @@ require (
 	github.com/xeipuuv/gojsonschema v1.2.0
 	go.mozilla.org/sops/v3 v3.7.1
 	golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914
-	golang.org/x/sys v0.0.0-20210817142637-7d9622a276b7
+	golang.org/x/sys d36c6a25d886
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.21.3
