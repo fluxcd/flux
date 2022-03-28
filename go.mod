@@ -34,7 +34,7 @@ require (
 	github.com/Jeffail/gabs v1.4.0
 	github.com/Masterminds/semver/v3 v3.1.1
 	github.com/aws/aws-sdk-go v1.40.7
-	github.com/bradfitz/gomemcache v0.0.0-20190329173943-551aad21a668
+	github.com/bradfitz/gomemcache v0.0.0-20220106215444-fb4bf637b56d
 	github.com/cheggaaa/pb/v3 v3.0.8
 	github.com/containerd/continuity v0.0.0-20210208174643-50096c924a4e // indirect
 	github.com/docker/distribution v2.7.1+incompatible
@@ -61,8 +61,8 @@ require (
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
-	github.com/weaveworks/common v0.0.0-20190410110702-87611edc252e
-	github.com/weaveworks/go-checkpoint v0.0.0-20170503165305-ebbb8b0518ab
+	github.com/weaveworks/common 00e2e238a230
+	github.com/weaveworks/go-checkpoint v0.0.0-20220223124739-fd9899e2b4f2
 	github.com/whilp/git-urls v1.0.0
 	github.com/xeipuuv/gojsonschema v1.2.0
 	go.mozilla.org/sops/v3 v3.7.1
