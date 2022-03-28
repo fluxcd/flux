@@ -43,9 +43,8 @@ require (
 	github.com/fluxcd/flux/pkg/install v0.0.0-00010101000000-000000000000
 	github.com/fluxcd/helm-operator v1.4.0
 	github.com/ghodss/yaml v1.0.0
-	github.com/go-kit/kit v0.11.0
+	github.com/go-kit/kit v0.12.0
 	github.com/golang/gddo v0.0.0-20190312205958-5a2505f3dbf0
-	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/google/go-containerregistry v0.5.1
 	github.com/google/go-github/v28 v28.1.1
 	github.com/gorilla/mux v1.8.0
@@ -61,13 +60,13 @@ require (
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
-	github.com/weaveworks/common 00e2e238a230
+	github.com/weaveworks/common v0.0.0-20220302160857-00e2e238a230
 	github.com/weaveworks/go-checkpoint v0.0.0-20220223124739-fd9899e2b4f2
 	github.com/whilp/git-urls v1.0.0
 	github.com/xeipuuv/gojsonschema v1.2.0
 	go.mozilla.org/sops/v3 v3.7.1
 	golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914
-	golang.org/x/sys d36c6a25d886
+	golang.org/x/sys v0.0.0-20220328115105-d36c6a25d886
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.21.3
