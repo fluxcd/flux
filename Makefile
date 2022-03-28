@@ -22,7 +22,7 @@ ifeq ($(ARCH),)
 endif
 CURRENT_OS=$(shell go env GOOS)
 CURRENT_OS_ARCH=$(shell echo $(CURRENT_OS)-`go env GOARCH`)
-GOBIN?=$(shell echo `go env GOPATH`/bin)
+GOBIN?=$(shell echo `go env GOPATH|cut -d: -f1`/bin)
 
 MAIN_GO_MODULE:=$(shell go list -m -f '{{ .Path }}')
 LOCAL_GO_MODULES:=$(shell go list -m -f '{{ .Path }}' all | grep $(MAIN_GO_MODULE))
