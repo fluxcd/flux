@@ -33,7 +33,7 @@ require (
 	github.com/Azure/azure-sdk-for-go v38.0.0+incompatible // indirect
 	github.com/Jeffail/gabs v1.4.0
 	github.com/Masterminds/semver/v3 v3.1.1
-	github.com/aws/aws-sdk-go v1.40.7
+	github.com/aws/aws-sdk-go v1.43.27
 	github.com/bradfitz/gomemcache v0.0.0-20220106215444-fb4bf637b56d
 	github.com/cheggaaa/pb/v3 v3.0.8
 	github.com/containerd/continuity v0.0.0-20210208174643-50096c924a4e // indirect
