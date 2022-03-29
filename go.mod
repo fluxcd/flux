@@ -33,23 +33,20 @@ require (
 	github.com/Azure/azure-sdk-for-go v38.0.0+incompatible // indirect
 	github.com/Jeffail/gabs v1.4.0
 	github.com/Masterminds/semver/v3 v3.1.1
-	github.com/aws/aws-sdk-go v1.40.7
-	github.com/bradfitz/gomemcache v0.0.0-20190329173943-551aad21a668
+	github.com/aws/aws-sdk-go v1.43.27
+	github.com/bradfitz/gomemcache v0.0.0-20220106215444-fb4bf637b56d
 	github.com/cheggaaa/pb/v3 v3.0.8
-	github.com/containerd/continuity v0.0.0-20210208174643-50096c924a4e // indirect
-	github.com/docker/distribution v2.7.1+incompatible
-	github.com/docker/docker v20.10.3+incompatible // indirect
+	github.com/docker/distribution v2.8.1+incompatible
 	github.com/evanphx/json-patch v4.11.0+incompatible
 	github.com/fluxcd/flux/pkg/install v0.0.0-00010101000000-000000000000
-	github.com/fluxcd/helm-operator v1.4.0
+	github.com/fluxcd/helm-operator v1.4.2
 	github.com/ghodss/yaml v1.0.0
-	github.com/go-kit/kit v0.11.0
-	github.com/golang/gddo v0.0.0-20190312205958-5a2505f3dbf0
-	github.com/google/go-cmp v0.5.6 // indirect
-	github.com/google/go-containerregistry v0.5.1
+	github.com/go-kit/kit v0.12.0
+	github.com/golang/gddo v0.0.0-20210115222349-20d68f94ee1f
+	github.com/google/go-containerregistry v0.8.0
 	github.com/google/go-github/v28 v28.1.1
 	github.com/gorilla/mux v1.8.0
-	github.com/gorilla/websocket v1.4.2
+	github.com/gorilla/websocket v1.5.0
 	github.com/imdario/mergo v0.3.12
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opentracing-contrib/go-stdlib v1.0.0 // indirect
@@ -58,17 +55,17 @@ require (
 	github.com/prometheus/client_golang v1.11.0
 	github.com/prometheus/client_model v0.2.0
 	github.com/ryanuber/go-glob v1.0.0
-	github.com/spf13/cobra v1.2.1
+	github.com/spf13/cobra v1.3.0
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.7.1
 	github.com/weaveworks/common v0.0.0-20190410110702-87611edc252e
-	github.com/weaveworks/go-checkpoint v0.0.0-20170503165305-ebbb8b0518ab
+	github.com/weaveworks/go-checkpoint v0.0.0-20220223124739-fd9899e2b4f2
 	github.com/whilp/git-urls v1.0.0
 	github.com/xeipuuv/gojsonschema v1.2.0
-	go.mozilla.org/sops/v3 v3.7.1
-	golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914
-	golang.org/x/sys v0.0.0-20210817142637-7d9622a276b7
-	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
+	go.mozilla.org/sops/v3 v3.7.2
+	golang.org/x/oauth2 v0.0.0-20220309155454-6242fa91716a
+	golang.org/x/sys v0.0.0-20220328115105-d36c6a25d886
+	golang.org/x/time v0.0.0-20220224211638-0e9765cccd65
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.21.3
 	k8s.io/apiextensions-apiserver v0.21.3
