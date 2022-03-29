@@ -4,7 +4,7 @@ go 1.16
 
 // remove when https://github.com/docker/distribution/pull/2905 is released.
 // Update: on 2021-02-25 this has been merged, 2.7.2 should include it soon!
-replace github.com/docker/distribution => github.com/fluxcd/distribution v0.0.0-20190419185413-6c9727e5e5de
+replace github.com/docker/distribution => github.com/fluxcd/distribution/v2 v2.7.1
 
 // fix go-autorest ambiguous import caused by sops
 // sops needs to update their deps ref: https://github.com/kubernetes/client-go/issues/628
@@ -37,18 +37,18 @@ require (
 	github.com/bradfitz/gomemcache v0.0.0-20220106215444-fb4bf637b56d
 	github.com/cheggaaa/pb/v3 v3.0.8
 	github.com/containerd/continuity v0.0.0-20210208174643-50096c924a4e // indirect
-	github.com/docker/distribution v2.7.1+incompatible
+	github.com/docker/distribution v2.8.1+incompatible
 	github.com/docker/docker v20.10.3+incompatible // indirect
 	github.com/evanphx/json-patch v4.11.0+incompatible
 	github.com/fluxcd/flux/pkg/install v0.0.0-00010101000000-000000000000
-	github.com/fluxcd/helm-operator v1.4.0
+	github.com/fluxcd/helm-operator v1.4.2
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-kit/kit v0.12.0
-	github.com/golang/gddo v0.0.0-20190312205958-5a2505f3dbf0
-	github.com/google/go-containerregistry v0.5.1
+	github.com/golang/gddo v0.0.0-20210115222349-20d68f94ee1f
+	github.com/google/go-containerregistry v0.8.0
 	github.com/google/go-github/v28 v28.1.1
 	github.com/gorilla/mux v1.8.0
-	github.com/gorilla/websocket v1.4.2
+	github.com/gorilla/websocket v1.5.0
 	github.com/imdario/mergo v0.3.12
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opentracing-contrib/go-stdlib v1.0.0 // indirect
@@ -59,15 +59,15 @@ require (
 	github.com/ryanuber/go-glob v1.0.0
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.7.1
 	github.com/weaveworks/common v0.0.0-20220302160857-00e2e238a230
 	github.com/weaveworks/go-checkpoint v0.0.0-20220223124739-fd9899e2b4f2
 	github.com/whilp/git-urls v1.0.0
 	github.com/xeipuuv/gojsonschema v1.2.0
-	go.mozilla.org/sops/v3 v3.7.1
-	golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914
+	go.mozilla.org/sops/v3 v3.7.2
+	golang.org/x/oauth2 6242fa91716a
 	golang.org/x/sys v0.0.0-20220328115105-d36c6a25d886
-	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
+	golang.org/x/time v0.0.0-20220224211638-0e9765cccd65
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.21.3
 	k8s.io/apiextensions-apiserver v0.21.3
