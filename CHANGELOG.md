@@ -8,6 +8,31 @@
 > requests](https://github.com/fluxcd/toolkit/discussions) for Flux v2
 > and Toolkit components.
 
+## 1.25.0 (2022-03-30)
+
+This release includes a base image upgrade to the Alpine 3.15.3 upstream
+that mitigates a number of CVE issues detected from the base image.
+
+We also upgraded the CircleCI build machinery to address an EOL notice on the
+Ubuntu 16.04 images that we had been using prior, so Flux v1 maintenance
+activities can continue uninterrupted after May 31, 2022.)
+
+Go dependencies have been upgraded as well. This release has no code changes.
+
+### Maintenance and documentation
+
+- Update dependencies  [fluxcd/flux#3597][]
+- Required upgrade for circleci [fluxcd/flux#3596][]
+- Update README with flux v2/migration instructions [fluxcd/flux#3593][]
+
+### Thanks
+
+Thanks to @dholbach, @stefanprodan, and @kingdonb for their contributions to this release.
+
+[fluxcd/flux#3597]: https://github.com/fluxcd/flux/pull/3597
+[fluxcd/flux#3596]: https://github.com/fluxcd/flux/pull/3596
+[fluxcd/flux#3593]: https://github.com/fluxcd/flux/pull/3593
+
 ## 1.24.3 (2021-11-24)
 
 This release includes the [new host keys][github.blog-2021-09-01] for GitHub,
