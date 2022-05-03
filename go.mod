@@ -17,6 +17,9 @@ replace (
 	github.com/fluxcd/helm-operator/pkg/install => github.com/fluxcd/helm-operator/pkg/install v0.0.0-20200213151218-f7e487142b46
 )
 
+// dgrijalva/jwt-go is no longer maintained, replacing with a fork which is community maintained.
+replace github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt v3.2.2+incompatible
+
 // Pin kubernetes dependencies to 1.21.3
 replace (
 	k8s.io/api => k8s.io/api v0.21.3
@@ -63,6 +66,7 @@ require (
 	github.com/whilp/git-urls v1.0.0
 	github.com/xeipuuv/gojsonschema v1.2.0
 	go.mozilla.org/sops/v3 v3.7.2
+	golang.org/x/crypto v0.0.0-20220427172511-eb4f295cb31f // indirect
 	golang.org/x/oauth2 v0.0.0-20220309155454-6242fa91716a
 	golang.org/x/sys v0.0.0-20220328115105-d36c6a25d886
 	golang.org/x/time v0.0.0-20220224211638-0e9765cccd65
