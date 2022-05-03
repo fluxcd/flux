@@ -8,6 +8,23 @@
 > requests](https://github.com/fluxcd/toolkit/discussions) for Flux v2
 > and Toolkit components.
 
+## 1.25.1 (2022-05-03)
+
+This release includes a base image upgrade to the Alpine 3.15.4 upstream
+that mitigates a number of CVE issues detected from the base image.
+
+Go dependencies have been upgraded as well. This release has no code changes.
+
+### Maintenance and documentation
+
+- Update dependencies  [fluxcd/flux#3605][]
+
+### Thanks
+
+Thanks to @pjbgf for their contributions to this release.
+
+[fluxcd/flux#3605]: https://github.com/fluxcd/flux/pull/3605
+
 ## 1.25.0 (2022-03-30)
 
 This release includes a base image upgrade to the Alpine 3.15.3 upstream
