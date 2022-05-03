@@ -9,7 +9,7 @@ logFormat: fmt
 
 image:
   repository: docker.io/fluxcd/flux
-  tag: 1.25.0
+  tag: 1.25.1
   pullPolicy: IfNotPresent
   pullSecret:
 
