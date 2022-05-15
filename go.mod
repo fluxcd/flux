@@ -55,7 +55,7 @@ require (
 	github.com/opentracing-contrib/go-stdlib v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/term v1.1.0
-	github.com/prometheus/client_golang v1.11.0
+	github.com/prometheus/client_golang v1.12.2
 	github.com/prometheus/client_model v0.2.0
 	github.com/ryanuber/go-glob v1.0.0
 	github.com/spf13/cobra v1.3.0
