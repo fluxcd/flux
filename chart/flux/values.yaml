@@ -9,7 +9,7 @@ logFormat: fmt
 
 image:
   repository: docker.io/fluxcd/flux
-  tag: 1.25.0
+  tag: 1.25.1
   pullPolicy: IfNotPresent
   pullSecret:
 
@@ -116,8 +116,10 @@ git:
   email: "support@weave.works"
   # If set, commits will be signed with this GPG key.
   signingKey: ""
-  # If set, the signatures of the sync tag and commits will be verified.
+  # If set, the signatures of the sync tag and commits will be verified (deprecated)
   verifySignatures: false
+  # If set, takes precendence over verifySignatures and sets which strategy to use for signature verification (one of "all", "none", "first-parent")
+  verifySignaturesMode: ""
   # If set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.
   setAuthor: false
   # Label to keep track of sync progress

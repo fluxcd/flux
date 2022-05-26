@@ -8,6 +8,21 @@
 > requests](https://github.com/fluxcd/toolkit/discussions) for Flux v2
 > and Toolkit components.
 
+## 1.25.2 (2022-05-26)
+
+This patch release reverts a deprecation induced during an upgrade of OpenSSH.
+A regression affected Azure DevOps, and Google Cloud Source Repositories users.
+
+### Fixes
+
+- Regression: Allow RSA signatures using SHA-1 hash algorithm [fluxcd/flux#3614][]
+
+### Thanks
+
+Thanks to @mskcode, @dimbleby, @julienduchesne and @pjbgf for their contributions to this release.
+
+[fluxcd/flux#3614]: https://github.com/fluxcd/flux/pull/3614
+
 ## 1.25.1 (2022-05-03)
 
 This release includes a base image upgrade to the Alpine 3.15.4 upstream
