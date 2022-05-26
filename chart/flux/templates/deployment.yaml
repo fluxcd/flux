@@ -234,7 +234,11 @@ spec:
           {{- if .Values.git.signingKey }}
           - --git-signing-key={{ .Values.git.signingKey }}
           {{- end }}
+          {{- if .Values.git.verifySignaturesMode }}
+          - --git-verify-signatures-mode={{ .Values.git.verifySignaturesMode }}
+          {{ else }}
           - --git-verify-signatures={{ .Values.git.verifySignatures }}
+          {{ end }}
           - --git-set-author={{ .Values.git.setAuthor }}
           {{- if .Values.git.secret.enabled }}
           - --git-secret

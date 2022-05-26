@@ -1,4 +1,13 @@
-## 1.12.0 (2021-12-08)
+## 1.13.0 (2022-05-05)
+
+### Improvements
+
+ - Updated Flux to `1.25.1`
+   [fluxcd/flux#3607](https://github.com/fluxcd/flux/pull/3607)
+ - Add access to `--git-verify-signatures-mode`
+   [fluxcd/flux#3603](https://github.com/fluxcd/flux/pull/3603)
+
+## 1.12.0 (2022-03-30)
 
 ### Improvements
 

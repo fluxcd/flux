@@ -270,6 +270,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `git.setAuthor`                                   | `false`                                              | If set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.
 | `git.signingKey`                                  | `None`                                               | If set, commits will be signed with this GPG key
 | `git.verifySignatures`                            | `false`                                              | If set, the signatures of the sync tag and commits will be verified
+| `git.verifySignaturesMode`                        | ``                                                   | If set, takes precendence over verifySignatures and sets which strategy to use for signature verification (one of "all", "none", "first-parent")
 | `git.label`                                       | `flux-sync`                                          | Label to keep track of sync progress, used to tag the Git branch
 | `git.ciSkip`                                      | `false`                                              | Append "[ci skip]" to commit messages so that CI will skip builds
 | `git.pollInterval`                                | `5m`                                                 | Period at which to poll git repo for new commits
