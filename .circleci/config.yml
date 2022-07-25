@@ -6,7 +6,7 @@ jobs:
       image: ubuntu-2004:202010-01
     resource_class: large
     environment:
-      GO_VERSION: 1.16.7
+      GO_VERSION: 1.17.12
       # We don't need a GOPATH but CircleCI defines it, so we override it
       GOPATH: /home/circleci/go
       GO111MODULE: 'on'
