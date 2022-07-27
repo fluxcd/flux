@@ -8,6 +8,27 @@
 > requests](https://github.com/fluxcd/toolkit/discussions) for Flux v2
 > and Toolkit components.
 
+## 1.25.3 (2022-07-27)
+
+This release includes a base image upgrade to the Alpine 3.15.5 upstream
+that mitigates a number of CVE issues detected from the base image.
+
+Go dependencies have been upgraded as well. This release has no code changes.
+
+### Maintenance and documentation
+
+- snap: update go requirement [fluxcd/flux#3624][]
+- Update dependencies [fluxcd/flux#3623][]
+- Update module github.com/prometheus/client_golang to v1.12.2 [fluxcd/flux#3620][]
+
+### Thanks
+
+Thanks to @dholbach, @kingdonb and @pjbgf for their contributions to this release.
+
+[fluxcd/flux#3624]: https://github.com/fluxcd/flux/pull/3624
+[fluxcd/flux#3623]: https://github.com/fluxcd/flux/pull/3623
+[fluxcd/flux#3620]: https://github.com/fluxcd/flux/pull/3620
+
 ## 1.25.2 (2022-05-26)
 
 This patch release reverts a deprecation induced during an upgrade of OpenSSH.
