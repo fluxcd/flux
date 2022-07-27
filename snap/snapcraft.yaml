@@ -38,7 +38,7 @@ parts:
       - git
       - jq
     build-snaps:
-      - go/1.15/stable
+      - go/1.17/stable
     stage:
       - -bin/fluxd
       - -bin/helm-operator
