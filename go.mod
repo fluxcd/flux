@@ -58,7 +58,6 @@ require (
 	github.com/stretchr/testify v1.8.0
 	// Latest versions of github.com/weaveworks/common are not supporterd by Flux.
 	github.com/weaveworks/common v0.0.0-20190410110702-87611edc252e
-	github.com/weaveworks/go-checkpoint v0.0.0-20220223124739-fd9899e2b4f2
 	github.com/whilp/git-urls v1.0.0
 	github.com/xeipuuv/gojsonschema v1.2.0
 	go.mozilla.org/sops/v3 v3.7.3
