@@ -8,3 +8,12 @@ and running:
 
   fluxctl identity --k8s-fwd-ns {{ .Release.Namespace }}
 
+---
+
+**Flux v1 is deprecated, please upgrade to v2 as soon as possible!**
+
+New users of Flux can Get Started here:
+https://fluxcd.io/docs/get-started/
+
+Existing users can upgrade using the Migration Guide:
+https://fluxcd.io/docs/migration/
