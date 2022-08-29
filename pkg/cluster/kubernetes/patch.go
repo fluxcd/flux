@@ -8,7 +8,7 @@ import (
 	"github.com/evanphx/json-patch"
 	jsonyaml "github.com/ghodss/yaml"
 	"github.com/imdario/mergo"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"

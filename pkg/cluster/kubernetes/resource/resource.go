@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	jsonyaml "github.com/ghodss/yaml"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 
 	fluxerr "github.com/fluxcd/flux/pkg/errors"
 	"github.com/fluxcd/flux/pkg/policy"

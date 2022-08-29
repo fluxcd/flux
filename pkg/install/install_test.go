@@ -5,7 +5,7 @@ import (
 
 	"github.com/instrumenta/kubeval/kubeval"
 	"github.com/stretchr/testify/assert"
-	yaml "gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v3"
 )
 
 func testFillInTemplates(t *testing.T, expectedNoManifests int, params TemplateParameters) map[string][]byte {

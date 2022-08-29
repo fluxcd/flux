@@ -70,7 +70,7 @@ require (
 	golang.org/x/sync v0.0.0-20220819030929-7fc1605a5dde // indirect
 	golang.org/x/sys v0.0.0-20220825204002-c680a09ffe64
 	golang.org/x/time v0.0.0-20220722155302-e5dcc9cfc0b9
-	gopkg.in/yaml.v2 v2.4.0
+	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.21.14
 	k8s.io/apiextensions-apiserver v0.21.14
 	k8s.io/apimachinery v0.21.14
