@@ -34,6 +34,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.61
 	github.com/bradfitz/gomemcache v0.0.0-20220106215444-fb4bf637b56d
 	github.com/cheggaaa/pb/v3 v3.1.0
+	github.com/containerd/continuity v0.3.0 // indirect
 	github.com/docker/distribution v2.8.1+incompatible
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/fluxcd/flux/pkg/install v0.0.0-00010101000000-000000000000
@@ -46,7 +47,10 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/imdario/mergo v0.3.13
+	github.com/inconshreveable/mousetrap v1.0.1 // indirect
+	github.com/klauspost/compress v1.15.9 // indirect
 	github.com/opencontainers/go-digest v1.0.0
+	github.com/opencontainers/runc v1.1.4 // indirect
 	github.com/opentracing-contrib/go-stdlib v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/term v1.1.0
@@ -63,7 +67,8 @@ require (
 	go.mozilla.org/sops/v3 v3.7.3
 	golang.org/x/crypto v0.0.0-20220427172511-eb4f295cb31f // indirect
 	golang.org/x/oauth2 v0.0.0-20220722155238-128564f6959c
-	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f
+	golang.org/x/sync v0.0.0-20220819030929-7fc1605a5dde // indirect
+	golang.org/x/sys v0.0.0-20220825204002-c680a09ffe64
 	golang.org/x/time v0.0.0-20220722155302-e5dcc9cfc0b9
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.21.14
