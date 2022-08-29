@@ -1,3 +1,12 @@
+## 1.13.3 (2022-08-29)
+
+### Improvements
+
+ - Updated Flux to `1.25.4`
+   [fluxcd/flux#3641](https://github.com/fluxcd/flux/pull/3641)
+ - Add deprecation warning to NOTES.txt
+   [fluxcd/flux#3638](https://github.com/fluxcd/flux/pull/3638)
+
 ## 1.13.2 (2022-07-27)
 
 ### Improvements
