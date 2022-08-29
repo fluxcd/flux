@@ -640,10 +640,10 @@ func main() {
 	// until we have failed or succeeded.
 	updateCheckLogger := log.With(logger, "component", "checkpoint")
 	checkpointFlags := map[string]string{
-		"cluster-version": clusterVersion,
-		"git-configured":  strconv.FormatBool(*gitURL != ""),
+		"cluster-version": "XXXXX",
+		"git-configured":  "XXXXX",
 	}
-	checkpoint.CheckForUpdates(product, version, checkpointFlags, updateCheckLogger)
+	checkpoint.CheckForUpdates(product, "XXXXX", checkpointFlags, updateCheckLogger)
 
 	gitRemote := git.Remote{URL: *gitURL}
 	gitConfig := git.Config{
