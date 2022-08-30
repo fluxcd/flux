@@ -64,10 +64,10 @@ func (opts *installOpts) RunE(cmd *cobra.Command, args []string) error {
 	fmt.Fprintf(os.Stderr, `**Flux v1 is deprecated, please upgrade to v2 as soon as possible!**
 
 New users of Flux can Get Started here:
-https://fluxcd.io/docs/get-started/
+https://fluxcd.io/flux/get-started/
 
 Existing users can upgrade using the Migration Guide:
-https://fluxcd.io/docs/migration/
+https://fluxcd.io/flux/migration/
 
 `)
 

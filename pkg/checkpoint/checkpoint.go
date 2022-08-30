@@ -12,7 +12,7 @@ const (
 
 func CheckForUpdates(product, version string, extra map[string]string, logger log.Logger) *checker {
 	handleResponse := func() {
-		logger.Log("msg", "Flux v1 is deprecated, please upgrade to v2", "latest", "v2", "URL", "https://fluxcd.io/docs/migration/")
+		logger.Log("msg", "Flux v1 is deprecated, please upgrade to v2", "latest", "v2", "URL", "https://fluxcd.io/flux/migration/")
 	}
 
 	flags := map[string]string{
