@@ -7,8 +7,8 @@
 >
 > Development has moved to [fluxcd/flux2](https://github.com/fluxcd/flux2) and its
 > controllers entirely. If you consider using Flux, we **strongly recommend** you
-> take a look at <https://fluxcd.io/docs/get-started> to get started, or if you are
-> on Flux Legacy <https://fluxcd.io/docs/migration/> to migrate.
+> take a look at <https://fluxcd.io/flux/get-started> to get started, or if you are
+> on Flux Legacy <https://fluxcd.io/flux/migration/> to migrate.
 >
 > Many of the long-requested features for Flux have been integrated into the new
 > version of Flux, you will find it much more versatile.
