@@ -8,7 +8,7 @@
 > requests](https://github.com/fluxcd/toolkit/discussions) for Flux v2
 > and Toolkit components.
 
-## 1.25.4 (2022-08-29)
+## 1.25.4 (2022-08-30)
 
 This release includes a base image upgrade to the Alpine 3.15.6 upstream
 that mitigates a number of CVE issues detected from the base image.
@@ -17,7 +17,7 @@ We've removed the telemetry collection in accordance with the CNCF's published
 policies against default telemetry. Some deprecation notices are now emitted by
 the installer, please upgrade to Flux v2 or open an issue if you are blocked.
 
-Go dependencies have been upgraded as well. This release has no code changes.
+Go dependencies have been upgraded as well.
 
 ### Maintenance and documentation
 
