@@ -26,10 +26,9 @@ Once enabled Flux will sign both commits and the sync tag with given
 
 ### Creating a GPG signing key
 
-{{% alert %}}
-This requires [gnupg](https://www.gnupg.org) to be
+> ⚠ Note:
+> This requires [gnupg](https://www.gnupg.org) to be
 installed on your system.
-{{% /alert %}}
 
 1. Enter the following shell command to start the key generation dialog:
 
@@ -160,16 +159,13 @@ directory it will be made available for use by Flux.
     gpg: Good signature from "Weaveworks Flux <support@weave.works>" [ultimate]
     ```
 
-{{% alert %}}
-Flux *does not* recursively scan a given directory but does
+> ⚠ Note:
+> Flux *does not* recursively scan a given directory but does
 understand symbolic links to files.
-{{% /alert %}}
-
-{{% alert %}}
-Flux will automatically add any imported key to the GnuPG
-trustdb. This is required as git will otherwise not trust signatures
-made with the imported keys.
-{{% /alert %}}
+>
+> Flux will automatically add any imported key to the GnuPG
+> trustdb. This is required as git will otherwise not trust signatures
+> made with the imported keys.
 
 ## Signature verification
 
@@ -225,10 +221,9 @@ made, and lock on this revision.
              - --git-verify-signatures
     ```
 
-{{% alert %}}
-Flux *does not* recursively scan a given directory but does
+> ⚠ Note:
+> Flux *does not* recursively scan a given directory but does
 understand symbolic links to files.
-{{% /alert %}}
 
 ### Enabling verification for existing repositories, disaster recovery, and deleted sync tags
 
