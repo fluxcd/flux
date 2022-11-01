@@ -1,5 +1,13 @@
 # Using a private Git host
 
+> **🛑 Upgrade Advisory**
+>
+> This documentation is for Flux (v1) which has [reached its end-of-life in November 2022](https://fluxcd.io/blog/2022/10/september-2022-update/#flux-legacy-v1-retirement-plan).
+>
+> We strongly recommend you familiarise yourself with the newest Flux and [migrate as soon as possible](https://fluxcd.io/flux/migration/).
+>
+> For documentation regarding the latest Flux, please refer to [this section](https://fluxcd.io/flux/).
+
 If you're using your own git host -- e.g., your own installation of
 gitlab, or bitbucket server -- you will need to add its host key to
 `~/.ssh/known_hosts` in the Flux daemon container.

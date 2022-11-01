@@ -1,5 +1,13 @@
 # Automations, locks and annotations
 
+> **🛑 Upgrade Advisory**
+>
+> This documentation is for Flux (v1) which has [reached its end-of-life in November 2022](https://fluxcd.io/blog/2022/10/september-2022-update/#flux-legacy-v1-retirement-plan).
+>
+> We strongly recommend you familiarise yourself with the newest Flux and [migrate as soon as possible](https://fluxcd.io/flux/migration/).
+>
+> For documentation regarding the latest Flux, please refer to [this section](https://fluxcd.io/flux/).
+
 In this tutorial we want to get a better feel for what we can do with
 Flux. We won't spend too much time with getting it up and running, so let's
 get that out of the way first.

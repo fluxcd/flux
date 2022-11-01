@@ -1,5 +1,13 @@
 # Blueprint
 
+> **🛑 Upgrade Advisory**
+>
+> This documentation is for Flux (v1) which has [reached its end-of-life in November 2022](https://fluxcd.io/blog/2022/10/september-2022-update/#flux-legacy-v1-retirement-plan).
+>
+> We strongly recommend you familiarise yourself with the newest Flux and [migrate as soon as possible](https://fluxcd.io/flux/migration/).
+>
+> For documentation regarding the latest Flux, please refer to [this section](https://fluxcd.io/flux/).
+
 This page describes the goals of Flux, how it achieves them and
 significant architectural decisions. It is intentionally high level
 to prevent it from being out of date too quickly.

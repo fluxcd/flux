@@ -1,5 +1,13 @@
 # Using GKE Workload Identity with Flux
 
+> **🛑 Upgrade Advisory**
+>
+> This documentation is for Flux (v1) which has [reached its end-of-life in November 2022](https://fluxcd.io/blog/2022/10/september-2022-update/#flux-legacy-v1-retirement-plan).
+>
+> We strongly recommend you familiarise yourself with the newest Flux and [migrate as soon as possible](https://fluxcd.io/flux/migration/).
+>
+> For documentation regarding the latest Flux, please refer to [this section](https://fluxcd.io/flux/).
+
 When Flux is running in a GKE cluster with [Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity) enabled and you use Google Container Registry to host private images in your project, there are additional steps required for Flux to be able to check for updated images.
 
 Without Workload Identity, Pods in the cluster by default assume the default IAM account of the GCP compute instances they are running on. With Workload Identity enabled, however, VM instance and Pod identity is completely separate. This results in Flux no longer being able to access a private GCR registry in the same project.
