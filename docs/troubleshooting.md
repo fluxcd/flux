@@ -1,7 +1,4 @@
----
-title: Troubleshooting
-weight: 90
----
+# Troubleshooting
 
 Also see the [issues labeled with
 `FAQ`](https://github.com/fluxcd/flux/labels/FAQ), which often

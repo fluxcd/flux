@@ -1,7 +1,4 @@
----
-title: Automated deployment of new container images
-weight: 70
----
+# Automated deployment of new container images
 
 Flux can be used to automate container image updates in your cluster.
 Flux periodically scans the pods running in your cluster and builds a list of all container images.

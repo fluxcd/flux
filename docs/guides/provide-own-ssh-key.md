@@ -1,7 +1,4 @@
----
-title: Providing your own SSH key
-weight: 10
----
+# Providing your own SSH key
 
 Flux connects to the repository using an SSH key it retrieves from a
 Kubernetes secret, if the configured (`--k8s-secret-name`) secret has

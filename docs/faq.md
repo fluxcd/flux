@@ -1,7 +1,4 @@
----
-title: Frequently asked questions
-weight: 80
----
+# Frequently asked questions
 
 ## Migrate to Flux v2
 

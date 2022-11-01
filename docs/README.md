@@ -1,7 +1,4 @@
----
-title: Flux
-weight: 10
----
+# Flux
 
 ![Flux v1 Diagram](/img/flux-v1-diagram.png)
 

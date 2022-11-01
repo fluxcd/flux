@@ -1,7 +1,4 @@
----
-title: How to bootstrap Flux using Kustomize
-weight: 30
----
+# How to bootstrap Flux using Kustomize
 
 This guide shows you how to use Kustomize to bootstrap Flux on a Kubernetes cluster.
 

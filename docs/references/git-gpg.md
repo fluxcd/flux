@@ -1,7 +1,4 @@
----
-title: Git commit signing and verification
-weight: 60
----
+# Git commit signing and verification
 
 ## Summary
 

@@ -1,7 +1,4 @@
----
-title: Using Git over HTTPS
-weight: 20
----
+# Using Git over HTTPS
 
 Instead of making use of Flux' capabilities to generate an SSH private
 key, or [supplying your own](provide-own-ssh-key.md), it is possible to

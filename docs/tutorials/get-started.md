@@ -1,8 +1,4 @@
----
-title: Get started with Flux
-linkTitle: Get started
-weight: 10
----
+# Get started with Flux
 
 This short guide shows a self-contained example of Flux and just
 takes a couple of minutes to get set up. By the end you will

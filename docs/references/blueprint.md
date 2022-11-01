@@ -1,7 +1,4 @@
----
-title: Blueprint
-weight: 10
----
+# Blueprint
 
 This page describes the goals of Flux, how it achieves them and
 significant architectural decisions. It is intentionally high level

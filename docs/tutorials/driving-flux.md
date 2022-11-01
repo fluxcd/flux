@@ -1,7 +1,4 @@
----
-title: Automations, locks and annotations
-weight: 40
----
+# Automations, locks and annotations
 
 In this tutorial we want to get a better feel for what we can do with
 Flux. We won't spend too much time with getting it up and running, so let's

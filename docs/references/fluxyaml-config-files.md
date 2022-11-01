@@ -1,7 +1,4 @@
----
-title: Manifest generation through .flux.yaml configuration files
-weight: 40
----
+# Manifest generation through .flux.yaml configuration files
 
 This feature lets you generate Kubernetes manifests with a program,
 instead of having to include them in your git repo as YAML files. For

@@ -1,7 +1,4 @@
----
-weight: 30
-title: Get started
----
+# Get started
 
 All you need is a Kubernetes cluster and a git repo. The git repo
 contains [manifests](https://kubernetes.io/docs/concepts/configuration/overview/)

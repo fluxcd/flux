@@ -1,8 +1,4 @@
----
-title: Get started with Flux using Helm
-linkTitle: Get started using Helm
-weight: 20
----
+# Get started with Flux using Helm
 
 If you are using Helm already, this guide is for you. By the end
 you will have Helm installing Flux in the cluster and deploying

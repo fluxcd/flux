@@ -1,7 +1,4 @@
----
-title: Daemon (fluxd)
-weight: 20
----
+# Daemon (fluxd)
 
 ## Summary
 
