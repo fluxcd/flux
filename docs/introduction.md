@@ -47,4 +47,4 @@ For configuration customization across environments and clusters, Flux comes wit
 for [Kustomize](references/fluxyaml-config-files.md) and [Helm](references/helm-operator-integration.md).
 
 For advanced deployment patterns like Canary releases, A/B testing and Blue/Green deployments,
-Flux can be used together with [Flagger](/flagger).
+Flux can be used together with [Flagger](https://fluxcd.io/flagger).

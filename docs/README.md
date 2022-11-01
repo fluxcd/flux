@@ -1,6 +1,6 @@
 # Flux
 
-![Flux v1 Diagram](/img/flux-v1-diagram.png)
+![Flux v1 Diagram](_files/flux-cd-diagram.png)
 
 Flux is a tool that automatically ensures that the state of a cluster matches
 the config in git. It uses [an operator](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/)
@@ -26,7 +26,7 @@ Operator](https://github.com/fluxcd/helm-operator) to declaratively manage chart
 releases using `HelmRelease` custom resources.
 
 For progressive delivery patterns like Canary Releases, A/B Testing and Blue/Green,
-Flux can be used together with [Flagger](/flagger).
+Flux can be used together with [Flagger](https://fluxcd.io/flagger).
 
 ## Getting help
 

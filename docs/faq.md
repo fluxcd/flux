@@ -2,7 +2,7 @@
 
 ## Migrate to Flux v2
 
-[Flux v1 is in maintenance](https://github.com/fluxcd/flux/issues/3320) on the road to becoming formally superseded by Flux v2. Flux users are all encouraged to [migrate to Flux v2](/flux/migration/flux-v1-migration/) as early as possible.
+[Flux v1 is in maintenance](https://github.com/fluxcd/flux/issues/3320) on the road to becoming formally superseded by Flux v2. Flux users are all encouraged to [migrate to Flux v2](https://fluxcd.io/flux/migration/flux-v1-migration/) as early as possible.
 
 ### Why should I upgrade
 
@@ -20,7 +20,7 @@ Flux v1 implementation of image automation has serious performance issues scalin
 
 That's right, rate limiting undoutedly happened because of abusive clients pulling image metadata from many images (like Flux v1 did,) images that might only be stored for the purpose of retention policies, that might be relegated to cold storage if they were not being periodically retrieved.
 
-Flux v2 resolved this with [sortable image tags](/flux/guides/sortable-image-tags/); (this is a breaking change.)
+Flux v2 resolved this with [sortable image tags](https://fluxcd.io/flux/guides/sortable-image-tags/); (this is a breaking change.)
 
 Flux v1 requires one Flux daemon to be running per git repository/branch that syncs to the cluster. Flux v2 only expects cluster operators to run one source-controller instance, allowing to manage multiple repositories, or multiple clusters (or an entire fleet) with just one Flux installation.
 
@@ -38,7 +38,7 @@ An error is captured as a Kubernetes `Event` CRD, and is reflected in the `Statu
 
 There is an idealized use case of GitOps we might explain as: when an update comes, a pull-request is automatically opened and when it gets merged, it is automatically applied to the cluster. That sounds great, but is not really how things work in Flux v1.
 
-In Flux v2, this can actually be used as a real strategy; it is straight-forward to implement and covered by documenation: [Push updates to a different branch](/flux/guides/image-update/#push-updates-to-a-different-branch).
+In Flux v2, this can actually be used as a real strategy; it is straight-forward to implement and covered by documenation: [Push updates to a different branch](https://fluxcd.io/flux/guides/image-update/#push-updates-to-a-different-branch).
 
 In Flux v1, it was possible to set up incoming webhooks with [flux-recv](https://github.com/fluxcd/flux-recv) as a sidecar to Flux, which while it worked nicely, it isn't nicely integrated and frankly feels bolted-on, sort of like an after-market part. This may be more than appearance, it isn't mentioned at all in Flux v1 docs!
 
